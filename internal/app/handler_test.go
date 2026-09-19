@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"log/slog"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"mywebsite/internal/article"
+	"mywebsite/internal/auth"
 )
 
 type fixedClock struct {
@@ -18,6 +22,70 @@ type fixedClock struct {
 
 type readinessStub struct {
 	err error
+}
+
+type handlerAuthStub struct{}
+
+func (handlerAuthStub) Login(context.Context, string, string) (auth.LoginResult, error) {
+	return auth.LoginResult{}, auth.ErrInvalidCredentials
+}
+
+func (handlerAuthStub) Authenticate(context.Context, string) (auth.Session, error) {
+	return auth.Session{}, auth.ErrInvalidSession
+}
+
+func (handlerAuthStub) AuthenticateForReauth(ctx context.Context, token string) (auth.Session, error) {
+	return handlerAuthStub{}.Authenticate(ctx, token)
+}
+
+func (handlerAuthStub) ValidateCSRF(any, string) error { return auth.ErrCSRFInvalid }
+
+func (handlerAuthStub) Logout(context.Context, uint64) error { return nil }
+
+func (handlerAuthStub) Reauthenticate(context.Context, auth.Session, string) (auth.LoginResult, error) {
+	return auth.LoginResult{}, auth.ErrInvalidCredentials
+}
+
+type handlerArticleStub struct {
+	item article.PublishedArticle
+}
+
+func (stub handlerArticleStub) ListAdmin(context.Context, *article.Status, *string, int32, int32) ([]article.AdminArticleSummary, error) {
+	return nil, nil
+}
+
+func (stub handlerArticleStub) CountAdmin(context.Context, *article.Status, *string) (int64, error) {
+	return 0, nil
+}
+
+func (stub handlerArticleStub) CreateDraft(context.Context, article.CreateDraftRequest) (article.Article, error) {
+	return article.Article{}, nil
+}
+
+func (stub handlerArticleStub) GetByID(context.Context, uint64) (article.Article, error) {
+	return article.Article{}, sql.ErrNoRows
+}
+
+func (stub handlerArticleStub) Save(context.Context, uint64, article.SaveRequest) (article.Article, error) {
+	return article.Article{}, nil
+}
+
+func (stub handlerArticleStub) Publish(context.Context, uint64, article.PublishRequest) (article.Article, error) {
+	return article.Article{}, nil
+}
+
+func (stub handlerArticleStub) Withdraw(context.Context, uint64, article.WithdrawRequest) (article.Article, error) {
+	return article.Article{}, nil
+}
+
+func (stub handlerArticleStub) ListPublished(context.Context, int32, int32) ([]article.PublishedArticle, error) {
+	return []article.PublishedArticle{stub.item}, nil
+}
+
+func (stub handlerArticleStub) CountPublished(context.Context) (int64, error) { return 1, nil }
+
+func (stub handlerArticleStub) GetPublishedByULID(context.Context, string) (article.Article, error) {
+	return article.Article{Status: article.StatusPublished}, nil
 }
 
 func (r readinessStub) CheckReady(_ context.Context) error {
@@ -206,5 +274,39 @@ func TestAssetsAreServedFromEmbeddedFilesystem(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), ".site-header") {
 		t.Fatalf("embedded stylesheet was not served")
+	}
+}
+
+func TestStage1RoutesAreMountedAlongsidePublicRoutes(t *testing.T) {
+	publicULID := "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+	articles := handlerArticleStub{item: article.PublishedArticle{Title: "已发布文章", PublicULID: &publicULID}}
+	handler, err := NewHandler(HandlerOptions{
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Clock:         fixedClock{value: time.Date(2025, time.December, 31, 16, 30, 0, 0, time.UTC)},
+		Auth:          handlerAuthStub{},
+		Articles:      articles,
+		PublicBaseURL: "https://example.test",
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	apiResponse := httptest.NewRecorder()
+	handler.ServeHTTP(apiResponse, httptest.NewRequest(http.MethodGet, "/api/v1/session", nil))
+	if apiResponse.Code != http.StatusUnauthorized || apiResponse.Header().Get("Content-Type") != "application/problem+json" {
+		t.Fatalf("API response = %d %q, want admin API 401 problem response", apiResponse.Code, apiResponse.Header().Get("Content-Type"))
+	}
+
+	publicResponse := httptest.NewRecorder()
+	handler.ServeHTTP(publicResponse, httptest.NewRequest(http.MethodGet, "/articles", nil))
+	if publicResponse.Code != http.StatusOK || !strings.Contains(publicResponse.Body.String(), "已发布文章") {
+		t.Fatalf("public response = %d %s, want rendered published article", publicResponse.Code, publicResponse.Body.String())
+	}
+}
+
+func TestNewHandlerRejectsPartiallyConfiguredStage1Services(t *testing.T) {
+	_, err := NewHandler(HandlerOptions{Auth: handlerAuthStub{}})
+	if err == nil || !strings.Contains(err.Error(), "configured together") {
+		t.Fatalf("NewHandler() error = %v, want paired dependency error", err)
 	}
 }

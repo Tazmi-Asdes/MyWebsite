@@ -11,7 +11,10 @@ import (
 	"time"
 
 	"mywebsite/internal/app"
+	"mywebsite/internal/article"
+	"mywebsite/internal/auth"
 	"mywebsite/internal/database"
+	"mywebsite/internal/markdown"
 	"mywebsite/internal/platform"
 )
 
@@ -38,11 +41,18 @@ func main() {
 		os.Exit(1)
 	}
 	defer databaseConnection.Close()
+	queries := databaseConnection.Queries()
+	authService := auth.NewService(queries, auth.WithSessionTimeouts(config.SessionIdleDuration, config.SessionAbsoluteDuration))
+	articleService := article.NewService(queries, markdown.NewRenderer())
 
 	handler, err := app.NewHandler(app.HandlerOptions{
-		Logger:    logger,
-		Clock:     platform.NewShanghaiClock(),
-		Readiness: databaseConnection,
+		Logger:        logger,
+		Clock:         platform.NewShanghaiClock(),
+		Readiness:     databaseConnection,
+		Auth:          authService,
+		Articles:      articleService,
+		PublicBaseURL: config.PublicBaseURL,
+		CookieSecure:  config.CookieSecure,
 	})
 	if err != nil {
 		logger.Error("handler_initialization_failed", "error", err)

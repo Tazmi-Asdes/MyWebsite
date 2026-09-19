@@ -30,6 +30,9 @@ func TestParseConfigDefaults(t *testing.T) {
 	if config.ShutdownTimeout != defaultShutdownTimeout {
 		t.Fatalf("ShutdownTimeout = %s, want %s", config.ShutdownTimeout, defaultShutdownTimeout)
 	}
+	if config.AppEnv != defaultAppEnv || config.PublicBaseURL != "https://example.test" || config.SessionIdleDuration != defaultSessionIdleTimeout || config.SessionAbsoluteDuration != defaultSessionAbsoluteTimeout || config.CookieSecure {
+		t.Fatalf("application settings = %+v, want defaults", config)
+	}
 	if config.Database.Host != "db" || config.Database.Port != "3306" || config.Database.Name != "mywebsite" || config.Database.User != "app" || config.Database.PasswordFile != "C:\\secrets\\db-password" {
 		t.Fatalf("Database = %+v, want required database settings", config.Database)
 	}
@@ -93,7 +96,8 @@ func TestParseConfigRejectsDatabaseWhitespace(t *testing.T) {
 }
 
 func TestParseConfigRejectsInvalidAddress(t *testing.T) {
-	values := map[string]string{"HTTP_ADDR": "not-an-address"}
+	values := requiredDatabaseValues()
+	values["HTTP_ADDR"] = "not-an-address"
 	_, err := ParseConfig(mapLookup(values))
 	if err == nil || !strings.Contains(err.Error(), "HTTP_ADDR") {
 		t.Fatalf("ParseConfig() error = %v, want an HTTP_ADDR error", err)
@@ -101,7 +105,8 @@ func TestParseConfigRejectsInvalidAddress(t *testing.T) {
 }
 
 func TestParseConfigRejectsInvalidTimeout(t *testing.T) {
-	values := map[string]string{"HTTP_READ_TIMEOUT": "not-a-duration"}
+	values := requiredDatabaseValues()
+	values["HTTP_READ_TIMEOUT"] = "not-a-duration"
 	_, err := ParseConfig(mapLookup(values))
 	if err == nil || !strings.Contains(err.Error(), "HTTP_READ_TIMEOUT") {
 		t.Fatalf("ParseConfig() error = %v, want an HTTP_READ_TIMEOUT error", err)
@@ -109,10 +114,61 @@ func TestParseConfigRejectsInvalidTimeout(t *testing.T) {
 }
 
 func TestParseConfigLimitsShutdownTimeout(t *testing.T) {
-	values := map[string]string{"HTTP_SHUTDOWN_TIMEOUT": "31s"}
+	values := requiredDatabaseValues()
+	values["HTTP_SHUTDOWN_TIMEOUT"] = "31s"
 	_, err := ParseConfig(mapLookup(values))
 	if err == nil || !strings.Contains(err.Error(), "at most") {
 		t.Fatalf("ParseConfig() error = %v, want a shutdown limit error", err)
+	}
+}
+
+func TestParseConfigAcceptsProductionSettings(t *testing.T) {
+	values := requiredDatabaseValues()
+	values["APP_ENV"] = "production"
+	values["PUBLIC_BASE_URL"] = "https://example.test/"
+	values["SESSION_IDLE_DURATION"] = "2h"
+	values["SESSION_ABSOLUTE_DURATION"] = "4h"
+	values["COOKIE_SECURE"] = "true"
+	config, err := ParseConfig(mapLookup(values))
+	if err != nil {
+		t.Fatalf("ParseConfig() error = %v", err)
+	}
+	if config.AppEnv != "production" || config.PublicBaseURL != "https://example.test" || config.SessionIdleDuration != 2*time.Hour || config.SessionAbsoluteDuration != 4*time.Hour || !config.CookieSecure {
+		t.Fatalf("config = %+v", config)
+	}
+}
+
+func TestParseConfigRejectsInvalidApplicationSettings(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		value string
+	}{
+		{name: "env", key: "APP_ENV", value: "staging"},
+		{name: "base url", key: "PUBLIC_BASE_URL", value: "https://example.test/path"},
+		{name: "session idle", key: "SESSION_IDLE_DURATION", value: "0s"},
+		{name: "session order", key: "SESSION_IDLE_DURATION", value: "25h"},
+		{name: "cookie secure", key: "COOKIE_SECURE", value: "maybe"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			values := requiredDatabaseValues()
+			if test.name == "session order" {
+				values["SESSION_ABSOLUTE_DURATION"] = "24h"
+			}
+			values[test.key] = test.value
+			if _, err := ParseConfig(mapLookup(values)); err == nil || !strings.Contains(err.Error(), test.key) {
+				t.Fatalf("ParseConfig() error = %v, want %s error", err, test.key)
+			}
+		})
+	}
+
+	values := requiredDatabaseValues()
+	values["APP_ENV"] = "production"
+	values["PUBLIC_BASE_URL"] = "http://example.test"
+	values["COOKIE_SECURE"] = "false"
+	if _, err := ParseConfig(mapLookup(values)); err == nil || !strings.Contains(err.Error(), "production") {
+		t.Fatalf("production ParseConfig() error = %v", err)
 	}
 }
 
@@ -122,6 +178,7 @@ func emptyLookup(string) (string, bool) {
 
 func requiredDatabaseValues() map[string]string {
 	return map[string]string{
+		"PUBLIC_BASE_URL":  "https://example.test",
 		"DB_HOST":          "db",
 		"DB_PORT":          "3306",
 		"DB_NAME":          "mywebsite",

@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"mywebsite/internal/adminapi"
 	"mywebsite/internal/platform"
 	"mywebsite/internal/publicsite"
 	publicassets "mywebsite/web/public"
@@ -19,11 +21,22 @@ type Readiness interface {
 	CheckReady(context.Context) error
 }
 
+// ArticleServices is the shared article dependency used by the administrator
+// API and the public article renderer.
+type ArticleServices interface {
+	adminapi.ArticleService
+	publicsite.ArticleReader
+}
+
 // HandlerOptions controls the dependencies used by the HTTP handler.
 type HandlerOptions struct {
-	Logger    *slog.Logger
-	Clock     platform.Clock
-	Readiness Readiness
+	Logger        *slog.Logger
+	Clock         platform.Clock
+	Readiness     Readiness
+	Auth          adminapi.AuthService
+	Articles      ArticleServices
+	PublicBaseURL string
+	CookieSecure  bool
 }
 
 // NewHandler creates the Stage 0 HTTP handler and all of its routes.
@@ -37,13 +50,43 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 		clock = platform.NewShanghaiClock()
 	}
 
-	publicHandler, err := publicsite.NewHandler(publicassets.Files, clock)
+	if (options.Auth == nil) != (options.Articles == nil) {
+		return nil, fmt.Errorf("auth and article services must be configured together")
+	}
+
+	var (
+		publicHandler *publicsite.Handler
+		err           error
+	)
+	if options.Articles == nil {
+		publicHandler, err = publicsite.NewHandler(publicassets.Files, clock)
+	} else {
+		publicHandler, err = publicsite.NewHandlerWithArticles(publicassets.Files, clock, options.Articles)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	mux := http.NewServeMux()
 	publicHandler.RegisterRoutes(mux)
+	if options.Auth != nil {
+		adminHandler, adminErr := adminapi.NewHandler(adminapi.HandlerOptions{
+			Auth:          options.Auth,
+			Articles:      options.Articles,
+			PublicBaseURL: options.PublicBaseURL,
+			CookieSecure:  options.CookieSecure,
+			Now:           clock.Now,
+		})
+		if adminErr != nil {
+			return nil, adminErr
+		}
+		// Go's ServeMux rejects an all-method prefix pattern alongside the
+		// public `GET /` pattern. Register the API prefix for each method it
+		// exposes so the API remains more specific without being shadowed.
+		for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
+			mux.Handle(method+" /api/v1/", adminHandler)
+		}
+	}
 	mux.Handle("GET /-/live", http.HandlerFunc(liveHandler))
 	mux.Handle("GET /-/ready", readyHandler(options.Readiness))
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(publicassets.Assets))))

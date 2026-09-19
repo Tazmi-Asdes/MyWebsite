@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,24 +13,33 @@ import (
 )
 
 const (
-	defaultHTTPAddr            = "127.0.0.1:8080"
-	defaultReadHeaderTimeout   = 5 * time.Second
-	defaultReadTimeout         = 15 * time.Second
-	defaultWriteTimeout        = 15 * time.Second
-	defaultIdleTimeout         = 60 * time.Second
-	defaultShutdownTimeout     = 30 * time.Second
-	maxGracefulShutdownTimeout = 30 * time.Second
+	defaultHTTPAddr               = "127.0.0.1:8080"
+	defaultAppEnv                 = "development"
+	defaultSessionIdleTimeout     = 8 * time.Hour
+	defaultSessionAbsoluteTimeout = 24 * time.Hour
+	defaultCookieSecure           = false
+	defaultReadHeaderTimeout      = 5 * time.Second
+	defaultReadTimeout            = 15 * time.Second
+	defaultWriteTimeout           = 15 * time.Second
+	defaultIdleTimeout            = 60 * time.Second
+	defaultShutdownTimeout        = 30 * time.Second
+	maxGracefulShutdownTimeout    = 30 * time.Second
 )
 
 // Config contains the HTTP and database settings needed to run the server.
 type Config struct {
-	HTTPAddr          string
-	ReadHeaderTimeout time.Duration
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-	ShutdownTimeout   time.Duration
-	Database          database.Config
+	AppEnv                  string
+	PublicBaseURL           string
+	SessionIdleDuration     time.Duration
+	SessionAbsoluteDuration time.Duration
+	CookieSecure            bool
+	HTTPAddr                string
+	ReadHeaderTimeout       time.Duration
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	IdleTimeout             time.Duration
+	ShutdownTimeout         time.Duration
+	Database                database.Config
 }
 
 // LoadConfig reads the process environment and validates all supported HTTP
@@ -44,6 +54,42 @@ func LoadConfig() (Config, error) {
 func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 	if lookup == nil {
 		return Config{}, fmt.Errorf("configuration lookup function is nil")
+	}
+
+	appEnv, err := configuredValue(lookup, "APP_ENV", defaultAppEnv)
+	if err != nil {
+		return Config{}, err
+	}
+	if appEnv != "development" && appEnv != "production" {
+		return Config{}, fmt.Errorf("invalid APP_ENV %q: must be development or production", appEnv)
+	}
+
+	publicBaseURL, err := requiredConfiguredValue(lookup, "PUBLIC_BASE_URL")
+	if err != nil {
+		return Config{}, err
+	}
+	publicBaseURL, err = validatePublicBaseURL(publicBaseURL)
+	if err != nil {
+		return Config{}, err
+	}
+
+	sessionIdleDuration, err := durationValue(lookup, "SESSION_IDLE_DURATION", defaultSessionIdleTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+	sessionAbsoluteDuration, err := durationValue(lookup, "SESSION_ABSOLUTE_DURATION", defaultSessionAbsoluteTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+	if sessionIdleDuration > sessionAbsoluteDuration {
+		return Config{}, fmt.Errorf("SESSION_IDLE_DURATION must be no greater than SESSION_ABSOLUTE_DURATION")
+	}
+	cookieSecure, err := boolValue(lookup, "COOKIE_SECURE", defaultCookieSecure)
+	if err != nil {
+		return Config{}, err
+	}
+	if appEnv == "production" && (!cookieSecure || !strings.HasPrefix(publicBaseURL, "https://")) {
+		return Config{}, fmt.Errorf("production requires PUBLIC_BASE_URL to use https and COOKIE_SECURE=true")
 	}
 
 	addr, err := configuredValue(lookup, "HTTP_ADDR", defaultHTTPAddr)
@@ -84,14 +130,42 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 	}
 
 	return Config{
-		HTTPAddr:          addr,
-		ReadHeaderTimeout: readHeaderTimeout,
-		ReadTimeout:       readTimeout,
-		WriteTimeout:      writeTimeout,
-		IdleTimeout:       idleTimeout,
-		ShutdownTimeout:   shutdownTimeout,
-		Database:          databaseConfig,
+		AppEnv:                  appEnv,
+		PublicBaseURL:           publicBaseURL,
+		SessionIdleDuration:     sessionIdleDuration,
+		SessionAbsoluteDuration: sessionAbsoluteDuration,
+		CookieSecure:            cookieSecure,
+		HTTPAddr:                addr,
+		ReadHeaderTimeout:       readHeaderTimeout,
+		ReadTimeout:             readTimeout,
+		WriteTimeout:            writeTimeout,
+		IdleTimeout:             idleTimeout,
+		ShutdownTimeout:         shutdownTimeout,
+		Database:                databaseConfig,
 	}, nil
+}
+
+func boolValue(lookup func(string) (string, bool), key string, fallback bool) (bool, error) {
+	value, err := configuredValue(lookup, key, strconv.FormatBool(fallback))
+	if err != nil {
+		return false, err
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: must be a boolean", key, value)
+	}
+	return parsed, nil
+}
+
+func validatePublicBaseURL(value string) (string, error) {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") || parsed.Opaque != "" {
+		return "", fmt.Errorf("invalid PUBLIC_BASE_URL %q: must be an absolute http or https origin", value)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("invalid PUBLIC_BASE_URL %q: must use http or https", value)
+	}
+	return parsed.Scheme + "://" + parsed.Host, nil
 }
 
 func databaseConfigValue(lookup func(string) (string, bool)) (database.Config, error) {
