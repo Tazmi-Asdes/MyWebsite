@@ -18,13 +18,36 @@
     </nav>
   </header>
   <main class="page-shell">
-    <p class="eyebrow">{{.Eyebrow}}</p>
-    <h1>{{.Heading}}</h1>
-    <p class="lede">{{.Description}}</p>
+    <header class="page-heading">
+      <p class="eyebrow">{{.Eyebrow}}</p>
+      <h1>{{.Heading}}</h1>
+      <p class="lede">{{.Description}}</p>
+    </header>
+    {{if .Articles}}
+    <section class="article-list" aria-label="文章列表">
+      {{range .Articles}}
+      <article class="article-list-item">
+        <time datetime="{{.DateTime}}">{{.Published}}</time>
+        <div>
+          <h2>{{if .HasURL}}<a href="{{.URL}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h2>
+          <p>{{.Preview}}</p>
+        </div>
+      </article>
+      {{end}}
+    </section>
+    {{else}}
     <section class="empty-state" aria-live="polite">
       <h2>{{.EmptyTitle}}</h2>
       <p>{{.EmptyText}}</p>
     </section>
+    {{end}}
+    {{if gt .TotalPages 1}}
+    <nav class="pagination" aria-label="文章分页">
+      {{if .HasPrevious}}<a href="/articles?page={{.PreviousPage}}" aria-label="上一页">上一页</a>{{end}}
+      <span aria-current="page">第 {{.Page}} / {{.TotalPages}} 页</span>
+      {{if .HasNext}}<a href="/articles?page={{.NextPage}}" aria-label="下一页">下一页</a>{{end}}
+    </nav>
+    {{end}}
   </main>
   <footer class="site-footer">© {{.Year}} MyWebsite</footer>
 </body>

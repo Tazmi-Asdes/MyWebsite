@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{.Description}}">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{.OpenGraphTitle}}">
+  <meta property="og:description" content="{{.OpenGraphDesc}}">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">MyWebsite</a>
+    <nav aria-label="主导航">
+      <a href="/">首页</a>
+      <a class="active" href="/articles">文章</a>
+      <a href="/projects">项目</a>
+      <a href="/about">关于</a>
+    </nav>
+  </header>
+  <main class="article-page">
+    <header class="article-header reading-container">
+      <p class="eyebrow">WRITING</p>
+      <h1>{{.Heading}}</h1>
+      {{if .PublishedDate}}<time datetime="{{.PublishedDate}}">{{.PublishedDate}}</time>{{end}}
+    </header>
+    <div class="article-shell">
+      <article class="article-content">
+        {{if .TOC}}
+        <details class="toc-mobile">
+          <summary>目录</summary>
+          <ol>{{range .TOC}}<li class="toc-level-{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ol>
+        </details>
+        {{end}}
+        <div class="article-body">{{.BodyHTML}}</div>
+        <div class="article-back"><a class="text-link" href="/articles">← 返回文章列表</a></div>
+      </article>
+      {{if .TOC}}
+      <nav class="toc" aria-label="文章目录">
+        <h2>目录</h2>
+        <ol>{{range .TOC}}<li class="toc-level-{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ol>
+      </nav>
+      {{end}}
+    </div>
+  </main>
+  <footer class="site-footer">© {{.Year}} MyWebsite</footer>
+</body>
+</html>
