@@ -1,6 +1,37 @@
 <script setup lang="ts">
-function submitLogin(): void {
-  // Stage 0 is a visual and routing scaffold; authentication is intentionally deferred.
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ApiError } from '../api/client'
+import { initSession, login } from '../composables/useSession'
+
+const router = useRouter()
+const username = ref('')
+const password = ref('')
+const errorMessage = ref('')
+const submitting = ref(false)
+
+onMounted(async () => {
+  const current = await initSession()
+  if (current) await router.replace('/articles')
+})
+
+async function submitLogin(): Promise<void> {
+  if (submitting.value) return
+  errorMessage.value = ''
+  submitting.value = true
+  try {
+    await login(username.value.trim(), password.value)
+    password.value = ''
+    await router.replace('/articles')
+  } catch (error) {
+    if (error instanceof ApiError && error.problem?.code === 'validation_failed') {
+      errorMessage.value = '请输入有效的用户名和密码。'
+    } else {
+      errorMessage.value = '用户名或密码不正确，请检查后重试。'
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -11,7 +42,9 @@ function submitLogin(): void {
       <h1 id="login-title">管理员登录</h1>
       <p class="login-intro">登录后管理文章与公开项目。</p>
 
-      <form class="form-stack" @submit.prevent="submitLogin">
+      <p v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</p>
+
+      <form class="form-stack" novalidate @submit.prevent="submitLogin">
         <div class="field">
           <label for="username">用户名</label>
           <input
@@ -21,6 +54,7 @@ function submitLogin(): void {
             autocomplete="username"
             required
             autofocus
+            v-model="username"
           />
         </div>
 
@@ -32,12 +66,14 @@ function submitLogin(): void {
             type="password"
             autocomplete="current-password"
             required
+            v-model="password"
           />
         </div>
 
-        <button class="button button--primary" type="submit">登录</button>
+        <button class="button button--primary" type="submit" :disabled="submitting">
+          {{ submitting ? '登录中…' : '登录' }}
+        </button>
       </form>
-      <p class="stage-note">Stage 0 占位页面，认证功能将在后续阶段接入。</p>
     </section>
   </main>
 </template>

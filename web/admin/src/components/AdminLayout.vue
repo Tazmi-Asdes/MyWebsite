@@ -1,10 +1,38 @@
 <script setup lang="ts">
-import { RouterLink, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { clearSession, isSessionTerminationError, logout } from '../composables/useSession'
+import {
+  cancelPreparedLeave,
+  confirmLeave,
+  hasUnsavedChanges,
+  prepareNextLeave,
+} from '../composables/useUnsavedChanges'
 
 const route = useRoute()
+const router = useRouter()
+const logoutError = ref('')
 
 function isActive(section: 'articles' | 'projects'): boolean {
   return route.path.startsWith(`/${section}`)
+}
+
+async function signOut(): Promise<void> {
+  if (hasUnsavedChanges() && !confirmLeave()) return
+  if (hasUnsavedChanges()) prepareNextLeave()
+  logoutError.value = ''
+  try {
+    await logout()
+    await router.replace('/login')
+  } catch (error) {
+    if (isSessionTerminationError(error)) {
+      clearSession()
+      await router.replace('/login')
+      return
+    }
+    cancelPreparedLeave()
+    logoutError.value = '退出失败，请稍后重试。'
+  }
 }
 </script>
 
@@ -23,15 +51,13 @@ function isActive(section: 'articles' | 'projects'): boolean {
           to="/articles"
           :aria-current="isActive('articles') ? 'page' : undefined"
         >
-          <span aria-hidden="true">文章</span>
-          <span class="sr-only">管理</span>
+          文章管理
         </RouterLink>
         <RouterLink
           to="/projects"
           :aria-current="isActive('projects') ? 'page' : undefined"
         >
-          <span aria-hidden="true">项目</span>
-          <span class="sr-only">管理</span>
+          项目管理
         </RouterLink>
       </nav>
 
@@ -39,12 +65,10 @@ function isActive(section: 'articles' | 'projects'): boolean {
         <button
           class="nav-button"
           type="button"
-          disabled
-          aria-describedby="logout-help"
+          @click="signOut"
         >
           退出
         </button>
-        <p id="logout-help" class="nav-help">Stage 0 暂不提供退出功能</p>
       </div>
     </aside>
 
@@ -54,6 +78,7 @@ function isActive(section: 'articles' | 'projects'): boolean {
         <span class="mobile-header__status">管理端</span>
       </header>
       <main id="main-content" class="admin-content">
+        <p v-if="logoutError" class="notice notice--error" role="alert">{{ logoutError }}</p>
         <slot />
       </main>
     </div>
