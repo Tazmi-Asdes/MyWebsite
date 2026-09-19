@@ -280,7 +280,7 @@ export interface components {
              * @description 稳定机器可读错误码。
              * @enum {string}
              */
-            code: "validation_failed" | "authentication_required" | "session_expired" | "csrf_failed" | "version_conflict" | "github_repository_invalid" | "github_verification_unavailable" | "upload_too_large" | "upload_type_invalid" | "image_dimensions_exceeded" | "save_failed";
+            code: "validation_failed" | "authentication_required" | "session_expired" | "csrf_failed" | "version_conflict" | "github_repository_invalid" | "github_verification_unavailable" | "upload_too_large" | "upload_type_invalid" | "image_dimensions_exceeded" | "save_failed" | "invalid_request" | "not_found" | "unsupported_media_type" | "rate_limited" | "dependency_unavailable";
             request_id: string;
             errors: {
                 [key: string]: string[];

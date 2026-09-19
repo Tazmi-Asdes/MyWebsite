@@ -775,6 +775,11 @@ components:
             - upload_type_invalid
             - image_dimensions_exceeded
             - save_failed
+            - invalid_request
+            - not_found
+            - unsupported_media_type
+            - rate_limited
+            - dependency_unavailable
         request_id:
           type: string
         errors:
