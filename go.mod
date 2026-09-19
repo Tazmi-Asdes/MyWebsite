@@ -2,7 +2,10 @@ module mywebsite
 
 go 1.27.1
 
-tool github.com/pressly/goose/v3/cmd/goose
+tool (
+	github.com/pressly/goose/v3/cmd/goose
+	github.com/sqlc-dev/sqlc/cmd/sqlc
+)
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
@@ -49,6 +52,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
+	github.com/sqlc-dev/sqlc v1.31.1
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60 // indirect
 	github.com/vertica/vertica-sql-go v1.3.8 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810123728-f0c151ab31b9 // indirect
