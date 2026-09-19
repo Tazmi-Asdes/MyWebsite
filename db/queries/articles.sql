@@ -2,6 +2,10 @@
 INSERT INTO articles (
     title,
     body_markdown,
+    body_html,
+    toc_json,
+    preview_text,
+    renderer_version,
     status,
     version,
     created_at,
@@ -9,6 +13,10 @@ INSERT INTO articles (
 ) VALUES (
     sqlc.arg('title'),
     sqlc.narg('body_markdown'),
+    sqlc.narg('body_html'),
+    sqlc.narg('toc_json'),
+    sqlc.narg('preview_text'),
+    sqlc.narg('renderer_version'),
     'draft',
     1,
     sqlc.arg('created_at'),

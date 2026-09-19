@@ -56,11 +56,19 @@ const createArticle = `-- name: CreateArticle :execresult
 INSERT INTO articles (
     title,
     body_markdown,
+    body_html,
+    toc_json,
+    preview_text,
+    renderer_version,
     status,
     version,
     created_at,
     updated_at
 ) VALUES (
+    ?,
+    ?,
+    ?,
+    ?,
     ?,
     ?,
     'draft',
@@ -71,16 +79,24 @@ INSERT INTO articles (
 `
 
 type CreateArticleParams struct {
-	Title        string         `json:"title"`
-	BodyMarkdown sql.NullString `json:"body_markdown"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	Title           string          `json:"title"`
+	BodyMarkdown    sql.NullString  `json:"body_markdown"`
+	BodyHtml        sql.NullString  `json:"body_html"`
+	TocJson         json.RawMessage `json:"toc_json"`
+	PreviewText     sql.NullString  `json:"preview_text"`
+	RendererVersion sql.NullString  `json:"renderer_version"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, createArticle,
 		arg.Title,
 		arg.BodyMarkdown,
+		arg.BodyHtml,
+		arg.TocJson,
+		arg.PreviewText,
+		arg.RendererVersion,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
