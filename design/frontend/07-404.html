@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面未找到</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200">
+        <nav class="max-w-6xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-light text-gray-900">我的网站</div>
+                <div class="flex space-x-8 text-sm uppercase tracking-wider">
+                    <a href="/" class="text-gray-500 hover:text-black">首页</a>
+                    <a href="/articles" class="text-gray-500 hover:text-black">文章</a>
+                    <a href="/projects" class="text-gray-500 hover:text-black">项目</a>
+                    <a href="/about" class="text-gray-500 hover:text-black">关于我</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- 404 Content -->
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="text-center">
+            <!-- 404 Number -->
+            <div class="mb-8">
+                <h1 class="text-9xl font-light text-gray-900">404</h1>
+            </div>
+
+            <!-- Message -->
+            <div class="mb-12">
+                <h2 class="text-2xl font-light text-gray-900 mb-4">页面未找到</h2>
+                <p class="text-gray-600 max-w-md mx-auto leading-relaxed">
+                    抱歉，您访问的页面不存在或已被移除。
+                </p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-center space-x-4">
+                <a href="/" class="bg-black text-white px-6 py-3 font-light hover:bg-gray-800 transition">
+                    返回首页
+                </a>
+                <a href="/articles" class="border border-black px-6 py-3 font-light hover:bg-black hover:text-white transition">
+                    浏览文章
+                </a>
+            </div>
+
+            <!-- Divider -->
+            <div class="mt-16 mb-8">
+                <div class="w-32 h-px bg-gray-300 mx-auto"></div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="text-sm text-gray-500">
+                <p class="mb-4">您可能在寻找：</p>
+                <div class="flex justify-center space-x-6 uppercase tracking-wider">
+                    <a href="/articles" class="hover:text-black">文章</a>
+                    <a href="/projects" class="hover:text-black">项目</a>
+                    <a href="/about" class="hover:text-black">关于我</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-12">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-4 text-sm text-gray-500">© 2026 我的个人网站. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：404 页面
+
+        设计风格：极简黑白风格
+        - 纯白背景
+        - 大号 404 数字
+        - 极简布局
+        - 居中对齐
+        - 大量留白
+
+        布局结构：
+        1. Header: 导航栏（复用）
+
+        2. 404 Content（垂直居中）
+           - 大号 404 数字
+           - 错误信息
+           - CTA 按钮
+           - 分隔线
+           - 快速链接
+
+        3. Footer
+
+        设计元素：
+        - 404 数字：text-9xl, font-light
+        - 标题：text-2xl, font-light
+        - 按钮：黑白对比
+        - 链接：小写 → uppercase
+
+        交互：
+        - 按钮 hover 效果
+        - 链接 hover 颜色变化
+        - 简洁明了的导航
+
+        用户体验：
+        - 清晰的错误提示
+        - 明确的导航选项
+        - 友好的提示信息
+        - 快速返回主要页面
+        -->
+    </div>
+</body>
+</html>

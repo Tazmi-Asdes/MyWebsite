@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理 - 后台管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200">
+            <div class="h-16 flex items-center justify-center border-b border-gray-200">
+                <h1 class="text-xl font-light">后台管理</h1>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="/admin/dashboard" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/articles" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            文章管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/projects" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            项目管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/files" class="flex items-center px-4 py-3 bg-black text-white text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            文件管理
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+                <h2 class="text-xl font-light">文件管理</h2>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">管理员</span>
+                    <button class="text-sm text-gray-600 hover:text-black">退出</button>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-auto p-6">
+                <!-- Upload Area -->
+                <div class="bg-white border border-gray-200 p-8 mb-6">
+                    <div class="border-2 border-dashed border-gray-300 p-12 text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="text-sm text-gray-600 mb-2">点击上传或拖拽文件到此处</p>
+                        <p class="text-xs text-gray-400 mb-4">支持 JPG、PNG、GIF、PDF 等格式，单个文件不超过 10MB</p>
+                        <button class="bg-black text-white px-6 py-2 text-sm hover:bg-gray-800">
+                            选择文件
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="bg-white border border-gray-200 p-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <select class="px-3 py-2 border border-gray-300 text-sm focus:border-black focus:outline-none">
+                                <option>全部文件</option>
+                                <option>图片</option>
+                                <option>文档</option>
+                            </select>
+                            <button class="border border-gray-300 px-4 py-2 text-sm hover:border-black">
+                                批量删除
+                            </button>
+                        </div>
+                        <input type="text"
+                               placeholder="搜索文件名..."
+                               class="w-64 px-3 py-2 border border-gray-300 text-sm focus:border-black focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Files Grid -->
+                <div class="bg-white border border-gray-200">
+                    <!-- Table Header -->
+                    <div class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
+                        <div class="col-span-1 flex items-center">
+                            <input type="checkbox" class="cursor-pointer">
+                        </div>
+                        <div class="col-span-5">文件名</div>
+                        <div class="col-span-2">类型</div>
+                        <div class="col-span-2">大小</div>
+                        <div class="col-span-2">上传时间</div>
+                    </div>
+
+                    <!-- File Items -->
+                    <div class="divide-y divide-gray-100">
+                        <!-- File Item 1 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 items-center">
+                            <div class="col-span-1">
+                                <input type="checkbox" class="cursor-pointer">
+                            </div>
+                            <div class="col-span-5 flex items-center">
+                                <div class="w-12 h-12 bg-gray-200 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <div class="text-sm mb-1">react-hooks-cover.jpg</div>
+                                    <button class="text-xs text-gray-500 hover:underline">复制链接</button>
+                                </div>
+                            </div>
+                            <div class="col-span-2 text-sm text-gray-600">图片</div>
+                            <div class="col-span-2 text-sm text-gray-600">245 KB</div>
+                            <div class="col-span-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600">2026-09-15</span>
+                                <button class="text-gray-400 hover:text-black">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File Item 2 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 items-center">
+                            <div class="col-span-1">
+                                <input type="checkbox" class="cursor-pointer">
+                            </div>
+                            <div class="col-span-5 flex items-center">
+                                <div class="w-12 h-12 bg-gray-200 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <div class="text-sm mb-1">go-concurrency.png</div>
+                                    <button class="text-xs text-gray-500 hover:underline">复制链接</button>
+                                </div>
+                            </div>
+                            <div class="col-span-2 text-sm text-gray-600">图片</div>
+                            <div class="col-span-2 text-sm text-gray-600">412 KB</div>
+                            <div class="col-span-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600">2026-09-14</span>
+                                <button class="text-gray-400 hover:text-black">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File Item 3 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 items-center">
+                            <div class="col-span-1">
+                                <input type="checkbox" class="cursor-pointer">
+                            </div>
+                            <div class="col-span-5 flex items-center">
+                                <div class="w-12 h-12 bg-gray-200 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <div class="text-sm mb-1">docker-architecture.png</div>
+                                    <button class="text-xs text-gray-500 hover:underline">复制链接</button>
+                                </div>
+                            </div>
+                            <div class="col-span-2 text-sm text-gray-600">图片</div>
+                            <div class="col-span-2 text-sm text-gray-600">328 KB</div>
+                            <div class="col-span-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600">2026-09-13</span>
+                                <button class="text-gray-400 hover:text-black">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File Item 4 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 items-center">
+                            <div class="col-span-1">
+                                <input type="checkbox" class="cursor-pointer">
+                            </div>
+                            <div class="col-span-5 flex items-center">
+                                <div class="w-12 h-12 bg-gray-200 mr-3 flex-shrink-0 flex items-center justify-center text-xs text-gray-500">
+                                    PDF
+                                </div>
+                                <div>
+                                    <div class="text-sm mb-1">project-documentation.pdf</div>
+                                    <button class="text-xs text-gray-500 hover:underline">复制链接</button>
+                                </div>
+                            </div>
+                            <div class="col-span-2 text-sm text-gray-600">文档</div>
+                            <div class="col-span-2 text-sm text-gray-600">1.2 MB</div>
+                            <div class="col-span-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600">2026-09-12</span>
+                                <button class="text-gray-400 hover:text-black">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                        <div class="text-sm text-gray-600">
+                            显示 1-10 条，共 256 条
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="px-3 py-1 border border-gray-300 text-sm hover:border-black disabled:opacity-50" disabled>
+                                上一页
+                            </button>
+                            <button class="px-3 py-1 bg-black text-white text-sm">1</button>
+                            <button class="px-3 py-1 border border-gray-300 text-sm hover:border-black">2</button>
+                            <button class="px-3 py-1 border border-gray-300 text-sm hover:border-black">3</button>
+                            <span class="px-2 text-gray-400">...</span>
+                            <button class="px-3 py-1 border border-gray-300 text-sm hover:border-black">26</button>
+                            <button class="px-3 py-1 border border-gray-300 text-sm hover:border-black">
+                                下一页
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：文件管理 (/admin/files)
+
+        设计风格：极简黑白风格
+        - 列表布局
+        - 网格式表格
+
+        布局结构：
+        1. Sidebar + Header（复用）
+
+        2. Upload Area
+           - 大型上传区域
+           - 虚线边框
+           - 拖拽上传支持
+
+        3. Toolbar
+           - 文件类型筛选
+           - 批量删除按钮
+           - 搜索框
+
+        4. Files Table
+           - 12列网格布局
+           - 列：复选框、文件名（含缩略图）、类型、大小、上传时间、删除按钮
+           - 缩略图预览
+           - 复制链接功能
+
+        5. Pagination
+           - 分页导航
+
+        功能：
+        - 文件上传（拖拽/点击）
+        - 上传到阿里云 OSS
+        - 文件列表展示
+        - 搜索和筛选
+        - 批量选择删除
+        - 复制文件 URL
+        - 缩略图预览
+        - 分页加载
+        -->
+    </div>
+</body>
+</html>

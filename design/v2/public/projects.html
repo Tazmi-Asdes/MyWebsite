@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站的公开 GitHub 项目。">
+  <title>项目 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav"><span data-icon="menu" aria-hidden="true"></span><span>菜单</span></button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航"><a href="home.html">首页</a><a href="articles.html">文章</a><a href="projects.html" aria-current="page">项目</a><a href="about.html">关于我</a></nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <header class="page-heading"><div class="container"><p class="eyebrow">Projects</p><h1>项目</h1><p>公开仓库的简洁入口。详细实践过程会另外整理为文章。</p></div></header>
+    <section class="section" aria-label="项目列表">
+      <div class="container">
+        <div class="grid grid--three project-grid" data-filled>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/article-diagram.svg" alt="个人技术网站的部署流程示意图"></div>
+            <div class="project-card__footer"><h2>个人技术网站</h2><a href="https://github.com/example/personal-site" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/default-project.svg" alt=""></div>
+            <div class="project-card__footer"><h2>容器实验记录</h2><a href="https://github.com/example/container-lab" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/article-diagram.svg" alt="Kubernetes 实验的部署流程示意图"></div>
+            <div class="project-card__footer"><h2>Kubernetes 学习实验</h2><a href="https://github.com/example/kubernetes-lab" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+        </div>
+        <div class="empty-state" data-empty><div><h2>暂时没有公开项目</h2><p>项目公开后会按照设定顺序出现在这里。</p></div></div>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="container site-footer__inner"><span>© 2026 个人技术网站</span><div class="footer-links"><a href="mailto:hello@example.com">邮箱</a><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer>
+</body>
+</html>

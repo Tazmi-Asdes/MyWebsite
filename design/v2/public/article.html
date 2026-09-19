@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="记录个人网站从本地开发到异地物理服务器部署的完整过程。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="从本地开发到异地物理服务器部署">
+  <meta property="og:description" content="构建、发布、验证与回滚的可复现实践记录。">
+  <title>从本地开发到异地物理服务器部署 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav"><span data-icon="menu" aria-hidden="true"></span><span>菜单</span></button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航"><a href="home.html">首页</a><a href="articles.html" aria-current="page">文章</a><a href="projects.html">项目</a><a href="about.html">关于我</a></nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <header class="article-header reading-container">
+      <p class="eyebrow">实践记录</p>
+      <h1>从本地开发到异地物理服务器部署</h1>
+      <time datetime="2026-09-18">2026-09-18</time>
+    </header>
+    <div class="article-shell">
+      <article class="article-content">
+        <details class="toc-mobile">
+          <summary>目录</summary>
+          <ol><li><a href="#goal">目标与约束</a></li><li><a href="#architecture">部署链路</a></li><li><a href="#build">构建与发布</a></li><li><a href="#verify">验证与回滚</a></li></ol>
+        </details>
+
+        <p>这篇文章记录一个可重复的小型部署流程。目标不是堆叠工具，而是让每一步都有明确输入、输出和验证方式。文中的地址与配置均为原型数据，并已脱敏。</p>
+
+        <h2 id="goal">目标与约束</h2>
+        <p>应用在本地完成开发和测试，代码进入仓库后生成可部署产物，再传输到异地物理服务器。服务器只开放必要入口，管理员可以确认当前版本并在失败时恢复。</p>
+        <blockquote>先定义失败时如何退回，再开始设计发布流程。一个无法回滚的自动化流程仍然脆弱。</blockquote>
+        <h3 id="checklist">验收清单</h3>
+        <ul>
+          <li><input type="checkbox" checked disabled> 本地测试通过后才允许构建。</li>
+          <li><input type="checkbox" checked disabled> 每个发布产物具有唯一版本号。</li>
+          <li><input type="checkbox" disabled> 完成一次人工回滚演练。</li>
+        </ul>
+
+        <h2 id="architecture">部署链路</h2>
+        <p>流程保持短而清楚：本地负责开发与验证，仓库负责版本记录，目标服务器负责运行与观察。访问凭据不写入仓库。</p>
+        <figure>
+          <img src="../assets/article-diagram.svg" alt="本地开发经过代码仓库发布到异地服务器的部署流程">
+          <figcaption>图 1：部署链路示意图，实际服务器地址与凭据未公开。</figcaption>
+        </figure>
+        <div class="table-scroll" role="region" aria-label="部署阶段说明" tabindex="0">
+          <table>
+            <thead><tr><th>阶段</th><th>输入</th><th>输出</th><th>验证</th></tr></thead>
+            <tbody>
+              <tr><td>构建</td><td>已测试源码</td><td>带版本号的二进制</td><td>校验和一致</td></tr>
+              <tr><td>发布</td><td>构建产物</td><td>新运行版本</td><td>健康检查通过</td></tr>
+              <tr><td>回滚</td><td>上一版本</td><td>恢复服务</td><td>核心页面可访问</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="build">构建与发布</h2>
+        <p>Go 应用可以在明确的目标平台下构建。下面的命令仅演示构建步骤，真实路径应由部署环境统一配置。</p>
+        <pre aria-label="Go 构建命令"><code><span class="token-comment"># 运行测试并构建 Linux 版本</span>
+go test ./...
+GOOS=linux GOARCH=amd64 go build -trimpath -o dist/site ./cmd/site
+sha256sum dist/site</code></pre>
+        <p>服务配置同样保持最小化。敏感值通过运行环境提供，不应直接出现在文件中。</p>
+        <pre aria-label="服务配置示例"><code><span class="token-keyword">server</span>:
+  address: <span class="token-string">"127.0.0.1:8080"</span>
+  environment: <span class="token-string">"production"</span>
+  health_path: <span class="token-string">"/healthz"</span></code></pre>
+
+        <h3 id="files">文件切换</h3>
+        <p>新版本先写入独立目录，验证通过后再切换当前版本指针。这样可以避免把未完成的文件暴露给正在运行的服务。</p>
+
+        <h2 id="verify">验证与回滚</h2>
+        <p>发布后先验证健康检查，再验证首页与后台登录入口。任何一步失败，都保留旧版本并记录原因；公开页面不会展示内部错误详情。</p>
+        <ol>
+          <li>确认进程状态和监听地址。</li>
+          <li>请求 <code>/healthz</code> 并检查响应。</li>
+          <li>通过外部网络访问首页与一篇文章。</li>
+          <li>记录版本号、验证结果和回滚点。</li>
+        </ol>
+        <p>下一步会补充备份恢复演练，并把验证步骤整理成可重复执行的脚本。</p>
+        <div class="article-back"><a class="text-link" href="articles.html">← 返回文章列表</a></div>
+      </article>
+
+      <nav class="toc" aria-label="文章目录">
+        <h2>目录</h2>
+        <ol><li><a href="#goal">目标与约束</a></li><li><a href="#checklist">验收清单</a></li><li><a href="#architecture">部署链路</a></li><li><a href="#build">构建与发布</a></li><li><a href="#files">文件切换</a></li><li><a href="#verify">验证与回滚</a></li></ol>
+      </nav>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="container site-footer__inner"><span>© 2026 个人技术网站</span><div class="footer-links"><a href="mailto:hello@example.com">邮箱</a><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer>
+</body>
+</html>

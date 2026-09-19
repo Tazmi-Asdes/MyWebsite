@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目管理 - 后台管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200">
+            <div class="h-16 flex items-center justify-center border-b border-gray-200">
+                <h1 class="text-xl font-light">后台管理</h1>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="/admin/dashboard" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/articles" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            文章管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/projects" class="flex items-center px-4 py-3 bg-black text-white text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            项目管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/files" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            文件管理
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+                <h2 class="text-xl font-light">项目管理</h2>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">管理员</span>
+                    <button class="text-sm text-gray-600 hover:text-black">退出</button>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-auto p-6">
+                <!-- Toolbar -->
+                <div class="bg-white border border-gray-200 p-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <button class="bg-black text-white px-4 py-2 text-sm hover:bg-gray-800">
+                            新建项目
+                        </button>
+                        <input type="text"
+                               placeholder="搜索项目名称..."
+                               class="w-64 px-3 py-2 border border-gray-300 text-sm focus:border-black focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Projects Grid -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Project Card 1 -->
+                    <div class="bg-white border border-gray-200 hover:border-black transition">
+                        <div class="h-48 bg-gray-100 flex items-center justify-center border-b border-gray-200">
+                            <div class="w-16 h-16 border-2 border-gray-300"></div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-light mb-3">个人博客系统</h3>
+                            <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                                基于 React + Go 的全栈博客系统，支持 Markdown 编辑和代码高亮
+                            </p>
+                            <div class="flex flex-wrap gap-2 mb-4 text-xs">
+                                <span class="border border-gray-300 px-2 py-1">React</span>
+                                <span class="border border-gray-300 px-2 py-1">Go</span>
+                                <span class="border border-gray-300 px-2 py-1">MySQL</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex space-x-3 text-sm">
+                                    <button class="hover:underline">编辑</button>
+                                    <button class="text-gray-400 hover:text-black hover:underline">删除</button>
+                                </div>
+                                <div class="text-xs text-gray-500">排序: 1</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Card 2 -->
+                    <div class="bg-white border border-gray-200 hover:border-black transition">
+                        <div class="h-48 bg-gray-100 flex items-center justify-center border-b border-gray-200">
+                            <div class="w-16 h-16 border-2 border-gray-300"></div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-light mb-3">实时聊天应用</h3>
+                            <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                                基于 WebSocket 的实时通讯系统，支持群聊和私聊功能
+                            </p>
+                            <div class="flex flex-wrap gap-2 mb-4 text-xs">
+                                <span class="border border-gray-300 px-2 py-1">Vue</span>
+                                <span class="border border-gray-300 px-2 py-1">Node.js</span>
+                                <span class="border border-gray-300 px-2 py-1">Redis</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex space-x-3 text-sm">
+                                    <button class="hover:underline">编辑</button>
+                                    <button class="text-gray-400 hover:text-black hover:underline">删除</button>
+                                </div>
+                                <div class="text-xs text-gray-500">排序: 2</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Card 3 -->
+                    <div class="bg-white border border-gray-200 hover:border-black transition">
+                        <div class="h-48 bg-gray-100 flex items-center justify-center border-b border-gray-200">
+                            <div class="w-16 h-16 border-2 border-gray-300"></div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-light mb-3">数据可视化平台</h3>
+                            <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                                企业级数据可视化平台，支持多种图表类型
+                            </p>
+                            <div class="flex flex-wrap gap-2 mb-4 text-xs">
+                                <span class="border border-gray-300 px-2 py-1">React</span>
+                                <span class="border border-gray-300 px-2 py-1">Echarts</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex space-x-3 text-sm">
+                                    <button class="hover:underline">编辑</button>
+                                    <button class="text-gray-400 hover:text-black hover:underline">删除</button>
+                                </div>
+                                <div class="text-xs text-gray-500">排序: 3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Card -->
+                    <div class="bg-white border-2 border-dashed border-gray-300 hover:border-black transition flex items-center justify-center cursor-pointer min-h-[400px]">
+                        <div class="text-center">
+                            <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <p class="text-sm text-gray-600">创建新项目</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：项目管理 (/admin/projects)
+
+        设计风格：极简黑白风格
+        - 卡片网格布局
+        - 3列网格
+        - 简洁卡片设计
+
+        布局结构：
+        1. Sidebar + Header（复用）
+
+        2. Toolbar
+           - 新建项目按钮
+           - 搜索框
+
+        3. Projects Grid
+           - 3列响应式网格
+           - 项目卡片
+           - 添加新项目卡片（虚线边框）
+
+        4. Project Card
+           - 封面图区域（灰色占位）
+           - 项目名称
+           - 项目描述
+           - 技术栈标签
+           - 操作按钮（编辑、删除）
+           - 排序序号
+
+        功能：
+        - 项目列表展示
+        - 搜索项目
+        - 创建/编辑/删除项目
+        - 排序管理（拖拽或输入序号）
+        - 封面图上传
+        -->
+    </div>
+</body>
+</html>

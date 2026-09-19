@@ -1,0 +1,46 @@
+# Local environment and secrets
+.env
+.env.*
+!*.example
+!.env.example
+*.secret
+secret/
+secrets/
+
+# Runtime data, uploads, backups, and local state
+runtime/
+data/
+uploads/
+backups/
+backup/
+*.sqlite
+*.sqlite3
+
+# Go and test outputs
+bin/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+*.prof
+*.pprof
+
+# Frontend dependencies and build output
+web/admin/node_modules/
+web/admin/dist/
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

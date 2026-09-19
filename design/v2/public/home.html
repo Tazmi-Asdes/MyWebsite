@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="一个记录技术实践、文章与开源项目的个人技术网站原型。">
+  <title>首页 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav">
+        <span data-icon="menu" aria-hidden="true"></span><span>菜单</span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航">
+        <a href="home.html" aria-current="page">首页</a>
+        <a href="articles.html">文章</a>
+        <a href="projects.html">项目</a>
+        <a href="about.html">关于我</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero">
+      <div class="container hero__content">
+        <p class="eyebrow">个人线上空间</p>
+        <h1>你好，我是你的网名。</h1>
+        <p>这里用于长期记录技术实践、学习过程和偶尔冒出的想法。介绍文字仍是原型占位内容，之后可以统一替换。</p>
+        <div class="button-row">
+          <a class="button" href="articles.html">浏览文章</a>
+          <a class="button button--secondary" href="projects.html">浏览项目</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="latest-heading">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="latest-heading">最新文章</h2>
+          <a href="articles.html" data-filled>查看全部</a>
+        </div>
+        <div class="grid grid--three" data-filled>
+          <article class="card card--link">
+            <div class="card__body">
+              <p class="card__date"><time datetime="2026-09-18">2026-09-18</time></p>
+              <h3><a href="article.html">从本地开发到异地物理服务器部署</a></h3>
+              <p class="card__preview">记录一次完整的网站发布链路：构建、传输、反向代理、健康检查，以及失败后的回滚思路。</p>
+            </div>
+          </article>
+          <article class="card card--link">
+            <div class="card__body">
+              <p class="card__date"><time datetime="2026-09-12">2026-09-12</time></p>
+              <h3><a href="article.html">用容器整理可重复的开发环境</a></h3>
+              <p class="card__preview">把依赖、配置和启动步骤整理为可复现的容器环境，并记录遇到的权限与网络问题。</p>
+            </div>
+          </article>
+          <article class="card card--link">
+            <div class="card__body">
+              <p class="card__date"><time datetime="2026-09-03">2026-09-03</time></p>
+              <h3><a href="article.html">一次 Kubernetes 服务暴露实验</a></h3>
+              <p class="card__preview">从 Service 到 Ingress，逐步验证请求路径，并用最小实验理解集群内外的流量流向。</p>
+            </div>
+          </article>
+        </div>
+        <div class="empty-state" data-empty>
+          <div><h3>暂时没有公开文章</h3><p>文章发布后会出现在这里。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="projects-heading">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="projects-heading">项目</h2>
+          <a href="projects.html" data-filled>查看全部</a>
+        </div>
+        <div class="grid grid--three" data-filled>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/article-diagram.svg" alt="个人网站部署流程示意图"></div>
+            <div class="project-card__footer"><h3>个人技术网站</h3><a href="https://github.com/example/personal-site" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/default-project.svg" alt=""></div>
+            <div class="project-card__footer"><h3>容器实验记录</h3><a href="https://github.com/example/container-lab" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+          <article class="card project-card">
+            <div class="project-card__media"><img src="../assets/article-diagram.svg" alt="集群实验的流程示意图"></div>
+            <div class="project-card__footer"><h3>Kubernetes 学习实验</h3><a href="https://github.com/example/kubernetes-lab" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+          </article>
+        </div>
+        <div class="empty-state" data-empty>
+          <div><h3>暂时没有公开项目</h3><p>公开项目后会出现在这里。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="about-summary-heading">
+      <div class="container about-summary">
+        <img class="avatar" src="../assets/default-avatar.svg" alt="你的网名的默认头像">
+        <div>
+          <h2 id="about-summary-heading">你的网名</h2>
+          <p>这是个人介绍的占位内容。这里会简短说明我正在关注和记录的事情。</p>
+          <a class="text-link" href="about.html">了解更多</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <span>© 2026 个人技术网站</span>
+      <div class="footer-links"><a href="mailto:hello@example.com">邮箱</a><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+    </div>
+  </footer>
+</body>
+</html>

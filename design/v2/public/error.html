@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="页面无法访问。">
+  <title>页面无法访问 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav"><span data-icon="menu" aria-hidden="true"></span><span>菜单</span></button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航"><a href="home.html">首页</a><a href="articles.html">文章</a><a href="projects.html">项目</a><a href="about.html">关于我</a></nav>
+    </div>
+  </header>
+  <main id="main-content" class="error-page">
+    <section data-error-404 aria-labelledby="not-found-heading">
+      <p class="error-code" aria-hidden="true">404</p>
+      <h1 id="not-found-heading">页面不存在</h1>
+      <p>这个地址可能已经失效，或内容目前没有公开。</p>
+      <div class="button-row"><a class="button" href="home.html">返回首页</a><a class="button button--secondary" href="articles.html">浏览文章</a></div>
+    </section>
+    <section data-error-service aria-labelledby="service-heading">
+      <p class="error-code" aria-hidden="true">503</p>
+      <h1 id="service-heading">暂时无法访问</h1>
+      <p>服务遇到了临时问题，请稍后重试。页面不会展示内部错误细节。</p>
+      <div class="button-row"><button class="button" type="button" data-retry>重新尝试</button><a class="button button--secondary" href="home.html">返回首页</a></div>
+    </section>
+  </main>
+</body>
+</html>

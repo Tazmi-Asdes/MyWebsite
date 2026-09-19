@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站管理员登录原型。">
+  <title>管理员登录｜个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#login-main">跳到登录表单</a>
+  <main id="login-main" class="login-page">
+    <section class="login-panel" aria-labelledby="login-title">
+      <div class="login-panel__brand">个人技术网站</div>
+      <h1 id="login-title">管理员登录</h1>
+      <p>登录后管理文章与公开项目。</p>
+
+      <div class="notice notice--error" role="alert" data-login-error hidden>
+        用户名或密码不正确，请检查后重试。
+      </div>
+
+      <form class="form-grid" data-login-form novalidate>
+        <div class="field">
+          <label for="username">用户名</label>
+          <input class="input" id="username" name="username" type="text" autocomplete="username" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="button" type="submit">登录</button>
+      </form>
+    </section>
+  </main>
+  <script src="../assets/prototype.js"></script>
+</body>
+</html>

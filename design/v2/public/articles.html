@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站的文章列表。">
+  <title>文章 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav"><span data-icon="menu" aria-hidden="true"></span><span>菜单</span></button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航">
+        <a href="home.html">首页</a><a href="articles.html" aria-current="page">文章</a><a href="projects.html">项目</a><a href="about.html">关于我</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <header class="page-heading"><div class="container"><p class="eyebrow">Articles</p><h1>文章</h1><p>按时间记录技术实践、实验过程和阶段性思考。</p></div></header>
+    <section class="section" aria-label="文章列表">
+      <div class="container">
+        <div class="article-list" data-filled>
+          <article class="article-list__item">
+            <time datetime="2026-09-18">2026-09-18</time>
+            <div><h2><a href="article.html">从本地开发到异地物理服务器部署</a></h2><p>记录一次完整的网站发布链路：构建、传输、反向代理、健康检查，以及失败后的回滚思路。</p></div>
+          </article>
+          <article class="article-list__item">
+            <time datetime="2026-09-12">2026-09-12</time>
+            <div><h2><a href="article.html">用容器整理可重复的开发环境</a></h2><p>把依赖、配置和启动步骤整理为可复现的容器环境，并记录遇到的权限、卷挂载与网络问题。</p></div>
+          </article>
+          <article class="article-list__item">
+            <time datetime="2026-09-03">2026-09-03</time>
+            <div><h2><a href="article.html">一次 Kubernetes 服务暴露实验</a></h2><p>从 Service 到 Ingress，逐步验证请求路径，用最小实验理解集群内外的流量流向。</p></div>
+          </article>
+        </div>
+        <nav class="pagination" aria-label="文章分页" data-filled>
+          <span aria-disabled="true" aria-label="上一页">‹</span><span aria-current="page">1</span><a href="articles.html?page=2" aria-label="第 2 页">2</a><a href="articles.html?page=3" aria-label="第 3 页">3</a><a href="articles.html?page=2" aria-label="下一页">›</a>
+        </nav>
+        <div class="empty-state" data-empty><div><h2>暂时没有公开文章</h2><p>新文章发布后会按时间出现在这里。</p></div></div>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="container site-footer__inner"><span>© 2026 个人技术网站</span><div class="footer-links"><a href="mailto:hello@example.com">邮箱</a><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer>
+</body>
+</html>

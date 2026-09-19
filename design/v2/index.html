@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站 V2 高保真原型评审索引">
+  <title>V2 原型评审索引</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="assets/prototype.js"></script>
+</head>
+<body class="prototype-index">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="prototype-hero">
+    <div class="container">
+      <p class="eyebrow">Prototype Review · V2</p>
+      <h1>个人技术网站<br>高保真原型</h1>
+      <p>本索引只用于评审。产品页面本身没有主题开关和状态工具；下列入口通过查询参数模拟深浅主题、空内容、失败与会话场景，刷新后恢复初始原型数据。</p>
+      <div class="prototype-toolbar" aria-label="主题评审入口">
+        <a class="button button--small" href="index.html?theme=light">浅色评审</a>
+        <a class="button button--secondary button--small" href="index.html?theme=dark">深色评审</a>
+        <a class="button button--secondary button--small" href="README.md">阅读说明</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="prototype-section">
+      <div class="container">
+        <p class="eyebrow">Public · 6 pages</p>
+        <h2>公开站</h2>
+        <div class="prototype-grid">
+          <article class="prototype-card">
+            <h3>首页</h3>
+            <p>首屏、3 篇文章、3 个项目、关于摘要，以及无内容时保留模块的表现。</p>
+            <div class="prototype-links">
+              <a href="public/home.html">默认</a>
+              <a href="public/home.html?state=empty">空状态</a>
+              <a href="public/home.html?theme=dark">深色</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>文章列表</h3>
+            <p>单列文章、自动预览、每页 10 篇的页码结构与越界场景入口。</p>
+            <div class="prototype-links">
+              <a href="public/articles.html">默认</a>
+              <a href="public/articles.html?state=empty">空状态</a>
+              <a href="public/articles.html?page=2">第 2 页</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>文章正文</h3>
+            <p>完整中文技术长文，用于验证目录、代码、表格、引用、图片和移动端阅读。</p>
+            <div class="prototype-links">
+              <a href="public/article.html">默认</a>
+              <a href="public/article.html?theme=dark">深色</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>项目列表</h3>
+            <p>16:9 完整图片、默认项目图、GitHub 唯一动作以及空状态。</p>
+            <div class="prototype-links">
+              <a href="public/projects.html">默认</a>
+              <a href="public/projects.html?state=empty">空状态</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>关于我</h3>
+            <p>直角头像、内容数量、个人兴趣和弱联系入口，不包含履历与技能清单。</p>
+            <div class="prototype-links">
+              <a href="public/about.html">默认</a>
+              <a href="public/about.html?state=empty">零值统计</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>错误页面</h3>
+            <p>404 与临时服务故障共用视觉骨架，但保持不同语义和操作。</p>
+            <div class="prototype-links">
+              <a href="public/error.html">404</a>
+              <a href="public/error.html?state=service">临时故障</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="prototype-section">
+      <div class="container">
+        <p class="eyebrow">Admin · 5 pages</p>
+        <h2>管理端</h2>
+        <div class="prototype-grid">
+          <article class="prototype-card">
+            <h3>管理员登录</h3>
+            <p>用户名和密码登录、统一错误提示与会话失效后的重新认证。</p>
+            <div class="prototype-links">
+              <a href="admin/login.html">默认</a>
+              <a href="admin/login.html?state=error">登录错误</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>文章管理</h3>
+            <p>桌面表格、手机卡片、标题搜索、状态筛选和后台空状态。</p>
+            <div class="prototype-links">
+              <a href="admin/articles.html">默认</a>
+              <a href="admin/articles.html?state=empty">空状态</a>
+              <a href="admin/articles.html?theme=dark">深色</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>文章新建 / 编辑</h3>
+            <p>无预览 Markdown 编辑、字段校验、上传、保存失败、撤回和会话恢复。</p>
+            <div class="prototype-links">
+              <a href="admin/article-edit.html">草稿</a>
+              <a href="admin/article-edit.html?state=published">已发布</a>
+              <a href="admin/article-edit.html?state=save-error">保存失败</a>
+              <a href="admin/article-edit.html?state=upload-error">上传失败</a>
+              <a href="admin/article-edit.html?state=session">会话过期</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>项目管理</h3>
+            <p>公开/隐藏分组、拖拽排序、明确保存顺序与隐藏确认。</p>
+            <div class="prototype-links">
+              <a href="admin/projects.html">默认</a>
+              <a href="admin/projects.html?state=empty">空状态</a>
+            </div>
+          </article>
+          <article class="prototype-card">
+            <h3>项目新建 / 编辑</h3>
+            <p>名称、GitHub 校验、可选图片、默认图、上传预览和公开规则。</p>
+            <div class="prototype-links">
+              <a href="admin/project-edit.html">隐藏项目</a>
+              <a href="admin/project-edit.html?state=published">公开项目</a>
+              <a href="admin/project-edit.html?state=upload-error">上传失败</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="prototype-section">
+      <div class="container">
+        <p class="eyebrow">Review checklist</p>
+        <h2>完成验收</h2>
+        <div class="grid grid--three">
+          <div class="prototype-card"><h3>390px</h3><p>手机菜单、单列卡片、折叠目录、后台顶部导航与表单操作。</p></div>
+          <div class="prototype-card"><h3>768px</h3><p>平板项目两列、内容换行、表格与代码横向滚动。</p></div>
+          <div class="prototype-card"><h3>1440px</h3><p>桌面阅读宽度、右侧目录、三列网格、后台侧栏与拖拽列表。</p></div>
+          <div class="prototype-card"><h3>Light / Dark</h3><p>表面层级、边框、状态标签、代码块、焦点和错误提示。</p></div>
+          <div class="prototype-card"><h3>Keyboard</h3><p>跳过链接、菜单、表单、分页、对话框和明确焦点。</p></div>
+          <div class="prototype-card"><h3>States</h3><p>空内容、失败、确认、上传、会话过期和未保存离开。</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <span>V2 原型 · 仅供评审</span>
+      <span>离线 HTML / CSS / JavaScript</span>
+    </div>
+  </footer>
+</body>
+</html>

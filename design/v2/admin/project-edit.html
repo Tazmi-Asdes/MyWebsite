@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站项目编辑原型。">
+  <title>编辑项目｜个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="admin-navigation" aria-label="后台导航">
+      <div class="admin-sidebar__brand">个人技术网站</div>
+      <nav class="admin-nav" aria-label="内容管理"><a href="articles.html"><span data-icon="article"></span>文章管理</a><a href="projects.html" aria-current="page"><span data-icon="project"></span>项目管理</a></nav>
+      <nav class="admin-nav admin-nav--bottom" aria-label="账户与站点"><a href="../public/home.html"><span data-icon="external"></span>查看公开站</a><a href="login.html"><span data-icon="logout"></span>退出登录</a></nav>
+    </aside>
+    <div class="admin-main">
+      <header class="admin-mobile-header"><strong>个人技术网站</strong><button class="menu-button" type="button" data-menu-toggle aria-controls="admin-navigation" aria-expanded="false"><span data-icon="menu"></span><span>菜单</span></button></header>
+      <main id="main-content">
+        <header class="admin-page-header"><div><p class="eyebrow">项目管理</p><h1>编辑项目</h1></div><span class="status status--outline">隐藏</span></header>
+        <div class="admin-content">
+          <form class="editor-form" data-prototype-form data-success="项目已保存" novalidate>
+            <div class="editor-actions" aria-label="项目操作"><a class="button button--secondary button--small" href="projects.html" data-unsaved-demo>返回列表</a><div class="editor-actions__group"><button class="button button--secondary button--small" type="submit" data-project-action="hidden">保存为隐藏</button><button class="button button--small" type="submit" data-project-action="public">公开项目</button><button class="button button--danger button--small" type="button" data-dialog-open="hide-dialog">隐藏项目</button></div></div>
+            <div class="notice notice--error" role="alert" data-form-failure hidden>保存失败，公开站仍保留上一次成功保存的项目版本。请重试。</div>
+
+            <div class="form-grid">
+              <div class="field"><label for="project-name">项目名称</label><input class="input" id="project-name" name="name" value="个人技术网站" data-required aria-describedby="project-name-error"><span class="field__error" id="project-name-error" hidden>请输入项目名称。</span></div>
+              <div class="field"><label for="project-github">GitHub 仓库链接</label><input class="input" id="project-github" name="github" type="url" value="https://github.com/example/personal-site" data-github aria-describedby="project-github-hint project-github-error"><span class="field__hint" id="project-github-hint">隐藏项目可暂不填写；公开时必须是公开的 github.com 仓库地址。</span><span class="field__error" id="project-github-error" hidden>请输入公开 GitHub 仓库地址。</span></div>
+
+              <fieldset class="upload" data-upload>
+                <legend class="field__label">项目图片（可选）</legend>
+                <div class="upload__row"><div><strong>JPEG、PNG 或 WebP</strong><div class="field__hint">单张不超过 5 MB；未上传时使用统一默认图。</div></div><label class="button button--secondary button--small" for="project-image"><span data-icon="upload"></span>选择图片</label></div>
+                <input class="sr-only" id="project-image" type="file" accept="image/jpeg,image/png,image/webp">
+                <div class="upload__progress" role="progressbar" aria-label="图片上传进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><div class="upload__progress-bar"></div></div>
+                <img class="upload__preview" src="../assets/default-project.svg" alt="个人技术网站项目图片预览">
+                <p class="field__hint">当前显示默认项目图；上传后替换预览。公开页面会自动使用项目名称作为替代文字。</p>
+                <p class="field__error" role="alert" hidden></p>
+              </fieldset>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop" id="unsaved-dialog" role="presentation" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-title"><h2 id="unsaved-title">有未保存的修改</h2><p>离开此页面会丢失尚未保存的项目资料。</p><div class="dialog__actions"><button class="button button--secondary" type="button" data-dialog-close>继续编辑</button><a class="button button--danger" href="projects.html">放弃并离开</a></div></section></div>
+  <div class="dialog-backdrop" id="hide-dialog" role="presentation" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="hide-title"><h2 id="hide-title">隐藏这个公开项目？</h2><p>项目会立即从公开站消失，资料与已上传图片仍会保留。</p><div class="dialog__actions"><button class="button button--secondary" type="button" data-dialog-close>取消</button><button class="button button--danger" type="button" data-dialog-close data-toast="项目已隐藏">确认隐藏</button></div></section></div>
+
+  <script src="../assets/prototype.js"></script>
+</body>
+</html>

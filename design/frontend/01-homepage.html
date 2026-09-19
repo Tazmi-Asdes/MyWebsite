@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - 个人网站原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Header / Navigation -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-bold text-gray-800">我的网站</div>
+                <div class="flex space-x-8">
+                    <a href="/" class="text-blue-600 font-medium">首页</a>
+                    <a href="/articles" class="text-gray-600 hover:text-blue-600">文章</a>
+                    <a href="/projects" class="text-gray-600 hover:text-blue-600">项目</a>
+                    <a href="/about" class="text-gray-600 hover:text-blue-600">关于我</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-white py-20 border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <h1 class="text-5xl font-light mb-4 text-gray-900">欢迎来到我的个人网站</h1>
+            <p class="text-xl text-gray-600 mb-8">分享技术、记录成长、展示项目</p>
+            <div class="flex justify-center space-x-4">
+                <button class="bg-black text-white px-6 py-3 font-light hover:bg-gray-800 transition">
+                    查看文章
+                </button>
+                <button class="border border-black px-6 py-3 font-light hover:bg-black hover:text-white transition">
+                    浏览项目
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="max-w-6xl mx-auto px-4 py-16">
+        <div class="grid grid-cols-3 gap-12">
+            <div class="text-center">
+                <div class="text-4xl font-light text-black mb-2">128</div>
+                <div class="text-gray-500 text-sm uppercase tracking-wider">文章数量</div>
+            </div>
+            <div class="text-center border-l border-r border-gray-200">
+                <div class="text-4xl font-light text-black mb-2">45</div>
+                <div class="text-gray-500 text-sm uppercase tracking-wider">项目数量</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-light text-black mb-2">12.5K</div>
+                <div class="text-gray-500 text-sm uppercase tracking-wider">总访问量</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Latest Articles Section -->
+    <section class="max-w-6xl mx-auto px-4 py-12">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold text-gray-800">最新文章</h2>
+            <a href="/articles" class="text-blue-600 hover:underline">查看全部 →</a>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Article Card 1 -->
+            <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                <div class="h-48 bg-gray-100"></div>
+                <div class="p-6">
+                    <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                        <span>React</span>
+                        <span>·</span>
+                        <span>前端</span>
+                    </div>
+                    <h3 class="text-lg font-light text-gray-900 mb-2">深入理解 React Hooks</h3>
+                    <p class="text-gray-600 text-sm mb-4 leading-relaxed">探索 React Hooks 的核心概念和最佳实践...</p>
+                    <div class="flex justify-between items-center text-xs text-gray-500">
+                        <span>2026-09-15</span>
+                        <span>1.2K 阅读</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Article Card 2 -->
+            <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                <div class="h-48 bg-gray-100"></div>
+                <div class="p-6">
+                    <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                        <span>Go</span>
+                        <span>·</span>
+                        <span>后端</span>
+                    </div>
+                    <h3 class="text-lg font-light text-gray-900 mb-2">Go 并发编程实战</h3>
+                    <p class="text-gray-600 text-sm mb-4 leading-relaxed">掌握 Go 语言的 goroutine 和 channel...</p>
+                    <div class="flex justify-between items-center text-xs text-gray-500">
+                        <span>2026-09-14</span>
+                        <span>856 阅读</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Article Card 3 -->
+            <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                <div class="h-48 bg-gray-100"></div>
+                <div class="p-6">
+                    <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                        <span>Docker</span>
+                        <span>·</span>
+                        <span>DevOps</span>
+                    </div>
+                    <h3 class="text-lg font-light text-gray-900 mb-2">Docker 容器化部署指南</h3>
+                    <p class="text-gray-600 text-sm mb-4 leading-relaxed">从零开始学习 Docker 容器化技术...</p>
+                    <div class="flex justify-between items-center text-xs text-gray-500">
+                        <span>2026-09-13</span>
+                        <span>642 阅读</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Projects Section -->
+    <section class="bg-white py-16 border-t border-gray-200">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center mb-12">
+                <h2 class="text-3xl font-light text-gray-900">精选项目</h2>
+                <a href="/projects" class="text-sm uppercase tracking-wider hover:text-black">查看全部 →</a>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Project Card 1 -->
+                <div class="border border-gray-200 p-8 hover:border-black transition">
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="w-16 h-16 border border-gray-300"></div>
+                        <div class="flex space-x-3">
+                            <a href="#" class="text-gray-400 hover:text-black">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                            </a>
+                            <a href="#" class="text-gray-400 hover:text-black">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-light text-gray-900 mb-3">个人博客系统</h3>
+                    <p class="text-gray-600 mb-6 leading-relaxed">基于 React + Go 的全栈博客系统，支持 Markdown 编辑和代码高亮</p>
+                    <div class="flex flex-wrap gap-3 text-xs uppercase tracking-wider text-gray-500">
+                        <span>React</span>
+                        <span>·</span>
+                        <span>Go</span>
+                        <span>·</span>
+                        <span>MySQL</span>
+                    </div>
+                </div>
+
+                <!-- Project Card 2 -->
+                <div class="border border-gray-200 p-8 hover:border-black transition">
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="w-16 h-16 border border-gray-300"></div>
+                        <div class="flex space-x-3">
+                            <a href="#" class="text-gray-400 hover:text-black">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                            </a>
+                            <a href="#" class="text-gray-400 hover:text-black">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-light text-gray-900 mb-3">实时聊天应用</h3>
+                    <p class="text-gray-600 mb-6 leading-relaxed">基于 WebSocket 的实时通讯系统，支持群聊和私聊功能</p>
+                    <div class="flex flex-wrap gap-3 text-xs uppercase tracking-wider text-gray-500">
+                        <span>Vue</span>
+                        <span>·</span>
+                        <span>Node.js</span>
+                        <span>·</span>
+                        <span>Redis</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-12 mt-16">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-4 text-sm text-gray-500">© 2026 我的个人网站. All rights reserved.</p>
+            <div class="flex justify-center space-x-6 text-xs uppercase tracking-wider text-gray-400">
+                <a href="#" class="hover:text-black">GitHub</a>
+                <a href="#" class="hover:text-black">Twitter</a>
+                <a href="#" class="hover:text-black">Email</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：首页 (/)
+
+        布局结构：
+        1. Header: 固定顶部导航栏
+           - Logo/网站名称（左）
+           - 导航链接（右）：首页、文章、项目、关于我
+
+        2. Hero Section: 大幅横幅区域
+           - 主标题和副标题
+           - CTA 按钮：查看文章、浏览项目
+
+        3. Stats Section: 数据统计卡片
+           - 文章数量、项目数量、总访问量
+           - 3列网格布局
+
+        4. Latest Articles: 最新文章列表
+           - 3列网格布局（响应式）
+           - 文章卡片包含：封面图、标签、标题、摘要、日期、阅读量
+           - "查看全部"链接
+
+        5. Featured Projects: 精选项目
+           - 2列网格布局
+           - 项目卡片包含：图标、标题、描述、技术栈标签、GitHub/Demo 链接
+
+        6. Footer: 页脚
+           - 版权信息
+           - 社交媒体链接
+
+        交互元素：
+        - 卡片 hover 效果（阴影变化）
+        - 链接 hover 效果（颜色变化）
+        - 按钮 hover 效果
+
+        响应式设计：
+        - 桌面端：3列文章、2列项目
+        - 平板端：2列文章、1列项目
+        - 移动端：1列布局
+        -->
+    </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">部署流程示意图</title>
+  <desc id="desc">本地开发、代码仓库和异地服务器之间的部署流程</desc>
+  <rect width="1280" height="720" fill="#f7f7f4"/>
+  <g fill="none" stroke="#11110f" stroke-width="4">
+    <rect x="80" y="230" width="280" height="220"/>
+    <rect x="500" y="230" width="280" height="220"/>
+    <rect x="920" y="230" width="280" height="220"/>
+    <path d="M360 340h140m280 0h140"/>
+    <path d="m474 318 26 22-26 22m420-44 26 22-26 22"/>
+  </g>
+  <g fill="#11110f" font-family="system-ui,sans-serif" text-anchor="middle">
+    <text x="220" y="325" font-size="34">本地开发</text>
+    <text x="220" y="375" font-size="24">Build · Test</text>
+    <text x="640" y="325" font-size="34">代码仓库</text>
+    <text x="640" y="375" font-size="24">Version · Release</text>
+    <text x="1060" y="325" font-size="34">异地服务器</text>
+    <text x="1060" y="375" font-size="24">Deploy · Observe</text>
+  </g>
+</svg>

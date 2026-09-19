@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我 - 个人网站原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200">
+        <nav class="max-w-6xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-light text-gray-900">我的网站</div>
+                <div class="flex space-x-8 text-sm uppercase tracking-wider">
+                    <a href="/" class="text-gray-500 hover:text-black">首页</a>
+                    <a href="/articles" class="text-gray-500 hover:text-black">文章</a>
+                    <a href="/projects" class="text-gray-500 hover:text-black">项目</a>
+                    <a href="/about" class="text-black">关于我</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="max-w-4xl mx-auto px-4 py-16">
+        <!-- Profile Section -->
+        <section class="mb-20">
+            <div class="flex flex-col md:flex-row gap-12 items-center">
+                <div class="w-48 h-48 bg-gray-200 flex-shrink-0"></div>
+                <div>
+                    <h1 class="text-4xl font-light mb-4">张三</h1>
+                    <p class="text-xl text-gray-600 mb-4">全栈开发工程师</p>
+                    <p class="text-gray-700 leading-relaxed">
+                        专注于 Web 全栈开发，热爱开源和技术分享。拥有 5 年以上的前后端开发经验，擅长 React、Go、微服务架构等技术栈。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Info -->
+        <section class="mb-20 pb-20 border-b border-gray-200">
+            <div class="grid md:grid-cols-3 gap-8 text-center">
+                <div>
+                    <div class="text-xs uppercase tracking-wider text-gray-500 mb-2">Email</div>
+                    <a href="mailto:example@email.com" class="text-gray-900 hover:underline">example@email.com</a>
+                </div>
+                <div>
+                    <div class="text-xs uppercase tracking-wider text-gray-500 mb-2">GitHub</div>
+                    <a href="https://github.com/username" class="text-gray-900 hover:underline">@username</a>
+                </div>
+                <div>
+                    <div class="text-xs uppercase tracking-wider text-gray-500 mb-2">Location</div>
+                    <div class="text-gray-900">北京, 中国</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Skills Section -->
+        <section class="mb-20">
+            <h2 class="text-2xl font-light mb-8">技术栈</h2>
+
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 mb-4">前端开发</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="border border-gray-300 px-4 py-2 text-sm">React</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Vue.js</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">TypeScript</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Next.js</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Tailwind CSS</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Webpack</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 mb-4">后端开发</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Go</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Node.js</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Python</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Gin</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Express</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">RESTful API</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 mb-4">数据库 & 存储</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="border border-gray-300 px-4 py-2 text-sm">MySQL</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">PostgreSQL</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">MongoDB</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Redis</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 mb-4">DevOps & 工具</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Docker</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Kubernetes</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Git</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">Linux</span>
+                        <span class="border border-gray-300 px-4 py-2 text-sm">CI/CD</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Experience Section -->
+        <section class="mb-20">
+            <h2 class="text-2xl font-light mb-8">工作经历</h2>
+
+            <div class="space-y-12">
+                <div class="border-l-2 border-black pl-6">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-light">高级全栈工程师</h3>
+                        <span class="text-sm text-gray-500">2021 - 至今</span>
+                    </div>
+                    <div class="text-gray-600 mb-3">某科技公司</div>
+                    <ul class="space-y-2 text-gray-700 text-sm leading-relaxed">
+                        <li>• 负责公司核心产品的前后端架构设计与开发</li>
+                        <li>• 主导微服务架构改造，提升系统性能 40%</li>
+                        <li>• 带领团队完成多个大型项目的交付</li>
+                    </ul>
+                </div>
+
+                <div class="border-l-2 border-gray-300 pl-6">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-light">全栈工程师</h3>
+                        <span class="text-sm text-gray-500">2019 - 2021</span>
+                    </div>
+                    <div class="text-gray-600 mb-3">某互联网公司</div>
+                    <ul class="space-y-2 text-gray-700 text-sm leading-relaxed">
+                        <li>• 参与电商平台的开发与维护</li>
+                        <li>• 优化前端性能，提升页面加载速度 50%</li>
+                        <li>• 实现自动化部署流程</li>
+                    </ul>
+                </div>
+
+                <div class="border-l-2 border-gray-300 pl-6">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-light">前端工程师</h3>
+                        <span class="text-sm text-gray-500">2017 - 2019</span>
+                    </div>
+                    <div class="text-gray-600 mb-3">某创业公司</div>
+                    <ul class="space-y-2 text-gray-700 text-sm leading-relaxed">
+                        <li>• 负责公司官网及管理后台的前端开发</li>
+                        <li>• 使用 React 构建组件库，提升开发效率</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Education Section -->
+        <section class="mb-20">
+            <h2 class="text-2xl font-light mb-8">教育背景</h2>
+
+            <div class="border-l-2 border-black pl-6">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-lg font-light">计算机科学与技术 · 本科</h3>
+                    <span class="text-sm text-gray-500">2013 - 2017</span>
+                </div>
+                <div class="text-gray-600">某某大学</div>
+            </div>
+        </section>
+
+        <!-- Open Source Section -->
+        <section class="mb-20">
+            <h2 class="text-2xl font-light mb-8">开源贡献</h2>
+
+            <div class="space-y-6">
+                <div>
+                    <h3 class="font-light mb-2">个人开源项目</h3>
+                    <ul class="space-y-2 text-gray-700 text-sm leading-relaxed">
+                        <li>• <a href="#" class="underline hover:text-black">project-name</a> - 简短项目描述，GitHub Star 500+</li>
+                        <li>• <a href="#" class="underline hover:text-black">another-project</a> - 另一个项目描述，GitHub Star 300+</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-light mb-2">社区贡献</h3>
+                    <ul class="space-y-2 text-gray-700 text-sm leading-relaxed">
+                        <li>• 为 React 生态项目贡献代码</li>
+                        <li>• 在技术社区发表 50+ 篇技术文章</li>
+                        <li>• 参与技术会议演讲</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-12">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-4 text-sm text-gray-500">© 2026 我的个人网站. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：关于我 (/about)
+
+        设计风格：极简黑白风格
+        - 纯白背景
+        - 黑色文字和边框
+        - 灰度层次区分信息优先级
+        - 大量留白
+        - 细线条边框
+        - 无圆角
+        - 无阴影
+        - 无彩色
+
+        布局结构：
+        1. Header: 导航栏（极简设计）
+
+        2. Profile Section
+           - 头像占位（灰色方块）
+           - 姓名、职位
+           - 个人简介
+
+        3. Contact Info
+           - Email、GitHub、Location
+           - 3列网格布局
+           - 居中对齐
+
+        4. Skills Section
+           - 按类别分组
+           - 技能标签（边框样式）
+
+        5. Experience Section
+           - 时间线设计（左侧边线）
+           - 公司、职位、时间
+           - 工作描述
+
+        6. Education Section
+           - 学历信息
+           - 简洁展示
+
+        7. Open Source Section
+           - 开源项目列表
+           - 社区贡献
+
+        设计元素：
+        - 字体：font-light（细体）
+        - 边框：border-gray-200, border-black
+        - 文字：text-gray-500, text-gray-700, text-black
+        - 间距：大量 padding 和 margin
+        - 对齐：左对齐为主
+        - 强调：使用粗细、尺寸、颜色深浅
+
+        交互：
+        - hover: 下划线、颜色变深
+        - 无复杂动画
+        - 链接简洁明了
+        -->
+    </div>
+</body>
+</html>

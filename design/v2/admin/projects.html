@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="个人技术网站项目管理原型。">
+  <title>项目管理｜个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="admin-navigation" aria-label="后台导航">
+      <div class="admin-sidebar__brand">个人技术网站</div>
+      <nav class="admin-nav" aria-label="内容管理"><a href="articles.html"><span data-icon="article"></span>文章管理</a><a href="projects.html" aria-current="page"><span data-icon="project"></span>项目管理</a></nav>
+      <nav class="admin-nav admin-nav--bottom" aria-label="账户与站点"><a href="../public/home.html"><span data-icon="external"></span>查看公开站</a><a href="login.html"><span data-icon="logout"></span>退出登录</a></nav>
+    </aside>
+    <div class="admin-main">
+      <header class="admin-mobile-header"><strong>个人技术网站</strong><button class="menu-button" type="button" data-menu-toggle aria-controls="admin-navigation" aria-expanded="false"><span data-icon="menu"></span><span>菜单</span></button></header>
+      <main id="main-content">
+        <header class="admin-page-header"><div><p class="eyebrow">内容管理</p><h1>项目管理</h1></div><a class="button button--small" href="project-edit.html">新建项目</a></header>
+        <div class="admin-content">
+          <div data-filled>
+            <section class="admin-section" aria-labelledby="public-projects-title">
+              <div class="admin-section__head"><div><h2 id="public-projects-title">公开项目</h2><span class="field__hint">拖拽调整顺序，完成后明确保存。</span></div><button class="button button--small" type="button" data-save-order data-toast="项目顺序已保存" hidden>保存排序</button></div>
+              <div class="sortable-list" aria-label="公开项目排序列表">
+                <article class="sortable-item" draggable="true"><span class="drag-handle" data-icon="grip" aria-label="拖拽排序" tabindex="0"></span><img class="project-thumb" src="../assets/default-project.svg" alt="个人技术网站"><span class="sortable-item__name">个人技术网站</span><a class="sortable-item__link" href="https://github.com/example/personal-site">github.com/example/personal-site</a><span class="status status--solid">公开</span><span><a class="text-link" href="project-edit.html">编辑</a> <button class="button button--quiet" type="button" data-dialog-open="hide-dialog">隐藏</button></span></article>
+                <article class="sortable-item" draggable="true"><span class="drag-handle" data-icon="grip" aria-label="拖拽排序" tabindex="0"></span><img class="project-thumb" src="../assets/default-project.svg" alt="容器部署实验"><span class="sortable-item__name">容器部署实验</span><a class="sortable-item__link" href="https://github.com/example/container-lab">github.com/example/container-lab</a><span class="status status--solid">公开</span><span><a class="text-link" href="project-edit.html">编辑</a> <button class="button button--quiet" type="button" data-dialog-open="hide-dialog">隐藏</button></span></article>
+                <article class="sortable-item" draggable="true"><span class="drag-handle" data-icon="grip" aria-label="拖拽排序" tabindex="0"></span><img class="project-thumb" src="../assets/default-project.svg" alt="Kubernetes 学习环境"><span class="sortable-item__name">Kubernetes 学习环境</span><a class="sortable-item__link" href="https://github.com/example/k8s-lab">github.com/example/k8s-lab</a><span class="status status--solid">公开</span><span><a class="text-link" href="project-edit.html">编辑</a> <button class="button button--quiet" type="button" data-dialog-open="hide-dialog">隐藏</button></span></article>
+              </div>
+            </section>
+
+            <section class="admin-section" aria-labelledby="hidden-projects-title">
+              <div class="admin-section__head"><div><h2 id="hidden-projects-title">隐藏项目</h2><span class="field__hint">隐藏项目不参与公开顺序。</span></div></div>
+              <div class="sortable-list">
+                <article class="sortable-item"><span class="drag-handle" aria-hidden="true">—</span><img class="project-thumb" src="../assets/default-project.svg" alt="监控告警实验"><span class="sortable-item__name">监控告警实验</span><span class="sortable-item__link">尚未填写 GitHub 链接</span><span class="status status--outline">隐藏</span><a class="text-link" href="project-edit.html">编辑</a></article>
+              </div>
+            </section>
+          </div>
+
+          <section class="empty-state" data-empty aria-labelledby="projects-empty-title"><div><h2 id="projects-empty-title">还没有项目</h2><p>创建一个隐藏项目，准备完成后再公开。</p><a class="button" href="project-edit.html">新建项目</a></div></section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop" id="hide-dialog" role="presentation" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="hide-title"><h2 id="hide-title">隐藏这个公开项目？</h2><p>隐藏后项目会立即从公开站消失，但项目资料和图片会保留。</p><div class="dialog__actions"><button class="button button--secondary" type="button" data-dialog-close>取消</button><button class="button button--danger" type="button" data-dialog-close data-toast="项目已隐藏">确认隐藏</button></div></section></div>
+  <script src="../assets/prototype.js"></script>
+</body>
+</html>

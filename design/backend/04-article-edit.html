@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑文章 - 后台管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200">
+            <div class="h-16 flex items-center justify-center border-b border-gray-200">
+                <h1 class="text-xl font-light">后台管理</h1>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="/admin/dashboard" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/articles" class="flex items-center px-4 py-3 bg-black text-white text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            文章管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/projects" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            项目管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/files" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            文件管理
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+                <div class="flex items-center space-x-4">
+                    <a href="/admin/articles" class="text-gray-600 hover:text-black">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <h2 class="text-xl font-light">编辑文章</h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">管理员</span>
+                    <button class="text-sm text-gray-600 hover:text-black">退出</button>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-auto p-6">
+                <div class="max-w-5xl mx-auto">
+                    <form>
+                        <!-- Title -->
+                        <div class="bg-white border border-gray-200 p-6 mb-6">
+                            <label class="block text-xs uppercase tracking-wider text-gray-500 mb-3">
+                                文章标题
+                            </label>
+                            <input type="text"
+                                   value="深入理解 React Hooks 的工作原理"
+                                   class="w-full px-4 py-3 border border-gray-300 text-lg focus:border-black focus:outline-none"
+                                   placeholder="请输入文章标题">
+                        </div>
+
+                        <!-- Metadata -->
+                        <div class="bg-white border border-gray-200 p-6 mb-6">
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <!-- Tags -->
+                                <div>
+                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-3">
+                                        标签
+                                    </label>
+                                    <div class="flex flex-wrap gap-2 mb-3">
+                                        <span class="flex items-center px-3 py-1 border border-gray-300 text-sm">
+                                            React
+                                            <button type="button" class="ml-2 text-gray-400 hover:text-black">×</button>
+                                        </span>
+                                        <span class="flex items-center px-3 py-1 border border-gray-300 text-sm">
+                                            前端
+                                            <button type="button" class="ml-2 text-gray-400 hover:text-black">×</button>
+                                        </span>
+                                    </div>
+                                    <input type="text"
+                                           placeholder="添加标签，按回车确认"
+                                           class="w-full px-4 py-2 border border-gray-300 text-sm focus:border-black focus:outline-none">
+                                </div>
+
+                                <!-- Status -->
+                                <div>
+                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-3">
+                                        状态
+                                    </label>
+                                    <select class="w-full px-4 py-2 border border-gray-300 focus:border-black focus:outline-none">
+                                        <option value="published">已发布</option>
+                                        <option value="archived">已归档</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cover Image -->
+                        <div class="bg-white border border-gray-200 p-6 mb-6">
+                            <label class="block text-xs uppercase tracking-wider text-gray-500 mb-3">
+                                封面图
+                            </label>
+                            <div class="border border-gray-300 border-dashed p-8 text-center">
+                                <div class="mb-4">
+                                    <div class="w-24 h-24 bg-gray-100 mx-auto mb-4"></div>
+                                    <p class="text-sm text-gray-600 mb-2">点击上传或拖拽文件到此处</p>
+                                    <p class="text-xs text-gray-400">支持 JPG、PNG 格式，建议尺寸 1200x600</p>
+                                </div>
+                                <button type="button" class="border border-black px-6 py-2 text-sm hover:bg-black hover:text-white">
+                                    选择文件
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="bg-white border border-gray-200 p-6 mb-6">
+                            <label class="block text-xs uppercase tracking-wider text-gray-500 mb-3">
+                                文章摘要
+                            </label>
+                            <textarea rows="4"
+                                      class="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none resize-none"
+                                      placeholder="请输入文章摘要（选填）">React Hooks 彻底改变了我们编写 React 组件的方式。本文将深入探讨 Hooks 的核心概念、工作原理以及最佳实践。</textarea>
+                        </div>
+
+                        <!-- Content Editor -->
+                        <div class="bg-white border border-gray-200 mb-6">
+                            <div class="border-b border-gray-200 p-4">
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-xs uppercase tracking-wider text-gray-500">正文内容</span>
+                                    <div class="flex-1"></div>
+                                    <div class="flex items-center space-x-2 text-sm">
+                                        <button type="button" class="px-3 py-1 border border-gray-300 hover:border-black">预览</button>
+                                        <button type="button" class="px-3 py-1 bg-black text-white">Markdown</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <textarea rows="20"
+                                          class="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none font-mono text-sm resize-none"
+                                          placeholder="请使用 Markdown 格式编写文章内容..."># 什么是 React Hooks？
+
+React Hooks 是 React 16.8 引入的新特性，它允许你在不编写 class 的情况下使用 state 以及其他的 React 特性。
+
+## 常用的 Hooks
+
+### useState
+
+useState 是最基本的 Hook，它让函数组件可以拥有内部状态。
+
+```javascript
+import React, { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>
+        Click me
+      </button>
+    </div>
+  );
+}
+```</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex justify-between items-center">
+                            <button type="button" class="border border-gray-300 px-6 py-3 text-sm hover:border-black">
+                                取消
+                            </button>
+                            <div class="flex space-x-3">
+                                <button type="button" class="border border-black px-6 py-3 text-sm hover:bg-black hover:text-white">
+                                    保存草稿
+                                </button>
+                                <button type="submit" class="bg-black text-white px-6 py-3 text-sm hover:bg-gray-800">
+                                    发布文章
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：编辑文章 (/admin/articles/edit/:id 或 /admin/articles/new)
+
+        设计风格：极简黑白风格
+        - 表单布局
+        - 分块设计
+        - 清晰的字段标签
+
+        布局结构：
+        1. Sidebar + Header（复用，Header 有返回按钮）
+
+        2. Form Sections（最大宽度居中）
+           - 文章标题
+           - 元数据（标签、状态）
+           - 封面图上传
+           - 文章摘要
+           - 正文内容（Markdown 编辑器）
+           - 操作按钮
+
+        3. Title Field
+           - 大号输入框
+
+        4. Metadata
+           - 标签输入（可添加/删除）
+           - 状态下拉选择
+
+        5. Cover Image Upload
+           - 虚线边框上传区域
+           - 拖拽上传支持
+           - 预览图显示
+
+        6. Summary Field
+           - 多行文本框
+
+        7. Content Editor
+           - Markdown/预览切换
+           - 大型文本编辑区
+           - 等宽字体
+
+        8. Action Buttons
+           - 取消、保存草稿、发布文章
+           - 左右分布
+
+        功能：
+        - Markdown 编辑
+        - 实时预览
+        - 标签管理
+        - 图片上传（OSS）
+        - 表单验证
+        - 自动保存
+        -->
+    </div>
+</body>
+</html>

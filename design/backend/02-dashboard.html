@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - 后台管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Layout Container -->
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200">
+            <!-- Logo -->
+            <div class="h-16 flex items-center justify-center border-b border-gray-200">
+                <h1 class="text-xl font-light">后台管理</h1>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="p-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="/admin/dashboard" class="flex items-center px-4 py-3 bg-black text-white text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/articles" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            文章管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/projects" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            项目管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/files" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            文件管理
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+                <h2 class="text-xl font-light">Dashboard</h2>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">管理员</span>
+                    <button class="text-sm text-gray-600 hover:text-black">退出</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-auto p-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Card 1 -->
+                    <div class="bg-white border border-gray-200 p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-xs uppercase tracking-wider text-gray-500">文章总数</div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="text-3xl font-light mb-2">128</div>
+                        <div class="text-xs text-gray-500">
+                            <span class="text-black">+12</span> 本月新增
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="bg-white border border-gray-200 p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-xs uppercase tracking-wider text-gray-500">项目总数</div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        </div>
+                        <div class="text-3xl font-light mb-2">45</div>
+                        <div class="text-xs text-gray-500">
+                            <span class="text-black">+3</span> 本月新增
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="bg-white border border-gray-200 p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-xs uppercase tracking-wider text-gray-500">总访问量</div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </div>
+                        <div class="text-3xl font-light mb-2">12.5K</div>
+                        <div class="text-xs text-gray-500">
+                            <span class="text-black">+1.2K</span> 本月新增
+                        </div>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="bg-white border border-gray-200 p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-xs uppercase tracking-wider text-gray-500">上传文件</div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div class="text-3xl font-light mb-2">256</div>
+                        <div class="text-xs text-gray-500">
+                            <span class="text-black">+24</span> 本月新增
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Articles & Quick Actions -->
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <!-- Recent Articles -->
+                    <div class="bg-white border border-gray-200">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="font-light">最近文章</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-start pb-4 border-b border-gray-100">
+                                    <div class="flex-1">
+                                        <h4 class="text-sm mb-1">深入理解 React Hooks</h4>
+                                        <p class="text-xs text-gray-500">2026-09-15 · 1,234 阅读</p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 border border-gray-300">已发布</span>
+                                </div>
+                                <div class="flex justify-between items-start pb-4 border-b border-gray-100">
+                                    <div class="flex-1">
+                                        <h4 class="text-sm mb-1">Go 并发编程实战</h4>
+                                        <p class="text-xs text-gray-500">2026-09-14 · 856 阅读</p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 border border-gray-300">已发布</span>
+                                </div>
+                                <div class="flex justify-between items-start pb-4 border-b border-gray-100">
+                                    <div class="flex-1">
+                                        <h4 class="text-sm mb-1">Docker 容器化部署指南</h4>
+                                        <p class="text-xs text-gray-500">2026-09-13 · 642 阅读</p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 border border-gray-300">已发布</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center">
+                                <a href="/admin/articles" class="text-sm hover:underline">查看全部</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white border border-gray-200">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="font-light">快捷操作</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-3">
+                                <button class="w-full flex items-center justify-between px-4 py-3 border border-gray-300 hover:border-black text-sm text-left">
+                                    <span>创建新文章</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                </button>
+                                <button class="w-full flex items-center justify-between px-4 py-3 border border-gray-300 hover:border-black text-sm text-left">
+                                    <span>创建新项目</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                </button>
+                                <button class="w-full flex items-center justify-between px-4 py-3 border border-gray-300 hover:border-black text-sm text-left">
+                                    <span>上传文件</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                </button>
+                                <button class="w-full flex items-center justify-between px-4 py-3 border border-gray-300 hover:border-black text-sm text-left">
+                                    <span>查看统计</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 设计说明 -->
+    <div style="display:none;">
+        <!--
+        页面：Dashboard (/admin/dashboard)
+
+        设计风格：极简黑白风格（Ant Design Pro 布局）
+        - 左侧边栏 + 顶部栏 + 内容区
+        - 纯白背景
+        - 细线边框分隔
+        - 无圆角
+        - 无阴影
+
+        布局结构：
+        1. Sidebar（左侧边栏，固定宽度 256px）
+           - Logo/标题
+           - 导航菜单
+             - Dashboard（当前选中，黑底白字）
+             - 文章管理
+             - 项目管理
+             - 文件管理
+
+        2. Header（顶部栏）
+           - 页面标题
+           - 用户信息
+           - 退出按钮
+
+        3. Main Content（主内容区）
+           - Stats Cards（统计卡片，4列网格）
+             - 文章总数
+             - 项目总数
+             - 总访问量
+             - 上传文件
+           - Recent Articles（最近文章列表）
+           - Quick Actions（快捷操作按钮）
+
+        设计元素：
+        - 侧边栏：bg-white, border-r
+        - 导航：hover:bg-gray-50, active:bg-black
+        - 卡片：border, 数字大号显示
+        - 按钮：border, hover:border-black
+
+        功能：
+        - 数据概览
+        - 快捷入口
+        - 最近内容展示
+        - 快速操作
+        -->
+    </div>
+</body>
+</html>

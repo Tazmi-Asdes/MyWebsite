@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">默认项目图</title>
+  <desc id="desc">黑白几何项目占位图</desc>
+  <rect width="1280" height="720" fill="#eeeee9"/>
+  <path d="M0 0h426v720H0z" fill="#11110f"/>
+  <path d="M426 0h428v360H426z" fill="#d6d6cf"/>
+  <path d="M854 360h426v360H854z" fill="#11110f"/>
+  <circle cx="640" cy="540" r="120" fill="none" stroke="#11110f" stroke-width="22"/>
+  <circle cx="1067" cy="180" r="116" fill="none" stroke="#11110f" stroke-width="22"/>
+</svg>

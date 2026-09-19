@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章列表 - 个人网站原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Header / Navigation -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-bold text-gray-800">我的网站</div>
+                <div class="flex space-x-8">
+                    <a href="/" class="text-gray-600 hover:text-blue-600">首页</a>
+                    <a href="/articles" class="text-blue-600 font-medium">文章</a>
+                    <a href="/projects" class="text-gray-600 hover:text-blue-600">项目</a>
+                    <a href="/about" class="text-gray-600 hover:text-blue-600">关于我</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Page Header -->
+    <section class="bg-white py-12 border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-4">
+            <h1 class="text-4xl font-light text-gray-900 mb-2">文章列表</h1>
+            <p class="text-gray-600">共 128 篇文章</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto px-4 py-12">
+        <div class="flex gap-8">
+            <!-- Articles Grid -->
+            <div class="flex-1">
+                <!-- Search and Filter Bar -->
+                <div class="bg-white border border-gray-200 p-4 mb-6">
+                    <div class="flex gap-4">
+                        <input type="text" placeholder="搜索文章..."
+                            class="flex-1 px-4 py-2 border border-gray-200 focus:outline-none focus:border-black">
+                        <select class="px-4 py-2 border border-gray-200 focus:outline-none focus:border-black">
+                            <option>所有标签</option>
+                            <option>React</option>
+                            <option>Go</option>
+                            <option>Docker</option>
+                            <option>JavaScript</option>
+                        </select>
+                        <select class="px-4 py-2 border border-gray-200 focus:outline-none focus:border-black">
+                            <option>最新发布</option>
+                            <option>最多阅读</option>
+                            <option>最多评论</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Article Cards Grid -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Article Card 1 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>React</span>
+                                <span>·</span>
+                                <span>前端</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">深入理解 React Hooks</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">探索 React Hooks 的核心概念和最佳实践，包括 useState、useEffect、useContext 等常用 Hook 的使用场景...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-15</span>
+                                <span>1.2K 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Card 2 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>Go</span>
+                                <span>·</span>
+                                <span>后端</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">Go 并发编程实战</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">掌握 Go 语言的 goroutine 和 channel，学习如何构建高性能的并发应用程序...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-14</span>
+                                <span>856 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Card 3 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>Docker</span>
+                                <span>·</span>
+                                <span>DevOps</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">Docker 容器化部署指南</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">从零开始学习 Docker 容器化技术，了解镜像构建、容器编排和生产环境部署...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-13</span>
+                                <span>642 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Card 4 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>JavaScript</span>
+                                <span>·</span>
+                                <span>前端</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">现代 JavaScript 开发指南</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">深入了解 ES6+ 的新特性，掌握现代 JavaScript 开发的最佳实践和工具链...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-12</span>
+                                <span>1.5K 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Card 5 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>Vue</span>
+                                <span>·</span>
+                                <span>前端</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">Vue 3 组合式 API 实战</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">学习 Vue 3 的 Composition API，构建更加灵活和可维护的前端应用...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-11</span>
+                                <span>923 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Card 6 -->
+                    <div class="bg-white border border-gray-200 overflow-hidden hover:border-black transition">
+                        <div class="h-48 bg-gray-100"></div>
+                        <div class="p-6">
+                            <div class="flex items-center space-x-2 mb-3 text-xs uppercase tracking-wider text-gray-500">
+                                <span>PostgreSQL</span>
+                                <span>·</span>
+                                <span>数据库</span>
+                            </div>
+                            <h3 class="text-lg font-light text-gray-900 mb-2">PostgreSQL 性能优化技巧</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">探索 PostgreSQL 数据库的性能优化方法，包括索引优化、查询调优等...</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>2026-09-10</span>
+                                <span>734 阅读</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="mt-12 flex justify-center">
+                    <div class="flex items-center space-x-2">
+                        <button class="px-4 py-2 border border-gray-200 text-gray-400 cursor-not-allowed">上一页</button>
+                        <button class="px-4 py-2 bg-black text-white">1</button>
+                        <button class="px-4 py-2 border border-gray-200 hover:border-black">2</button>
+                        <button class="px-4 py-2 border border-gray-200 hover:border-black">3</button>
+                        <button class="px-4 py-2 border border-gray-200 hover:border-black">4</button>
+                        <button class="px-4 py-2 border border-gray-200 hover:border-black">5</button>
+                        <button class="px-4 py-2 border border-gray-200 hover:border-black">下一页</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="w-80">
+                <!-- Tags Cloud -->
+                <div class="bg-white border border-gray-200 p-6 mb-6">
+                    <h3 class="text-lg font-light text-gray-900 mb-4">标签云</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">React (24)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">Go (18)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">JavaScript (32)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">Docker (12)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">Vue (16)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">Node.js (21)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">TypeScript (19)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">PostgreSQL (8)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">Redis (10)</a>
+                        <a href="#" class="px-3 py-1 border border-gray-200 text-xs hover:border-black transition">DevOps (14)</a>
+                    </div>
+                </div>
+
+                <!-- Popular Articles -->
+                <div class="bg-white border border-gray-200 p-6">
+                    <h3 class="text-lg font-light text-gray-900 mb-4">热门文章</h3>
+                    <div class="space-y-4">
+                        <div class="border-b border-gray-100 pb-4">
+                            <h4 class="text-sm font-light text-gray-900 mb-1">深入理解 React Hooks</h4>
+                            <p class="text-xs text-gray-500">1.2K 阅读</p>
+                        </div>
+                        <div class="border-b border-gray-100 pb-4">
+                            <h4 class="text-sm font-light text-gray-900 mb-1">现代 JavaScript 开发指南</h4>
+                            <p class="text-xs text-gray-500">1.5K 阅读</p>
+                        </div>
+                        <div class="border-b border-gray-100 pb-4">
+                            <h4 class="text-sm font-light text-gray-900 mb-1">Vue 3 组合式 API 实战</h4>
+                            <p class="text-xs text-gray-500">923 阅读</p>
+                        </div>
+                        <div class="border-b border-gray-100 pb-4">
+                            <h4 class="text-sm font-light text-gray-900 mb-1">Go 并发编程实战</h4>
+                            <p class="text-xs text-gray-500">856 阅读</p>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-light text-gray-900 mb-1">PostgreSQL 性能优化技巧</h4>
+                            <p class="text-xs text-gray-500">734 阅读</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-12 mt-16">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-4 text-sm text-gray-500">© 2026 我的个人网站. All rights reserved.</p>
+            <div class="flex justify-center space-x-6 text-xs uppercase tracking-wider text-gray-400">
+                <a href="#" class="hover:text-black">GitHub</a>
+                <a href="#" class="hover:text-black">Twitter</a>
+                <a href="#" class="hover:text-black">Email</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

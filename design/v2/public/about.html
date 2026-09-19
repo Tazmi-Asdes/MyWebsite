@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="关于你的网名与这个个人技术网站。">
+  <title>关于我 · 个人技术网站</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-brand" href="home.html">个人技术网站</a>
+      <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-nav"><span data-icon="menu" aria-hidden="true"></span><span>菜单</span></button>
+      <nav class="site-nav" id="site-nav" aria-label="主要导航"><a href="home.html">首页</a><a href="articles.html">文章</a><a href="projects.html">项目</a><a href="about.html" aria-current="page">关于我</a></nav>
+    </div>
+  </header>
+  <main id="main-content" class="container">
+    <div class="about-layout">
+      <header class="about-profile">
+        <img class="avatar" src="../assets/default-avatar.svg" alt="你的网名的默认头像">
+        <h1>你的网名</h1>
+        <p class="muted">个人技术网站</p>
+      </header>
+      <div>
+        <section class="about-block" aria-labelledby="stats-heading">
+          <h2 id="stats-heading">内容</h2>
+          <div class="stats">
+            <div class="stat"><strong data-filled>3</strong><strong data-empty>0</strong><span>已发布文章</span></div>
+            <div class="stat"><strong data-filled>3</strong><strong data-empty>0</strong><span>公开项目</span></div>
+          </div>
+        </section>
+        <section class="about-block" aria-labelledby="interests-heading">
+          <h2 id="interests-heading">个人兴趣</h2>
+          <p>这里是个人兴趣的占位内容。未来可以写正在关注的技术方向，也可以记录摄影、阅读、音乐或其他长期兴趣。</p>
+        </section>
+        <section class="about-block" aria-labelledby="contact-heading">
+          <h2 id="contact-heading">联系与公开账号</h2>
+          <div class="contact-list">
+            <a href="mailto:hello@example.com">hello@example.com</a>
+            <a href="https://github.com/example" target="_blank" rel="noopener noreferrer">github.com/example</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="container site-footer__inner"><span>© 2026 个人技术网站</span><div class="footer-links"><a href="mailto:hello@example.com">邮箱</a><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></footer>
+</body>
+</html>
