@@ -62,7 +62,7 @@ SELECT
 FROM articles
 WHERE status = 'published'
 ORDER BY first_published_at DESC, id DESC
-LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+LIMIT ? OFFSET ?;
 
 -- name: CountPublishedArticles :one
 SELECT COUNT(*) AS total

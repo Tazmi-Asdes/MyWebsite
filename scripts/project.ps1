@@ -45,7 +45,10 @@ function Invoke-Fmt {
 }
 
 function Invoke-Generate {
-    Invoke-Native 'go' @('tool', 'sqlc', 'generate', '-f', 'db/sqlc.yaml')
+    New-Item -ItemType Directory -Force -Path '.tmp/tools' | Out-Null
+    Invoke-Native 'go' @('-C', 'tools/sqlc', 'build', '-o', '../../.tmp/tools/sqlc.exe', 'github.com/sqlc-dev/sqlc/cmd/sqlc')
+    $sqlc = Join-Path (Get-Location) '.tmp/tools/sqlc.exe'
+    Invoke-Native $sqlc @('generate', '-f', 'db/sqlc.yaml')
     Invoke-AdminNpm 'generate:api'
 }
 

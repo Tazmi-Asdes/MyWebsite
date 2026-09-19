@@ -59,7 +59,7 @@ SELECT
 FROM projects
 WHERE status = 'public'
 ORDER BY sort_order ASC, id ASC
-LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+LIMIT ? OFFSET ?;
 
 -- name: CountPublicProjects :one
 SELECT COUNT(*) AS total
