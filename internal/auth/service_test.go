@@ -216,6 +216,63 @@ func TestAuthenticateIdleAndAbsoluteExpiry(t *testing.T) {
 	}
 }
 
+func TestAuthenticateForReauthAllowsIdleExpiryWithoutTouching(t *testing.T) {
+	now := time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC)
+	tokenRaw := bytes.Repeat([]byte{10}, tokenBytes)
+	token := base64.RawURLEncoding.EncodeToString(tokenRaw)
+	tokenHash := sha256.Sum256(tokenRaw)
+	lastSeen := now.Add(-9 * time.Hour)
+	store := &fakeStore{session: dbgen.GetAdminSessionByTokenHashRow{
+		ID: 11, TokenHash: tokenHash[:], CsrfHash: bytes.Repeat([]byte{12}, sha256.Size), AdminID: 13,
+		Username: "admin user", LastSeenAt: lastSeen, AbsoluteExpiresAt: now.Add(12 * time.Hour),
+	}}
+	service := NewService(store, WithClock(func() time.Time { return now }), WithSessionTimeouts(8*time.Hour, 24*time.Hour))
+	session, err := service.AuthenticateForReauth(context.Background(), token)
+	if err != nil {
+		t.Fatalf("AuthenticateForReauth() error = %v", err)
+	}
+	if session.ID != 11 || session.Username != "admin user" || !session.LastSeenAt.Equal(lastSeen) {
+		t.Fatalf("reauth session = %+v", session)
+	}
+	if !session.IdleExpiresAt.Equal(lastSeen.Add(8*time.Hour)) || !session.AbsoluteExpiresAt.Equal(now.Add(12*time.Hour)) {
+		t.Fatalf("reauth expiry = idle %v absolute %v", session.IdleExpiresAt, session.AbsoluteExpiresAt)
+	}
+	if got := fmt.Sprint(store.operations); got != "[get-session]" {
+		t.Fatalf("operations = %s, want no touch", got)
+	}
+}
+
+func TestAuthenticateForReauthRejectsAbsoluteExpiryAndRevokedSessions(t *testing.T) {
+	now := time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC)
+	tokenRaw := bytes.Repeat([]byte{11}, tokenBytes)
+	token := base64.RawURLEncoding.EncodeToString(tokenRaw)
+	tokenHash := sha256.Sum256(tokenRaw)
+	for _, test := range []struct {
+		name   string
+		modify func(*dbgen.GetAdminSessionByTokenHashRow)
+		want   error
+	}{
+		{name: "absolute expired", modify: func(row *dbgen.GetAdminSessionByTokenHashRow) { row.AbsoluteExpiresAt = now }, want: ErrSessionExpired},
+		{name: "revoked", modify: func(row *dbgen.GetAdminSessionByTokenHashRow) { row.RevokedAt = sql.NullTime{Time: now, Valid: true} }, want: ErrSessionRevoked},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			row := dbgen.GetAdminSessionByTokenHashRow{
+				ID: 12, TokenHash: tokenHash[:], CsrfHash: bytes.Repeat([]byte{13}, sha256.Size), AdminID: 14,
+				Username: "admin user", LastSeenAt: now.Add(-9 * time.Hour), AbsoluteExpiresAt: now.Add(12 * time.Hour),
+			}
+			test.modify(&row)
+			store := &fakeStore{session: row}
+			service := NewService(store, WithClock(func() time.Time { return now }))
+			if _, err := service.AuthenticateForReauth(context.Background(), token); !errors.Is(err, test.want) {
+				t.Fatalf("AuthenticateForReauth() error = %v, want %v", err, test.want)
+			}
+			if got := fmt.Sprint(store.operations); got != "[get-session]" {
+				t.Fatalf("operations = %s, want no touch", got)
+			}
+		})
+	}
+}
+
 func TestReauthenticateCreatesThenRevokesAndDoesNotRetryOnRevokeFailure(t *testing.T) {
 	password := "a sufficiently long password"
 	hash, err := HashPasswordWithRandom(password, bytes.NewReader(bytes.Repeat([]byte{3}, argon2SaltLength)))

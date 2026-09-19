@@ -72,6 +72,7 @@ type LoginResult struct {
 	Token             string
 	CSRFToken         string
 	CSRF              string
+	LastSeenAt        time.Time
 	IdleExpiresAt     time.Time
 	AbsoluteExpiresAt time.Time
 }
@@ -353,6 +354,7 @@ func (service *Service) Login(ctx context.Context, username, password string) (L
 		Token:             base64.RawURLEncoding.EncodeToString(tokenRaw),
 		CSRFToken:         base64.RawURLEncoding.EncodeToString(csrfRaw),
 		CSRF:              base64.RawURLEncoding.EncodeToString(csrfRaw),
+		LastSeenAt:        now,
 		IdleExpiresAt:     now.Add(service.idleTimeout),
 		AbsoluteExpiresAt: absoluteExpiresAt,
 	}, nil
@@ -406,6 +408,43 @@ func (service *Service) Authenticate(ctx context.Context, token string) (Session
 		CSRFHash:          cloneBytes(row.CsrfHash),
 		LastSeenAt:        now,
 		IdleExpiresAt:     now.Add(service.idleTimeout),
+		AbsoluteExpiresAt: row.AbsoluteExpiresAt,
+	}, nil
+}
+
+// AuthenticateForReauth validates the token identity for a reauthentication
+// request without refreshing idle activity. It intentionally permits a
+// session whose idle window has elapsed so the caller can use the password to
+// rotate the session, while still enforcing the absolute session lifetime.
+func (service *Service) AuthenticateForReauth(ctx context.Context, token string) (Session, error) {
+	if service == nil || service.store == nil {
+		return Session{}, ErrStore
+	}
+	rawToken, ok := decodeClientToken(token)
+	if !ok {
+		return Session{}, ErrInvalidSession
+	}
+	tokenHash := sha256.Sum256(rawToken)
+	row, err := service.store.GetAdminSessionByTokenHash(ctx, tokenHash[:])
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Session{}, ErrInvalidSession
+		}
+		return Session{}, ErrStore
+	}
+	if row.RevokedAt.Valid {
+		return Session{}, ErrSessionRevoked
+	}
+	if !service.currentTime().Before(row.AbsoluteExpiresAt) {
+		return Session{}, ErrSessionExpired
+	}
+	return Session{
+		ID:                row.ID,
+		AdminID:           row.AdminID,
+		Username:          row.Username,
+		CSRFHash:          cloneBytes(row.CsrfHash),
+		LastSeenAt:        row.LastSeenAt,
+		IdleExpiresAt:     row.LastSeenAt.Add(service.idleTimeout),
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt,
 	}, nil
 }
@@ -540,6 +579,7 @@ func (service *Service) createSession(ctx context.Context, admin dbgen.Admin) (L
 		Token:             base64.RawURLEncoding.EncodeToString(tokenRaw),
 		CSRFToken:         csrfToken,
 		CSRF:              csrfToken,
+		LastSeenAt:        now,
 		IdleExpiresAt:     now.Add(service.idleTimeout),
 		AbsoluteExpiresAt: absoluteExpiresAt,
 	}, nil
