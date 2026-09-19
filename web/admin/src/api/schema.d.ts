@@ -354,6 +354,14 @@ export interface components {
              */
             version?: number;
         };
+        ArticleUpdateRequest: components["schemas"]["ArticleWriteRequest"] & {
+            /** Format: int64 */
+            version: number;
+        };
+        ArticleVersionRequest: {
+            /** Format: int64 */
+            version: number;
+        };
         ProjectEdit: {
             /** Format: int64 */
             id: number;
@@ -728,7 +736,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ArticleWriteRequest"];
+                "application/json": components["schemas"]["ArticleUpdateRequest"];
             };
         };
         responses: {
@@ -758,7 +766,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ArticleWriteRequest"];
+                "application/json": components["schemas"]["ArticleUpdateRequest"];
             };
         };
         responses: {
@@ -786,7 +794,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
         responses: {
             204: components["responses"]["NoContent"];
             401: components["responses"]["Unauthorized"];

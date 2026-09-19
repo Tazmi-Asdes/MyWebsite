@@ -218,7 +218,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ArticleWriteRequest'
+              $ref: '#/components/schemas/ArticleUpdateRequest'
       responses:
         '200':
           $ref: '#/components/responses/OK'
@@ -260,7 +260,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ArticleWriteRequest'
+              $ref: '#/components/schemas/ArticleUpdateRequest'
       responses:
         '200':
           $ref: '#/components/responses/OK'
@@ -296,6 +296,12 @@ paths:
       summary: 撤回文章
       security:
         - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleVersionRequest'
       responses:
         '204':
           $ref: '#/components/responses/NoContent'
@@ -927,6 +933,25 @@ components:
           format: int64
           minimum: 1
           description: 更新、发布和撤回时必填的乐观锁版本。
+    ArticleUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ArticleWriteRequest'
+        - type: object
+          required: [version]
+          properties:
+            version:
+              type: integer
+              format: int64
+              minimum: 1
+    ArticleVersionRequest:
+      type: object
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
     ProjectEdit:
       type: object
       required: [id, name, status, version, created_at, updated_at]
