@@ -11,6 +11,48 @@ import (
 	"time"
 )
 
+const countAdmins = `-- name: CountAdmins :one
+SELECT COUNT(*) AS total
+FROM admins
+`
+
+func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdmins)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
+const createAdmin = `-- name: CreateAdmin :execresult
+INSERT INTO admins (
+    username,
+    password_hash,
+    created_at,
+    updated_at
+) VALUES (
+    ?,
+    ?,
+    ?,
+    ?
+)
+`
+
+type CreateAdminParams struct {
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"password_hash"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createAdmin,
+		arg.Username,
+		arg.PasswordHash,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+}
+
 const createAdminSession = `-- name: CreateAdminSession :execresult
 INSERT INTO admin_sessions (
     token_hash,

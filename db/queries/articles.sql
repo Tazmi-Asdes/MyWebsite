@@ -54,6 +54,7 @@ SELECT
     id,
     public_ulid,
     title,
+    preview_text,
     status,
     first_published_at,
     version,
@@ -63,6 +64,62 @@ FROM articles
 WHERE status = 'published'
 ORDER BY first_published_at DESC, id DESC
 LIMIT ? OFFSET ?;
+
+-- name: ListAdminArticles :many
+SELECT
+    id,
+    public_ulid,
+    title,
+    status,
+    first_published_at,
+    version,
+    created_at,
+    updated_at
+FROM articles
+WHERE (sqlc.narg('status_filter') IS NULL OR status = sqlc.narg('status_filter'))
+  AND (
+      sqlc.narg('title_pattern') IS NULL
+      OR title LIKE sqlc.narg('title_pattern') ESCAPE '\\'
+  )
+ORDER BY updated_at DESC, id DESC
+LIMIT ? OFFSET ?;
+
+-- name: CountAdminArticles :one
+SELECT COUNT(*) AS total
+FROM articles
+WHERE (sqlc.narg('status_filter') IS NULL OR status = sqlc.narg('status_filter'))
+  AND (
+      sqlc.narg('title_pattern') IS NULL
+      OR title LIKE sqlc.narg('title_pattern') ESCAPE '\\'
+  );
+
+-- name: GetPublishedArticleByULID :one
+SELECT
+    id,
+    public_ulid,
+    title,
+    body_markdown,
+    body_html,
+    toc_json,
+    preview_text,
+    renderer_version,
+    status,
+    first_published_at,
+    version,
+    created_at,
+    updated_at
+FROM articles
+WHERE public_ulid = sqlc.arg('public_ulid')
+  AND status = 'published';
+
+-- name: WithdrawArticle :execresult
+UPDATE articles
+SET status = 'draft',
+    version = version + 1,
+    updated_at = sqlc.arg('updated_at')
+WHERE id = sqlc.arg('id')
+  AND version = sqlc.arg('version')
+  AND status = 'published';
 
 -- name: CountPublishedArticles :one
 SELECT COUNT(*) AS total

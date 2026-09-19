@@ -8,6 +8,23 @@ SELECT
 FROM admins
 WHERE username = sqlc.arg('username');
 
+-- name: CountAdmins :one
+SELECT COUNT(*) AS total
+FROM admins;
+
+-- name: CreateAdmin :execresult
+INSERT INTO admins (
+    username,
+    password_hash,
+    created_at,
+    updated_at
+) VALUES (
+    sqlc.arg('username'),
+    sqlc.arg('password_hash'),
+    sqlc.arg('created_at'),
+    sqlc.arg('updated_at')
+);
+
 -- name: CreateAdminSession :execresult
 INSERT INTO admin_sessions (
     token_hash,

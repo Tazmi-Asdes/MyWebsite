@@ -10,8 +10,11 @@ import (
 )
 
 type Querier interface {
+	CountAdminArticles(ctx context.Context, arg CountAdminArticlesParams) (int64, error)
+	CountAdmins(ctx context.Context) (int64, error)
 	CountPublicProjects(ctx context.Context) (int64, error)
 	CountPublishedArticles(ctx context.Context) (int64, error)
+	CreateAdmin(ctx context.Context, arg CreateAdminParams) (sql.Result, error)
 	CreateAdminSession(ctx context.Context, arg CreateAdminSessionParams) (sql.Result, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (sql.Result, error)
 	CreateMediaAsset(ctx context.Context, arg CreateMediaAssetParams) (sql.Result, error)
@@ -23,9 +26,11 @@ type Querier interface {
 	GetMediaAssetByID(ctx context.Context, id string) (MediaAsset, error)
 	GetProjectByID(ctx context.Context, id uint64) (Project, error)
 	GetProjectOrderStateForUpdate(ctx context.Context) (ProjectOrderState, error)
+	GetPublishedArticleByULID(ctx context.Context, publicUlid sql.NullString) (Article, error)
 	InsertArticleMedia(ctx context.Context, arg InsertArticleMediaParams) error
 	IsMediaReferencedByPublicProject(ctx context.Context, assetID sql.NullString) (bool, error)
 	IsMediaReferencedByPublishedArticle(ctx context.Context, assetID string) (bool, error)
+	ListAdminArticles(ctx context.Context, arg ListAdminArticlesParams) ([]ListAdminArticlesRow, error)
 	ListPublicProjectIDsForUpdate(ctx context.Context) ([]uint64, error)
 	ListPublicProjects(ctx context.Context, arg ListPublicProjectsParams) ([]Project, error)
 	ListPublishedArticles(ctx context.Context, arg ListPublishedArticlesParams) ([]ListPublishedArticlesRow, error)
@@ -34,6 +39,7 @@ type Querier interface {
 	UpdateArticle(ctx context.Context, arg UpdateArticleParams) (sql.Result, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (sql.Result, error)
 	UpdateProjectOrderState(ctx context.Context, arg UpdateProjectOrderStateParams) (sql.Result, error)
+	WithdrawArticle(ctx context.Context, arg WithdrawArticleParams) (sql.Result, error)
 }
 
 var _ Querier = (*Queries)(nil)

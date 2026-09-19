@@ -12,6 +12,33 @@ import (
 	"time"
 )
 
+const countAdminArticles = `-- name: CountAdminArticles :one
+SELECT COUNT(*) AS total
+FROM articles
+WHERE (? IS NULL OR status = ?)
+  AND (
+      ? IS NULL
+      OR title LIKE ? ESCAPE '\\'
+  )
+`
+
+type CountAdminArticlesParams struct {
+	StatusFilter sql.NullString `json:"status_filter"`
+	TitlePattern sql.NullString `json:"title_pattern"`
+}
+
+func (q *Queries) CountAdminArticles(ctx context.Context, arg CountAdminArticlesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdminArticles,
+		arg.StatusFilter,
+		arg.StatusFilter,
+		arg.TitlePattern,
+		arg.TitlePattern,
+	)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const countPublishedArticles = `-- name: CountPublishedArticles :one
 SELECT COUNT(*) AS total
 FROM articles
@@ -99,11 +126,130 @@ func (q *Queries) GetArticleByID(ctx context.Context, id uint64) (Article, error
 	return i, err
 }
 
+const getPublishedArticleByULID = `-- name: GetPublishedArticleByULID :one
+SELECT
+    id,
+    public_ulid,
+    title,
+    body_markdown,
+    body_html,
+    toc_json,
+    preview_text,
+    renderer_version,
+    status,
+    first_published_at,
+    version,
+    created_at,
+    updated_at
+FROM articles
+WHERE public_ulid = ?
+  AND status = 'published'
+`
+
+func (q *Queries) GetPublishedArticleByULID(ctx context.Context, publicUlid sql.NullString) (Article, error) {
+	row := q.db.QueryRowContext(ctx, getPublishedArticleByULID, publicUlid)
+	var i Article
+	err := row.Scan(
+		&i.ID,
+		&i.PublicUlid,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.BodyHtml,
+		&i.TocJson,
+		&i.PreviewText,
+		&i.RendererVersion,
+		&i.Status,
+		&i.FirstPublishedAt,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAdminArticles = `-- name: ListAdminArticles :many
+SELECT
+    id,
+    public_ulid,
+    title,
+    status,
+    first_published_at,
+    version,
+    created_at,
+    updated_at
+FROM articles
+WHERE (? IS NULL OR status = ?)
+  AND (
+      ? IS NULL
+      OR title LIKE ? ESCAPE '\\'
+  )
+ORDER BY updated_at DESC, id DESC
+LIMIT ? OFFSET ?
+`
+
+type ListAdminArticlesParams struct {
+	StatusFilter sql.NullString `json:"status_filter"`
+	TitlePattern sql.NullString `json:"title_pattern"`
+	Limit        int32          `json:"limit"`
+	Offset       int32          `json:"offset"`
+}
+
+type ListAdminArticlesRow struct {
+	ID               uint64         `json:"id"`
+	PublicUlid       sql.NullString `json:"public_ulid"`
+	Title            string         `json:"title"`
+	Status           string         `json:"status"`
+	FirstPublishedAt sql.NullTime   `json:"first_published_at"`
+	Version          uint64         `json:"version"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) ListAdminArticles(ctx context.Context, arg ListAdminArticlesParams) ([]ListAdminArticlesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAdminArticles,
+		arg.StatusFilter,
+		arg.StatusFilter,
+		arg.TitlePattern,
+		arg.TitlePattern,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAdminArticlesRow{}
+	for rows.Next() {
+		var i ListAdminArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublicUlid,
+			&i.Title,
+			&i.Status,
+			&i.FirstPublishedAt,
+			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublishedArticles = `-- name: ListPublishedArticles :many
 SELECT
     id,
     public_ulid,
     title,
+    preview_text,
     status,
     first_published_at,
     version,
@@ -124,6 +270,7 @@ type ListPublishedArticlesRow struct {
 	ID               uint64         `json:"id"`
 	PublicUlid       sql.NullString `json:"public_ulid"`
 	Title            string         `json:"title"`
+	PreviewText      sql.NullString `json:"preview_text"`
 	Status           string         `json:"status"`
 	FirstPublishedAt sql.NullTime   `json:"first_published_at"`
 	Version          uint64         `json:"version"`
@@ -144,6 +291,7 @@ func (q *Queries) ListPublishedArticles(ctx context.Context, arg ListPublishedAr
 			&i.ID,
 			&i.PublicUlid,
 			&i.Title,
+			&i.PreviewText,
 			&i.Status,
 			&i.FirstPublishedAt,
 			&i.Version,
@@ -210,4 +358,24 @@ func (q *Queries) UpdateArticle(ctx context.Context, arg UpdateArticleParams) (s
 		arg.ID,
 		arg.Version,
 	)
+}
+
+const withdrawArticle = `-- name: WithdrawArticle :execresult
+UPDATE articles
+SET status = 'draft',
+    version = version + 1,
+    updated_at = ?
+WHERE id = ?
+  AND version = ?
+  AND status = 'published'
+`
+
+type WithdrawArticleParams struct {
+	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64    `json:"id"`
+	Version   uint64    `json:"version"`
+}
+
+func (q *Queries) WithdrawArticle(ctx context.Context, arg WithdrawArticleParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, withdrawArticle, arg.UpdatedAt, arg.ID, arg.Version)
 }
