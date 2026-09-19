@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"mywebsite/internal/app"
+	"mywebsite/internal/database"
 	"mywebsite/internal/platform"
 )
 
@@ -22,9 +24,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	startupContext, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	databaseConnection, err := database.Open(startupContext, config.Database)
+	if err == nil {
+		err = databaseConnection.CheckReady(startupContext)
+	}
+	cancelStartup()
+	if err != nil {
+		if databaseConnection != nil {
+			_ = databaseConnection.Close()
+		}
+		logger.Error("database_initialization_failed")
+		os.Exit(1)
+	}
+	defer databaseConnection.Close()
+
 	handler, err := app.NewHandler(app.HandlerOptions{
-		Logger: logger,
-		Clock:  platform.NewShanghaiClock(),
+		Logger:    logger,
+		Clock:     platform.NewShanghaiClock(),
+		Readiness: databaseConnection,
 	})
 	if err != nil {
 		logger.Error("handler_initialization_failed", "error", err)

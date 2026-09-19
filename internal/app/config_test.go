@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseConfigDefaults(t *testing.T) {
-	config, err := ParseConfig(emptyLookup)
+	config, err := ParseConfig(mapLookup(requiredDatabaseValues()))
 	if err != nil {
 		t.Fatalf("ParseConfig() error = %v", err)
 	}
@@ -30,6 +30,9 @@ func TestParseConfigDefaults(t *testing.T) {
 	if config.ShutdownTimeout != defaultShutdownTimeout {
 		t.Fatalf("ShutdownTimeout = %s, want %s", config.ShutdownTimeout, defaultShutdownTimeout)
 	}
+	if config.Database.Host != "db" || config.Database.Port != "3306" || config.Database.Name != "mywebsite" || config.Database.User != "app" || config.Database.PasswordFile != "C:\\secrets\\db-password" {
+		t.Fatalf("Database = %+v, want required database settings", config.Database)
+	}
 }
 
 func TestParseConfigCustomValues(t *testing.T) {
@@ -41,6 +44,9 @@ func TestParseConfigCustomValues(t *testing.T) {
 		"HTTP_IDLE_TIMEOUT":        "5s",
 		"HTTP_SHUTDOWN_TIMEOUT":    "6s",
 	}
+	for key, value := range requiredDatabaseValues() {
+		values[key] = value
+	}
 	config, err := ParseConfig(mapLookup(values))
 	if err != nil {
 		t.Fatalf("ParseConfig() error = %v", err)
@@ -50,6 +56,39 @@ func TestParseConfigCustomValues(t *testing.T) {
 	}
 	if config.ReadHeaderTimeout != 2*time.Second || config.ReadTimeout != 3*time.Second || config.WriteTimeout != 4*time.Second || config.IdleTimeout != 5*time.Second || config.ShutdownTimeout != 6*time.Second {
 		t.Fatalf("custom timeout values = %+v", config)
+	}
+}
+
+func TestParseConfigRequiresDatabaseSettings(t *testing.T) {
+	for key := range requiredDatabaseValues() {
+		values := requiredDatabaseValues()
+		delete(values, key)
+		_, err := ParseConfig(mapLookup(values))
+		if err == nil || !strings.Contains(err.Error(), key) {
+			t.Fatalf("ParseConfig() error = %v, want a %s error", err, key)
+		}
+	}
+}
+
+func TestParseConfigRejectsInvalidDatabasePort(t *testing.T) {
+	for _, port := range []string{"0", "65536", "not-a-port", " 3306"} {
+		values := requiredDatabaseValues()
+		values["DB_PORT"] = port
+		_, err := ParseConfig(mapLookup(values))
+		if err == nil || !strings.Contains(err.Error(), "DB_PORT") {
+			t.Fatalf("ParseConfig(DB_PORT=%q) error = %v, want a DB_PORT error", port, err)
+		}
+	}
+}
+
+func TestParseConfigRejectsDatabaseWhitespace(t *testing.T) {
+	for _, key := range []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD_FILE"} {
+		values := requiredDatabaseValues()
+		values[key] = " " + values[key]
+		_, err := ParseConfig(mapLookup(values))
+		if err == nil || !strings.Contains(err.Error(), key) {
+			t.Fatalf("ParseConfig(%s) error = %v, want whitespace error", key, err)
+		}
 	}
 }
 
@@ -79,6 +118,16 @@ func TestParseConfigLimitsShutdownTimeout(t *testing.T) {
 
 func emptyLookup(string) (string, bool) {
 	return "", false
+}
+
+func requiredDatabaseValues() map[string]string {
+	return map[string]string{
+		"DB_HOST":          "db",
+		"DB_PORT":          "3306",
+		"DB_NAME":          "mywebsite",
+		"DB_USER":          "app",
+		"DB_PASSWORD_FILE": "C:\\secrets\\db-password",
+	}
 }
 
 func mapLookup(values map[string]string) func(string) (string, bool) {

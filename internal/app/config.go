@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"mywebsite/internal/database"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 	maxGracefulShutdownTimeout = 30 * time.Second
 )
 
-// Config contains the HTTP settings needed to run the Stage 0 server.
+// Config contains the HTTP and database settings needed to run the server.
 type Config struct {
 	HTTPAddr          string
 	ReadHeaderTimeout time.Duration
@@ -27,10 +29,12 @@ type Config struct {
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
 	ShutdownTimeout   time.Duration
+	Database          database.Config
 }
 
 // LoadConfig reads the process environment and validates all supported HTTP
-// settings. It deliberately does not open a database or inspect the filesystem.
+// and database settings. It deliberately does not open a database or inspect
+// the password file.
 func LoadConfig() (Config, error) {
 	return ParseConfig(os.LookupEnv)
 }
@@ -74,6 +78,11 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, fmt.Errorf("HTTP_SHUTDOWN_TIMEOUT must be at most %s, got %s", maxGracefulShutdownTimeout, shutdownTimeout)
 	}
 
+	databaseConfig, err := databaseConfigValue(lookup)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		HTTPAddr:          addr,
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -81,6 +90,43 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
 		ShutdownTimeout:   shutdownTimeout,
+		Database:          databaseConfig,
+	}, nil
+}
+
+func databaseConfigValue(lookup func(string) (string, bool)) (database.Config, error) {
+	host, err := requiredConfiguredValue(lookup, "DB_HOST")
+	if err != nil {
+		return database.Config{}, err
+	}
+	port, err := requiredConfiguredValue(lookup, "DB_PORT")
+	if err != nil {
+		return database.Config{}, err
+	}
+	name, err := requiredConfiguredValue(lookup, "DB_NAME")
+	if err != nil {
+		return database.Config{}, err
+	}
+	user, err := requiredConfiguredValue(lookup, "DB_USER")
+	if err != nil {
+		return database.Config{}, err
+	}
+	passwordFile, err := requiredConfiguredValue(lookup, "DB_PASSWORD_FILE")
+	if err != nil {
+		return database.Config{}, err
+	}
+
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 1 || portNumber > 65535 {
+		return database.Config{}, fmt.Errorf("invalid DB_PORT %q: must be between 1 and 65535", port)
+	}
+
+	return database.Config{
+		Host:         host,
+		Port:         port,
+		Name:         name,
+		User:         user,
+		PasswordFile: passwordFile,
 	}, nil
 }
 
@@ -96,6 +142,14 @@ func configuredValue(lookup func(string) (string, bool), key, fallback string) (
 		return "", fmt.Errorf("%s must not contain leading or trailing whitespace", key)
 	}
 	return value, nil
+}
+
+func requiredConfiguredValue(lookup func(string) (string, bool), key string) (string, error) {
+	value, ok := lookup(key)
+	if !ok {
+		return "", fmt.Errorf("%s must be set", key)
+	}
+	return configuredValue(lookup, key, value)
 }
 
 func durationValue(lookup func(string) (string, bool), key string, fallback time.Duration) (time.Duration, error) {

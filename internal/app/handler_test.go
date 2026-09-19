@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,6 +14,14 @@ import (
 
 type fixedClock struct {
 	value time.Time
+}
+
+type readinessStub struct {
+	err error
+}
+
+func (r readinessStub) CheckReady(_ context.Context) error {
+	return r.err
 }
 
 func (c fixedClock) Now() time.Time {
@@ -116,6 +126,57 @@ func TestReadyIsNotReadyUntilDependenciesAreConfigured(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"code":"dependencies_not_configured"`) {
 		t.Fatalf("body = %q, want stable dependencies_not_configured code", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"detail":"数据库或 Schema 尚未就绪"`) {
+		t.Fatalf("body = %q, want generic readiness detail", response.Body.String())
+	}
+}
+
+func TestReadyReturnsOKWhenDatabaseIsReady(t *testing.T) {
+	handler, err := NewHandler(HandlerOptions{
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Clock:     fixedClock{value: time.Date(2025, time.December, 31, 16, 30, 0, 0, time.UTC)},
+		Readiness: readinessStub{},
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/-/ready", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
+	}
+	if got := response.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+	if got := response.Body.String(); got != `{"status":"ok"}` {
+		t.Fatalf("body = %q, want ready response", got)
+	}
+}
+
+func TestReadyReturnsUnavailableWhenDatabaseIsNotReady(t *testing.T) {
+	handler, err := NewHandler(HandlerOptions{
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Clock:     fixedClock{value: time.Date(2025, time.December, 31, 16, 30, 0, 0, time.UTC)},
+		Readiness: readinessStub{err: errors.New("internal database detail")},
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/-/ready", nil))
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", response.Code)
+	}
+	if strings.Contains(response.Body.String(), "internal database detail") {
+		t.Fatalf("body = %q, must not expose readiness error", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"detail":"数据库或 Schema 尚未就绪"`) {
+		t.Fatalf("body = %q, want generic readiness detail", response.Body.String())
 	}
 }
 
