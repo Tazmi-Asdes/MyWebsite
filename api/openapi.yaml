@@ -596,6 +596,7 @@ components:
       type: apiKey
       in: cookie
       name: session
+      description: 本地 HTTP 开发使用名为 session 的 Cookie；生产环境 COOKIE_SECURE=true 时实际 Cookie 名为 __Host-session。name 保留为 session 作为开发与 OpenAPI 工具基准。
 
   parameters:
     ArticleID:
