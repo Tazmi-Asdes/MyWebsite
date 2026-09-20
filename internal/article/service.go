@@ -24,14 +24,15 @@ const (
 )
 
 var (
-	ErrInvalidTitle          = errors.New("article title must be 1-200 Unicode characters without leading or trailing whitespace")
-	ErrBodyTooLarge          = errors.New("article body exceeds 2 MiB")
-	ErrPublishedBodyRequired = errors.New("published article body must contain non-whitespace text")
-	ErrConflict              = errors.New("article version conflict")
-	ErrNotPublished          = errors.New("article is not published")
-	ErrStoreCapability       = errors.New("article store does not support the requested operation")
-	ErrInvalidDerivedTOC     = errors.New("article renderer returned invalid toc JSON")
-	ErrRendererUnavailable   = errors.New("article Markdown renderer is not configured")
+	ErrInvalidTitle            = errors.New("article title must be 1-200 Unicode characters without leading or trailing whitespace")
+	ErrBodyTooLarge            = errors.New("article body exceeds 2 MiB")
+	ErrPublishedBodyRequired   = errors.New("published article body must contain non-whitespace text")
+	ErrConflict                = errors.New("article version conflict")
+	ErrNotPublished            = errors.New("article is not published")
+	ErrStoreCapability         = errors.New("article store does not support the requested operation")
+	ErrInvalidDerivedTOC       = errors.New("article renderer returned invalid toc JSON")
+	ErrRendererUnavailable     = errors.New("article Markdown renderer is not configured")
+	ErrReferencedMediaNotFound = errors.New("referenced_media_not_found")
 )
 
 // Compatibility aliases keep the domain vocabulary explicit at call sites
@@ -114,6 +115,19 @@ type Store interface {
 	WithdrawArticle(context.Context, dbgen.WithdrawArticleParams) (sql.Result, error)
 }
 
+// AtomicStore is the persistence capability required when an article's
+// derived Markdown contains media references.  Both methods update the
+// article and its complete reference set in one database transaction.
+type AtomicStore interface {
+	Store
+	CreateArticleWithMedia(context.Context, dbgen.CreateArticleParams, []markdown.MediaReference) (sql.Result, error)
+	UpdateArticleWithMedia(context.Context, dbgen.UpdateArticleParams, []markdown.MediaReference) (sql.Result, error)
+}
+
+// ArticleMediaStore is a descriptive alias used by adapters that prefer the
+// domain name over the transaction-oriented capability name.
+type ArticleMediaStore = AtomicStore
+
 type PublishedStore interface {
 	Store
 	GetPublishedArticleByULID(context.Context, sql.NullString) (dbgen.Article, error)
@@ -191,7 +205,7 @@ func (service *Service) CreateDraft(ctx context.Context, request CreateDraftRequ
 		return Article{}, err
 	}
 	now := service.now().UTC()
-	result, err := service.store.CreateArticle(ctx, dbgen.CreateArticleParams{
+	params := dbgen.CreateArticleParams{
 		Title:           request.Title,
 		BodyMarkdown:    nullableString(body),
 		BodyHtml:        nullableDerivedString(derived.HTML, body),
@@ -200,7 +214,8 @@ func (service *Service) CreateDraft(ctx context.Context, request CreateDraftRequ
 		RendererVersion: nullableDerivedString(derived.RendererVersion, body),
 		CreatedAt:       now,
 		UpdatedAt:       now,
-	})
+	}
+	result, err := service.createArticle(ctx, params, derived.MediaReferences)
 	if err != nil {
 		return Article{}, err
 	}
@@ -208,7 +223,6 @@ func (service *Service) CreateDraft(ctx context.Context, request CreateDraftRequ
 	if err != nil {
 		return Article{}, err
 	}
-	_ = derived // CreateArticle persists the derived fields in its Stage 1 contract.
 	return service.getDomainArticle(ctx, uint64(id))
 }
 
@@ -238,11 +252,7 @@ func (service *Service) Save(ctx context.Context, id uint64, request SaveRequest
 	if err != nil {
 		return Article{}, err
 	}
-	result, err := service.store.UpdateArticle(ctx, params)
-	if err != nil {
-		return Article{}, err
-	}
-	if err := requireRowsAffected(result); err != nil {
+	if err := service.updateArticle(ctx, params, derived.MediaReferences); err != nil {
 		return Article{}, err
 	}
 	return service.getDomainArticle(ctx, id)
@@ -287,11 +297,7 @@ func (service *Service) Publish(ctx context.Context, id uint64, request PublishR
 	params.PublicUlid = publicULID
 	params.FirstPublishedAt = firstPublishedAt
 	params.Status = string(StatusPublished)
-	result, err := service.store.UpdateArticle(ctx, params)
-	if err != nil {
-		return Article{}, err
-	}
-	if err := requireRowsAffected(result); err != nil {
+	if err := service.updateArticle(ctx, params, derived.MediaReferences); err != nil {
 		return Article{}, err
 	}
 	return service.getDomainArticle(ctx, id)
@@ -374,6 +380,34 @@ func (service *Service) getDomainArticle(ctx context.Context, id uint64) (Articl
 		return Article{}, err
 	}
 	return fromDBArticle(row), nil
+}
+
+func (service *Service) createArticle(ctx context.Context, params dbgen.CreateArticleParams, references []markdown.MediaReference) (sql.Result, error) {
+	if store, ok := service.store.(AtomicStore); ok {
+		return store.CreateArticleWithMedia(ctx, params, references)
+	}
+	if len(references) != 0 {
+		return nil, ErrStoreCapability
+	}
+	return service.store.CreateArticle(ctx, params)
+}
+
+func (service *Service) updateArticle(ctx context.Context, params dbgen.UpdateArticleParams, references []markdown.MediaReference) error {
+	if store, ok := service.store.(AtomicStore); ok {
+		result, err := store.UpdateArticleWithMedia(ctx, params, references)
+		if err != nil {
+			return err
+		}
+		return requireExactlyOneRowsAffected(result)
+	}
+	if len(references) != 0 {
+		return ErrStoreCapability
+	}
+	result, err := service.store.UpdateArticle(ctx, params)
+	if err != nil {
+		return err
+	}
+	return requireRowsAffected(result)
 }
 
 func (service *Service) derive(body *string, requireNonEmpty bool) (markdown.Derived, error) {
@@ -463,6 +497,20 @@ func requireRowsAffected(result sql.Result) error {
 		return err
 	}
 	if rows == 0 {
+		return ErrConflict
+	}
+	return nil
+}
+
+func requireExactlyOneRowsAffected(result sql.Result) error {
+	if result == nil {
+		return ErrConflict
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
 		return ErrConflict
 	}
 	return nil

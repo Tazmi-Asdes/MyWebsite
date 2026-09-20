@@ -27,16 +27,12 @@ func (q *Queries) CountPublicProjects(ctx context.Context) (int64, error) {
 const createProject = `-- name: CreateProject :execresult
 INSERT INTO projects (
     name,
-    github_url,
-    image_asset_id,
     status,
     sort_order,
     version,
     created_at,
     updated_at
 ) VALUES (
-    ?,
-    ?,
     ?,
     'hidden',
     NULL,
@@ -47,21 +43,28 @@ INSERT INTO projects (
 `
 
 type CreateProjectParams struct {
-	Name         string         `json:"name"`
-	GithubUrl    sql.NullString `json:"github_url"`
-	ImageAssetID sql.NullString `json:"image_asset_id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createProject,
-		arg.Name,
-		arg.GithubUrl,
-		arg.ImageAssetID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
+	return q.db.ExecContext(ctx, createProject, arg.Name, arg.CreatedAt, arg.UpdatedAt)
+}
+
+const getMaxPublicProjectSortOrder = `-- name: GetMaxPublicProjectSortOrder :one
+SELECT sort_order AS max_sort_order
+FROM projects
+WHERE status = 'public'
+ORDER BY sort_order DESC
+LIMIT 1
+`
+
+func (q *Queries) GetMaxPublicProjectSortOrder(ctx context.Context) (sql.NullInt64, error) {
+	row := q.db.QueryRowContext(ctx, getMaxPublicProjectSortOrder)
+	var max_sort_order sql.NullInt64
+	err := row.Scan(&max_sort_order)
+	return max_sort_order, err
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
@@ -96,6 +99,52 @@ func (q *Queries) GetProjectByID(ctx context.Context, id uint64) (Project, error
 	return i, err
 }
 
+const getProjectByIDForUpdate = `-- name: GetProjectByIDForUpdate :one
+SELECT
+    id,
+    name,
+    github_url,
+    image_asset_id,
+    status,
+    sort_order,
+    version,
+    created_at,
+    updated_at
+FROM projects
+WHERE id = ?
+FOR UPDATE
+`
+
+func (q *Queries) GetProjectByIDForUpdate(ctx context.Context, id uint64) (Project, error) {
+	row := q.db.QueryRowContext(ctx, getProjectByIDForUpdate, id)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.GithubUrl,
+		&i.ImageAssetID,
+		&i.Status,
+		&i.SortOrder,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getProjectOrderState = `-- name: GetProjectOrderState :one
+SELECT id, version, updated_at
+FROM project_order_state
+WHERE id = 1
+`
+
+func (q *Queries) GetProjectOrderState(ctx context.Context) (ProjectOrderState, error) {
+	row := q.db.QueryRowContext(ctx, getProjectOrderState)
+	var i ProjectOrderState
+	err := row.Scan(&i.ID, &i.Version, &i.UpdatedAt)
+	return i, err
+}
+
 const getProjectOrderStateForUpdate = `-- name: GetProjectOrderStateForUpdate :one
 SELECT id, version, updated_at
 FROM project_order_state
@@ -108,6 +157,174 @@ func (q *Queries) GetProjectOrderStateForUpdate(ctx context.Context) (ProjectOrd
 	var i ProjectOrderState
 	err := row.Scan(&i.ID, &i.Version, &i.UpdatedAt)
 	return i, err
+}
+
+const hideProject = `-- name: HideProject :execresult
+UPDATE projects
+SET status = 'hidden',
+    sort_order = NULL,
+    version = version + 1,
+    updated_at = ?
+WHERE id = ?
+  AND status = 'public'
+  AND version = ?
+`
+
+type HideProjectParams struct {
+	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64    `json:"id"`
+	Version   uint64    `json:"version"`
+}
+
+func (q *Queries) HideProject(ctx context.Context, arg HideProjectParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, hideProject, arg.UpdatedAt, arg.ID, arg.Version)
+}
+
+const listAdminHiddenProjects = `-- name: ListAdminHiddenProjects :many
+SELECT
+    id,
+    name,
+    github_url,
+    image_asset_id,
+    status,
+    sort_order,
+    version,
+    created_at,
+    updated_at
+FROM projects
+WHERE status = 'hidden'
+ORDER BY updated_at DESC, id DESC
+`
+
+func (q *Queries) ListAdminHiddenProjects(ctx context.Context) ([]Project, error) {
+	rows, err := q.db.QueryContext(ctx, listAdminHiddenProjects)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Project{}
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.GithubUrl,
+			&i.ImageAssetID,
+			&i.Status,
+			&i.SortOrder,
+			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdminPublicProjects = `-- name: ListAdminPublicProjects :many
+SELECT
+    id,
+    name,
+    github_url,
+    image_asset_id,
+    status,
+    sort_order,
+    version,
+    created_at,
+    updated_at
+FROM projects
+WHERE status = 'public'
+ORDER BY sort_order ASC, id ASC
+`
+
+func (q *Queries) ListAdminPublicProjects(ctx context.Context) ([]Project, error) {
+	rows, err := q.db.QueryContext(ctx, listAdminPublicProjects)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Project{}
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.GithubUrl,
+			&i.ImageAssetID,
+			&i.Status,
+			&i.SortOrder,
+			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllPublicProjects = `-- name: ListAllPublicProjects :many
+SELECT
+    id,
+    name,
+    github_url,
+    image_asset_id,
+    status,
+    sort_order,
+    version,
+    created_at,
+    updated_at
+FROM projects
+WHERE status = 'public'
+ORDER BY sort_order ASC, id ASC
+`
+
+func (q *Queries) ListAllPublicProjects(ctx context.Context) ([]Project, error) {
+	rows, err := q.db.QueryContext(ctx, listAllPublicProjects)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Project{}
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.GithubUrl,
+			&i.ImageAssetID,
+			&i.Status,
+			&i.SortOrder,
+			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPublicProjectIDsForUpdate = `-- name: ListPublicProjectIDsForUpdate :many
@@ -196,13 +413,79 @@ func (q *Queries) ListPublicProjects(ctx context.Context, arg ListPublicProjects
 	return items, nil
 }
 
+const publishProject = `-- name: PublishProject :execresult
+UPDATE projects
+SET name = ?,
+    github_url = ?,
+    image_asset_id = ?,
+    status = 'public',
+    sort_order = ?,
+    version = version + 1,
+    updated_at = ?
+WHERE id = ?
+  AND status = 'hidden'
+  AND version = ?
+`
+
+type PublishProjectParams struct {
+	Name         string         `json:"name"`
+	GithubUrl    sql.NullString `json:"github_url"`
+	ImageAssetID sql.NullString `json:"image_asset_id"`
+	SortOrder    sql.NullInt64  `json:"sort_order"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	ID           uint64         `json:"id"`
+	Version      uint64         `json:"version"`
+}
+
+func (q *Queries) PublishProject(ctx context.Context, arg PublishProjectParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, publishProject,
+		arg.Name,
+		arg.GithubUrl,
+		arg.ImageAssetID,
+		arg.SortOrder,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.Version,
+	)
+}
+
+const setProjectSortOrder = `-- name: SetProjectSortOrder :execresult
+UPDATE projects
+SET sort_order = ?
+WHERE id = ?
+  AND status = 'public'
+`
+
+type SetProjectSortOrderParams struct {
+	SortOrder sql.NullInt64 `json:"sort_order"`
+	ID        uint64        `json:"id"`
+}
+
+func (q *Queries) SetProjectSortOrder(ctx context.Context, arg SetProjectSortOrderParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, setProjectSortOrder, arg.SortOrder, arg.ID)
+}
+
+const setProjectSortOrderTemporary = `-- name: SetProjectSortOrderTemporary :execresult
+UPDATE projects
+SET sort_order = ?
+WHERE id = ?
+  AND status = 'public'
+`
+
+type SetProjectSortOrderTemporaryParams struct {
+	TemporarySortOrder sql.NullInt64 `json:"temporary_sort_order"`
+	ID                 uint64        `json:"id"`
+}
+
+func (q *Queries) SetProjectSortOrderTemporary(ctx context.Context, arg SetProjectSortOrderTemporaryParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, setProjectSortOrderTemporary, arg.TemporarySortOrder, arg.ID)
+}
+
 const updateProject = `-- name: UpdateProject :execresult
 UPDATE projects
 SET name = ?,
     github_url = ?,
     image_asset_id = ?,
-    status = ?,
-    sort_order = ?,
     version = version + 1,
     updated_at = ?
 WHERE id = ?
@@ -213,8 +496,6 @@ type UpdateProjectParams struct {
 	Name         string         `json:"name"`
 	GithubUrl    sql.NullString `json:"github_url"`
 	ImageAssetID sql.NullString `json:"image_asset_id"`
-	Status       string         `json:"status"`
-	SortOrder    sql.NullInt64  `json:"sort_order"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	ID           uint64         `json:"id"`
 	Version      uint64         `json:"version"`
@@ -225,8 +506,6 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (s
 		arg.Name,
 		arg.GithubUrl,
 		arg.ImageAssetID,
-		arg.Status,
-		arg.SortOrder,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.Version,

@@ -24,6 +24,9 @@ import (
 
 	"mywebsite/internal/article"
 	"mywebsite/internal/auth"
+	"mywebsite/internal/markdown"
+	"mywebsite/internal/media"
+	"mywebsite/internal/project"
 )
 
 const (
@@ -66,12 +69,35 @@ type ArticleService interface {
 	Withdraw(context.Context, uint64, article.WithdrawRequest) (article.Article, error)
 }
 
+// ProjectService is the project contract used by the HTTP layer. The
+// concrete *project.Service satisfies it directly while focused HTTP tests
+// can provide a small fake without a database.
+type ProjectService interface {
+	ListGroups(context.Context) (project.ProjectGroups, error)
+	Create(context.Context, project.CreateRequest) (project.Project, error)
+	Get(context.Context, uint64) (project.Project, error)
+	Update(context.Context, uint64, project.UpdateRequest) (project.Project, error)
+	Publish(context.Context, uint64, project.PublishRequest) (project.Project, uint64, error)
+	Hide(context.Context, uint64, project.HideRequest) (uint64, error)
+	Reorder(context.Context, project.OrderRequest) (uint64, error)
+}
+
+// MediaService is the media contract used by the HTTP layer. The concrete
+// *media.Service satisfies it directly.
+type MediaService interface {
+	Upload(context.Context, uint64, io.Reader) (media.Asset, error)
+	Open(context.Context, string, bool) (media.OpenResult, error)
+}
+
 // HandlerOptions configures the HTTP adapter. Auth and Articles are required;
 // AuthService and ArticleService are aliases kept to make wiring explicit at
 // call sites that prefer interface-named fields.
 type HandlerOptions struct {
 	Auth           AuthService
 	Articles       ArticleService
+	Projects       ProjectService
+	Media          MediaService
+	MaxUploadBytes int64
 	AuthService    AuthService
 	ArticleService ArticleService
 	PublicBaseURL  string
@@ -84,15 +110,19 @@ type HandlerOptions struct {
 // Config is a compatibility alias for HandlerOptions.
 type Config = HandlerOptions
 
-// Handler implements the Stage 1 administrator routes.
+// Handler implements the administrator routes. Stage 2 project and media
+// routes are enabled when their optional services are configured.
 type Handler struct {
-	auth         AuthService
-	articles     ArticleService
-	publicOrigin string
-	cookieSecure bool
-	now          func() time.Time
-	limiter      *loginLimiter
-	routes       http.Handler
+	auth           AuthService
+	articles       ArticleService
+	projects       ProjectService
+	media          MediaService
+	maxUploadBytes int64
+	publicOrigin   string
+	cookieSecure   bool
+	now            func() time.Time
+	limiter        *loginLimiter
+	routes         http.Handler
 }
 
 // NewHandler constructs an administrator API handler. Routes are registered
@@ -127,11 +157,17 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 		now = time.Now
 	}
 	handler := &Handler{
-		auth:         authService,
-		articles:     articleService,
-		publicOrigin: origin,
-		cookieSecure: options.CookieSecure || options.SecureCookies,
-		now:          func() time.Time { return now().UTC() },
+		auth:           authService,
+		articles:       articleService,
+		projects:       options.Projects,
+		media:          options.Media,
+		maxUploadBytes: options.MaxUploadBytes,
+		publicOrigin:   origin,
+		cookieSecure:   options.CookieSecure || options.SecureCookies,
+		now:            func() time.Time { return now().UTC() },
+	}
+	if handler.maxUploadBytes <= 0 {
+		handler.maxUploadBytes = defaultMediaUploadBytes
 	}
 	handler.limiter = newLoginLimiter(handler.now)
 	mux := http.NewServeMux()
@@ -159,6 +195,19 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("PUT /api/v1/articles/{id}", http.HandlerFunc(h.updateArticle))
 	mux.Handle("POST /api/v1/articles/{id}/publish", http.HandlerFunc(h.publishArticle))
 	mux.Handle("POST /api/v1/articles/{id}/withdraw", http.HandlerFunc(h.withdrawArticle))
+	if h.projects != nil {
+		mux.Handle("GET /api/v1/projects", http.HandlerFunc(h.listProjects))
+		mux.Handle("POST /api/v1/projects", http.HandlerFunc(h.createProject))
+		mux.Handle("GET /api/v1/projects/{id}", http.HandlerFunc(h.getProject))
+		mux.Handle("PUT /api/v1/projects/{id}", http.HandlerFunc(h.updateProject))
+		mux.Handle("POST /api/v1/projects/{id}/publish", http.HandlerFunc(h.publishProject))
+		mux.Handle("POST /api/v1/projects/{id}/hide", http.HandlerFunc(h.hideProject))
+		mux.Handle("PUT /api/v1/projects/order", http.HandlerFunc(h.reorderProjects))
+	}
+	if h.media != nil {
+		mux.Handle("POST /api/v1/media", http.HandlerFunc(h.uploadMedia))
+		mux.Handle("GET /api/v1/media/{id}", http.HandlerFunc(h.getMedia))
+	}
 }
 
 // ServeHTTP makes Handler directly usable as an http.Handler in tests and
@@ -744,6 +793,14 @@ func (h *Handler) writeArticleError(w http.ResponseWriter, r *http.Request, err 
 		h.problem(w, http.StatusRequestEntityTooLarge, "validation_failed", map[string][]string{"body_markdown": {"body exceeds 2 MiB"}})
 	case errors.Is(err, article.ErrInvalidTitle), errors.Is(err, article.ErrPublishedBodyRequired), errors.Is(err, article.ErrNotPublished), errors.Is(err, article.ErrInvalidStatus), errors.Is(err, article.ErrInvalidSearch):
 		h.problem(w, http.StatusUnprocessableEntity, "validation_failed", nil)
+	case errors.Is(err, markdown.ErrInvalidMediaReference):
+		h.problem(w, http.StatusUnprocessableEntity, "invalid_media_reference", nil)
+	case errors.Is(err, markdown.ErrImageAltRequired):
+		h.problem(w, http.StatusUnprocessableEntity, "image_alt_required", nil)
+	case errors.Is(err, markdown.ErrImageAltInvalid):
+		h.problem(w, http.StatusUnprocessableEntity, "image_alt_invalid", nil)
+	case errors.Is(err, article.ErrReferencedMediaNotFound):
+		h.problem(w, http.StatusUnprocessableEntity, "referenced_media_not_found", nil)
 	case errors.Is(err, article.ErrRendererUnavailable), errors.Is(err, article.ErrStoreCapability):
 		h.problem(w, http.StatusServiceUnavailable, "dependency_unavailable", nil)
 	default:
@@ -790,6 +847,8 @@ func problemTitle(code string) string {
 	switch code {
 	case "authentication_required", "session_expired":
 		return "认证失败"
+	case "invalid_actor":
+		return "身份无效"
 	case "csrf_failed":
 		return "请求来源或 CSRF 校验失败"
 	case "not_found":
@@ -798,6 +857,26 @@ func problemTitle(code string) string {
 		return "版本冲突"
 	case "unsupported_media_type":
 		return "不支持的媒体类型"
+	case "github_repository_invalid":
+		return "GitHub 仓库无效"
+	case "github_verification_unavailable":
+		return "GitHub 仓库验证不可用"
+	case "upload_too_large":
+		return "上传文件过大"
+	case "upload_type_invalid":
+		return "上传文件类型无效"
+	case "image_dimensions_exceeded":
+		return "图片尺寸超限"
+	case "invalid_media_reference":
+		return "媒体引用无效"
+	case "image_alt_required":
+		return "图片说明必填"
+	case "image_alt_invalid":
+		return "图片说明无效"
+	case "referenced_media_not_found":
+		return "引用的媒体不存在"
+	case "internal_error":
+		return "服务器内部错误"
 	case "rate_limited":
 		return "请求过于频繁"
 	case "dependency_unavailable":

@@ -33,6 +33,9 @@ func TestParseConfigDefaults(t *testing.T) {
 	if config.AppEnv != defaultAppEnv || config.PublicBaseURL != "https://example.test" || config.SessionIdleDuration != defaultSessionIdleTimeout || config.SessionAbsoluteDuration != defaultSessionAbsoluteTimeout || config.CookieSecure {
 		t.Fatalf("application settings = %+v, want defaults", config)
 	}
+	if config.UploadDir != "C:\\uploads" || config.MaxUploadBytes != defaultMaxUploadBytes || config.MaxImagePixels != defaultMaxImagePixels || config.MaxImageEdge != defaultMaxImageEdge || config.GitHubAPIBaseURL != defaultGitHubAPIBaseURL || config.GitHubTimeout != defaultGitHubTimeout {
+		t.Fatalf("stage2 settings = %+v, want defaults", config)
+	}
 	if config.Database.Host != "db" || config.Database.Port != "3306" || config.Database.Name != "mywebsite" || config.Database.User != "app" || config.Database.PasswordFile != "C:\\secrets\\db-password" {
 		t.Fatalf("Database = %+v, want required database settings", config.Database)
 	}
@@ -46,6 +49,12 @@ func TestParseConfigCustomValues(t *testing.T) {
 		"HTTP_WRITE_TIMEOUT":       "4s",
 		"HTTP_IDLE_TIMEOUT":        "5s",
 		"HTTP_SHUTDOWN_TIMEOUT":    "6s",
+		"UPLOAD_DIR":               "D:\\media",
+		"MAX_UPLOAD_BYTES":         "123456",
+		"MAX_IMAGE_PIXELS":         "345678",
+		"MAX_IMAGE_EDGE":           "4096",
+		"GITHUB_API_BASE_URL":      "http://github.internal/",
+		"GITHUB_TIMEOUT":           "7s",
 	}
 	for key, value := range requiredDatabaseValues() {
 		values[key] = value
@@ -59,6 +68,59 @@ func TestParseConfigCustomValues(t *testing.T) {
 	}
 	if config.ReadHeaderTimeout != 2*time.Second || config.ReadTimeout != 3*time.Second || config.WriteTimeout != 4*time.Second || config.IdleTimeout != 5*time.Second || config.ShutdownTimeout != 6*time.Second {
 		t.Fatalf("custom timeout values = %+v", config)
+	}
+	if config.UploadDir != values["UPLOAD_DIR"] || config.MaxUploadBytes != 123456 || config.MaxImagePixels != 345678 || config.MaxImageEdge != 4096 || config.GitHubAPIBaseURL != "http://github.internal" || config.GitHubTimeout != 7*time.Second {
+		t.Fatalf("custom stage2 settings = %+v", config)
+	}
+}
+
+func TestParseConfigRequiresUploadDir(t *testing.T) {
+	values := requiredDatabaseValues()
+	delete(values, "UPLOAD_DIR")
+	_, err := ParseConfig(mapLookup(values))
+	if err == nil || !strings.Contains(err.Error(), "UPLOAD_DIR") {
+		t.Fatalf("ParseConfig() error = %v, want an UPLOAD_DIR error", err)
+	}
+}
+
+func TestParseConfigRejectsInvalidMediaLimits(t *testing.T) {
+	for _, key := range []string{"MAX_UPLOAD_BYTES", "MAX_IMAGE_PIXELS", "MAX_IMAGE_EDGE"} {
+		for _, value := range []string{"", "0", "-1", " 1", "1 ", "1.5", "+1", "9223372036854775808"} {
+			values := requiredDatabaseValues()
+			values[key] = value
+			_, err := ParseConfig(mapLookup(values))
+			if err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("ParseConfig(%s=%q) error = %v, want a %s error", key, value, err, key)
+			}
+		}
+	}
+}
+
+func TestParseConfigValidatesGitHubSettings(t *testing.T) {
+	for _, value := range []string{
+		"",
+		"ftp://api.github.com",
+		"https://api.github.com/v1",
+		"https://user:password@api.github.com",
+		"https://api.github.com?query=1",
+		"https://api.github.com#fragment",
+		"https:api.github.com",
+	} {
+		values := requiredDatabaseValues()
+		values["GITHUB_API_BASE_URL"] = value
+		_, err := ParseConfig(mapLookup(values))
+		if err == nil || !strings.Contains(err.Error(), "GITHUB_API_BASE_URL") {
+			t.Fatalf("ParseConfig(GITHUB_API_BASE_URL=%q) error = %v, want a GITHUB_API_BASE_URL error", value, err)
+		}
+	}
+
+	for _, value := range []string{"0s", "-1s", "not-a-duration", " 5s"} {
+		values := requiredDatabaseValues()
+		values["GITHUB_TIMEOUT"] = value
+		_, err := ParseConfig(mapLookup(values))
+		if err == nil || !strings.Contains(err.Error(), "GITHUB_TIMEOUT") {
+			t.Fatalf("ParseConfig(GITHUB_TIMEOUT=%q) error = %v, want a GITHUB_TIMEOUT error", value, err)
+		}
 	}
 }
 
@@ -179,6 +241,7 @@ func emptyLookup(string) (string, bool) {
 func requiredDatabaseValues() map[string]string {
 	return map[string]string{
 		"PUBLIC_BASE_URL":  "https://example.test",
+		"UPLOAD_DIR":       "C:\\uploads",
 		"DB_HOST":          "db",
 		"DB_PORT":          "3306",
 		"DB_NAME":          "mywebsite",

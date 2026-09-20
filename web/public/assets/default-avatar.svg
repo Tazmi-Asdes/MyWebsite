@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">默认头像</title>
+  <desc id="desc">黑白几何头像占位图</desc>
+  <rect width="320" height="320" fill="#f2f2ef"/>
+  <path d="M0 0h160v160H0zM160 160h160v160H160z" fill="#11110f"/>
+  <circle cx="220" cy="100" r="60" fill="none" stroke="#11110f" stroke-width="12"/>
+  <circle cx="100" cy="220" r="60" fill="none" stroke="#11110f" stroke-width="12"/>
+</svg>

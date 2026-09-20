@@ -23,6 +23,11 @@ const (
 	defaultWriteTimeout           = 15 * time.Second
 	defaultIdleTimeout            = 60 * time.Second
 	defaultShutdownTimeout        = 30 * time.Second
+	defaultMaxUploadBytes         = int64(5 * 1024 * 1024)
+	defaultMaxImagePixels         = int64(20_000_000)
+	defaultMaxImageEdge           = int64(8_000)
+	defaultGitHubAPIBaseURL       = "https://api.github.com"
+	defaultGitHubTimeout          = 5 * time.Second
 	maxGracefulShutdownTimeout    = 30 * time.Second
 )
 
@@ -39,6 +44,12 @@ type Config struct {
 	WriteTimeout            time.Duration
 	IdleTimeout             time.Duration
 	ShutdownTimeout         time.Duration
+	UploadDir               string
+	MaxUploadBytes          int64
+	MaxImagePixels          int64
+	MaxImageEdge            int64
+	GitHubAPIBaseURL        string
+	GitHubTimeout           time.Duration
 	Database                database.Config
 }
 
@@ -124,6 +135,35 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, fmt.Errorf("HTTP_SHUTDOWN_TIMEOUT must be at most %s, got %s", maxGracefulShutdownTimeout, shutdownTimeout)
 	}
 
+	uploadDir, err := requiredConfiguredValue(lookup, "UPLOAD_DIR")
+	if err != nil {
+		return Config{}, err
+	}
+	maxUploadBytes, err := positiveInt64Value(lookup, "MAX_UPLOAD_BYTES", defaultMaxUploadBytes)
+	if err != nil {
+		return Config{}, err
+	}
+	maxImagePixels, err := positiveInt64Value(lookup, "MAX_IMAGE_PIXELS", defaultMaxImagePixels)
+	if err != nil {
+		return Config{}, err
+	}
+	maxImageEdge, err := positiveInt64Value(lookup, "MAX_IMAGE_EDGE", defaultMaxImageEdge)
+	if err != nil {
+		return Config{}, err
+	}
+	githubAPIBaseURL, err := configuredValue(lookup, "GITHUB_API_BASE_URL", defaultGitHubAPIBaseURL)
+	if err != nil {
+		return Config{}, err
+	}
+	githubAPIBaseURL, err = validateGitHubAPIBaseURL(githubAPIBaseURL)
+	if err != nil {
+		return Config{}, err
+	}
+	githubTimeout, err := durationValue(lookup, "GITHUB_TIMEOUT", defaultGitHubTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+
 	databaseConfig, err := databaseConfigValue(lookup)
 	if err != nil {
 		return Config{}, err
@@ -141,6 +181,12 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		WriteTimeout:            writeTimeout,
 		IdleTimeout:             idleTimeout,
 		ShutdownTimeout:         shutdownTimeout,
+		UploadDir:               uploadDir,
+		MaxUploadBytes:          maxUploadBytes,
+		MaxImagePixels:          maxImagePixels,
+		MaxImageEdge:            maxImageEdge,
+		GitHubAPIBaseURL:        githubAPIBaseURL,
+		GitHubTimeout:           githubTimeout,
 		Database:                databaseConfig,
 	}, nil
 }
@@ -159,11 +205,22 @@ func boolValue(lookup func(string) (string, bool), key string, fallback bool) (b
 
 func validatePublicBaseURL(value string) (string, error) {
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") || parsed.Opaque != "" {
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") || parsed.Opaque != "" {
 		return "", fmt.Errorf("invalid PUBLIC_BASE_URL %q: must be an absolute http or https origin", value)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return "", fmt.Errorf("invalid PUBLIC_BASE_URL %q: must use http or https", value)
+	}
+	return parsed.Scheme + "://" + parsed.Host, nil
+}
+
+func validateGitHubAPIBaseURL(value string) (string, error) {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") || parsed.Opaque != "" {
+		return "", fmt.Errorf("invalid GITHUB_API_BASE_URL %q: must be an absolute http or https origin", value)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("invalid GITHUB_API_BASE_URL %q: must use http or https", value)
 	}
 	return parsed.Scheme + "://" + parsed.Host, nil
 }
@@ -239,6 +296,23 @@ func durationValue(lookup func(string) (string, bool), key string, fallback time
 		return 0, fmt.Errorf("invalid %s %q: must be greater than zero", key, value)
 	}
 	return duration, nil
+}
+
+func positiveInt64Value(lookup func(string) (string, bool), key string, fallback int64) (int64, error) {
+	value, err := configuredValue(lookup, key, strconv.FormatInt(fallback, 10))
+	if err != nil {
+		return 0, err
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return 0, fmt.Errorf("invalid %s %q: must be a positive decimal integer", key, value)
+		}
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed <= 0 {
+		return 0, fmt.Errorf("invalid %s %q: must be a positive decimal integer in int64 range", key, value)
+	}
+	return parsed, nil
 }
 
 func validateHTTPAddr(addr string) error {

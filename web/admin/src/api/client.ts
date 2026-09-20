@@ -1,6 +1,7 @@
 import type { components } from './schema'
 
 export type ProblemDetails = components['schemas']['ProblemDetails']
+export type MediaAsset = components['schemas']['MediaAsset']
 
 export class ApiError extends Error {
   readonly status: number
@@ -30,6 +31,59 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
 }
 
 const API_BASE = '/api/v1'
+
+/**
+ * Upload an image without manually setting multipart Content-Type. The browser
+ * adds the boundary when a FormData body is passed to XMLHttpRequest.
+ */
+export function uploadMedia(file: File, onProgress?: (progress: number) => void): Promise<MediaAsset> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const fail = (error: unknown): void => reject(error)
+    const parsePayload = (): unknown => {
+      const text = xhr.responseText ?? ''
+      if (!text) return null
+      try {
+        return JSON.parse(text) as unknown
+      } catch {
+        return text
+      }
+    }
+
+    xhr.open('POST', `${API_BASE}/media`)
+    xhr.withCredentials = true
+    xhr.setRequestHeader('Accept', 'application/json')
+    if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken)
+    onProgress?.(0)
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (!event.lengthComputable) return
+      const progress = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      onProgress?.(progress)
+    })
+    xhr.addEventListener('error', () => fail(new Error('上传失败，请稍后重试。')))
+    xhr.addEventListener('abort', () => fail(new Error('上传已取消。')))
+    xhr.addEventListener('load', () => {
+      const payload = parsePayload()
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const problem = isProblemDetails(payload) ? payload : null
+        fail(new ApiError(xhr.status, problem, problem?.title ?? (typeof payload === 'string' ? payload : undefined)))
+        return
+      }
+      onProgress?.(100)
+      resolve(payload as MediaAsset)
+    })
+
+    try {
+      xhr.send(formData)
+    } catch (error) {
+      fail(error)
+    }
+  })
+}
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, csrf, headers: initialHeaders, ...init } = options

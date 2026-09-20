@@ -12,12 +12,14 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/microcosm-cc/bluemonday"
+	"github.com/oklog/ulid/v2"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -29,16 +31,21 @@ import (
 const (
 	// RendererVersion is persisted alongside the derived fields.  Change it
 	// whenever the derived representation is intentionally changed.
-	RendererVersion = "v1"
+	RendererVersion = "v2"
 	// MaxMarkdownBytes is the maximum size of the source Markdown.
 	MaxMarkdownBytes = 2 << 20
 )
 
 var (
-	// ErrImagesNotSupported is returned for every image node in Stage 1.  The
-	// error is deliberately exported so callers can map it to their own
-	// validation error without depending on an HTTP package.
-	ErrImagesNotSupported = errors.New("markdown images are not supported in stage 1")
+	// ErrInvalidMediaReference is returned when an image destination is not an
+	// exact reference to one of this site's media assets.
+	ErrInvalidMediaReference = errors.New("invalid_media_reference")
+	// ErrImagesNotSupported is kept as a compatibility alias for Stage 1
+	// callers.  Images are now supported when they pass the media validation
+	// above.
+	ErrImagesNotSupported = ErrInvalidMediaReference
+	ErrImageAltRequired   = errors.New("image_alt_required")
+	ErrImageAltInvalid    = errors.New("image_alt_invalid")
 	ErrMarkdownTooLarge   = errors.New("markdown body exceeds 2 MiB")
 )
 
@@ -59,21 +66,32 @@ type TOC struct {
 	Items []TOCItem `json:"items"`
 }
 
+// MediaReference is one validated image reference in an article.  The order
+// is the first-appearance order in the source Markdown.
+type MediaReference struct {
+	AssetID string `json:"asset_id"`
+	AltText string `json:"alt_text"`
+}
+
+// MediaRef is a short compatibility alias for MediaReference.
+type MediaRef = MediaReference
+
 // Derived contains the values generated from one Markdown source.
 type Derived struct {
 	HTML            string
 	TOCJSON         json.RawMessage
 	Preview         string
 	RendererVersion string
+	MediaReferences []MediaReference
 }
 
-// DefaultRenderer is the Stage 1 implementation of Renderer.
+// DefaultRenderer is the Markdown implementation of Renderer.
 type DefaultRenderer struct {
 	markdown goldmark.Markdown
 	policy   *bluemonday.Policy
 }
 
-// NewRenderer creates the Stage 1 Markdown renderer.
+// NewRenderer creates the Markdown renderer.
 func NewRenderer() Renderer {
 	return NewDefaultRenderer()
 }
@@ -99,23 +117,37 @@ func (r *DefaultRenderer) Render(source string) (Derived, error) {
 		return Derived{}, ErrMarkdownTooLarge
 	}
 
-	// Parse once so image rejection, heading metadata and preview extraction all
+	// Parse once so image validation, heading metadata and preview extraction all
 	// use exactly the same AST as the HTML renderer.
 	sourceBytes := []byte(source)
 	document := r.markdown.Parser().Parse(text.NewReader(sourceBytes))
 
-	var images bool
+	mediaReferences := make([]MediaReference, 0)
+	mediaByAsset := make(map[string]int)
 	if err := ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && node.Kind() == ast.KindImage {
-			images = true
-			return ast.WalkStop, nil
+		if !entering || node.Kind() != ast.KindImage {
+			return ast.WalkContinue, nil
 		}
-		return ast.WalkContinue, nil
+		image := node.(*ast.Image)
+		assetID, err := validateMediaDestination(image.Destination)
+		if err != nil {
+			return ast.WalkStop, err
+		}
+		altText, err := validateImageAlt(image, sourceBytes)
+		if err != nil {
+			return ast.WalkStop, err
+		}
+		if index, ok := mediaByAsset[assetID]; ok {
+			if mediaReferences[index].AltText != altText {
+				return ast.WalkStop, ErrImageAltInvalid
+			}
+			return ast.WalkSkipChildren, nil
+		}
+		mediaByAsset[assetID] = len(mediaReferences)
+		mediaReferences = append(mediaReferences, MediaReference{AssetID: assetID, AltText: altText})
+		return ast.WalkSkipChildren, nil
 	}); err != nil {
 		return Derived{}, err
-	}
-	if images {
-		return Derived{}, ErrImagesNotSupported
 	}
 
 	items := make([]TOCItem, 0)
@@ -155,7 +187,72 @@ func (r *DefaultRenderer) Render(source string) (Derived, error) {
 		TOCJSON:         json.RawMessage(tocJSON),
 		Preview:         preview,
 		RendererVersion: RendererVersion,
+		MediaReferences: mediaReferences,
 	}, nil
+}
+
+var mediaDestinationPattern = regexp.MustCompile(`^/media/([0-9A-HJKMNP-TV-Z]{26})$`)
+
+func validateMediaDestination(destination []byte) (string, error) {
+	matches := mediaDestinationPattern.FindSubmatch(destination)
+	if len(matches) != 2 {
+		return "", ErrInvalidMediaReference
+	}
+	assetID := string(matches[1])
+	if _, err := ulid.ParseStrict(assetID); err != nil {
+		return "", ErrInvalidMediaReference
+	}
+	return assetID, nil
+}
+
+func validateImageAlt(image *ast.Image, source []byte) (string, error) {
+	if image.FirstChild() == nil {
+		return "", ErrImageAltRequired
+	}
+	var builder strings.Builder
+	for child := image.FirstChild(); child != nil; child = child.NextSibling() {
+		if err := appendPlainImageAlt(&builder, child, source); err != nil {
+			return "", err
+		}
+	}
+	value := builder.String()
+	if value == "" {
+		return "", ErrImageAltRequired
+	}
+	if !utf8.ValidString(value) || strings.TrimSpace(value) != value || strings.ContainsAny(value, "\r\n") {
+		return "", ErrImageAltInvalid
+	}
+	if utf8.RuneCountInString(value) > 300 {
+		return "", ErrImageAltInvalid
+	}
+	return value, nil
+}
+
+func appendPlainImageAlt(builder *strings.Builder, node ast.Node, source []byte) error {
+	switch typed := node.(type) {
+	case *ast.Text:
+		if typed.SoftLineBreak() || typed.HardLineBreak() {
+			return ErrImageAltInvalid
+		}
+		builder.Write(typed.Value(source))
+		return nil
+	case *ast.String:
+		builder.Write(typed.Value)
+		return nil
+	case *ast.AutoLink:
+		builder.Write(typed.Text(source))
+		return nil
+	case *ast.Emphasis, *ast.CodeSpan:
+		for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+			if err := appendPlainImageAlt(builder, child, source); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		// Links, raw HTML and nested images are not plain image alt text.
+		return ErrImageAltInvalid
+	}
 }
 
 func uniqueHeadingID(textValue string, used map[string]int) string {
@@ -301,6 +398,24 @@ func (r *stage1HTMLRenderer) RegisterFuncs(register renderer.NodeRendererFuncReg
 	register.Register(ast.KindFencedCodeBlock, r.renderFencedCode)
 	register.Register(ast.KindHTMLBlock, r.renderHTMLBlock)
 	register.Register(ast.KindRawHTML, r.renderRawHTML)
+	register.Register(ast.KindImage, r.renderImage)
+}
+
+func (r *stage1HTMLRenderer) renderImage(writer util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	image := node.(*ast.Image)
+	altText, err := validateImageAlt(image, source)
+	if err != nil {
+		return ast.WalkSkipChildren, err
+	}
+	_, _ = writer.WriteString(`<img src="`)
+	_, _ = writer.WriteString(html.EscapeString(string(image.Destination)))
+	_, _ = writer.WriteString(`" alt="`)
+	_, _ = writer.WriteString(html.EscapeString(altText))
+	_, _ = writer.WriteString(`">`)
+	return ast.WalkSkipChildren, nil
 }
 
 func (r *stage1HTMLRenderer) renderFencedCode(writer util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -368,11 +483,12 @@ func (r *stage1HTMLRenderer) renderRawHTML(writer util.BufWriter, _ []byte, _ as
 }
 
 var (
-	allowedHrefPattern    = regexp.MustCompile(`(?i)^(?:https?://|mailto:)`)
-	allowedIDPattern      = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N}_-]*$`)
-	allowedClassPattern   = regexp.MustCompile(`^[A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+)*$`)
-	checkboxTypePattern   = regexp.MustCompile(`^checkbox$`)
-	emptyAttributePattern = regexp.MustCompile(`^$`)
+	allowedHrefPattern     = regexp.MustCompile(`(?i)^(?:https?://|mailto:)`)
+	allowedMediaSrcPattern = regexp.MustCompile(`^/media/[0-9A-HJKMNP-TV-Z]{26}$`)
+	allowedIDPattern       = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N}_-]*$`)
+	allowedClassPattern    = regexp.MustCompile(`^[A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+)*$`)
+	checkboxTypePattern    = regexp.MustCompile(`^checkbox$`)
+	emptyAttributePattern  = regexp.MustCompile(`^$`)
 )
 
 func newHTMLPolicy() *bluemonday.Policy {
@@ -380,7 +496,7 @@ func newHTMLPolicy() *bluemonday.Policy {
 	policy.AllowElements(
 		"h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol", "li", "a",
 		"blockquote", "table", "thead", "tbody", "tfoot", "tr", "th", "td",
-		"del", "pre", "code", "span", "input",
+		"del", "pre", "code", "span", "input", "img",
 	)
 	policy.AllowAttrs("id").Matching(allowedIDPattern).OnElements("h2", "h3")
 	policy.AllowAttrs("class").Matching(allowedClassPattern).OnElements("pre", "code", "span")
@@ -389,5 +505,7 @@ func newHTMLPolicy() *bluemonday.Policy {
 	policy.AllowAttrs("cite").OnElements("blockquote")
 	policy.AllowAttrs("checked", "disabled").Matching(emptyAttributePattern).OnElements("input")
 	policy.AllowAttrs("type").Matching(checkboxTypePattern).OnElements("input")
+	policy.AllowAttrs("src").Matching(allowedMediaSrcPattern).OnElements("img")
+	policy.AllowAttrs("alt").OnElements("img")
 	return policy
 }

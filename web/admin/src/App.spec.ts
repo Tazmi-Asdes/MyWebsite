@@ -37,6 +37,40 @@ const article = {
   updated_at: '2026-09-19T00:00:00Z',
 }
 
+const projectOne = {
+  id: 1,
+  name: '第一个项目',
+  github_url: 'https://github.com/example/one',
+  image_asset_id: null,
+  image_preview_url: null,
+  status: 'public' as const,
+  sort_order: 0,
+  version: 1,
+  created_at: '2026-09-19T00:00:00Z',
+  updated_at: '2026-09-19T00:00:00Z',
+}
+
+const projectTwo = {
+  ...projectOne,
+  id: 2,
+  name: '第二个项目',
+  github_url: 'https://github.com/example/two',
+  sort_order: 1,
+}
+
+const hiddenProject = {
+  ...projectOne,
+  id: 3,
+  name: '隐藏项目',
+  github_url: null,
+  status: 'hidden' as const,
+  sort_order: null,
+}
+
+function projectGroups() {
+  return { public: [projectOne, projectTwo], hidden: [hiddenProject], order_version: 4 }
+}
+
 async function renderAt(path: string) {
   const testRouter = createRouter({
     history: createMemoryHistory('/admin/'),
@@ -81,7 +115,7 @@ describe('管理端路由页面', () => {
     expect(wrapper.get('[aria-labelledby="articles-placeholder-title"]')).toBeTruthy()
   })
 
-  it('渲染项目管理占位页', async () => {
+  it('渲染项目管理公开组与隐藏组', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       if (String(input).endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
       return Promise.resolve(jsonResponse(200, {}))
@@ -90,7 +124,8 @@ describe('管理端路由页面', () => {
     const { wrapper } = await renderAt('/projects')
 
     expect(wrapper.get('h1').text()).toBe('项目管理')
-    expect(wrapper.get('[aria-labelledby="projects-placeholder-title"]')).toBeTruthy()
+    expect(wrapper.get('[aria-labelledby="public-projects-title"]')).toBeTruthy()
+    expect(wrapper.get('[aria-labelledby="hidden-projects-title"]')).toBeTruthy()
   })
 
   it('未知管理路由渲染管理端 404', async () => {
@@ -260,5 +295,202 @@ describe('管理端路由页面', () => {
     expect(testRouter.currentRoute.value.path).toBe('/login')
     expect(wrapper.get('h1').text()).toBe('管理员登录')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+  })
+
+  it('项目分组按响应顺序渲染，显式上移后只在保存顺序时提交', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects/order') && init?.method === 'PUT') return Promise.resolve(jsonResponse(200, { order_version: 5 }))
+      if (url.endsWith('/projects')) return Promise.resolve(jsonResponse(200, projectGroups()))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/projects')
+    await flushPromises()
+
+    const names = () => wrapper.findAll('.project-list:not(.project-list--hidden) .project-list__name').map((item) => item.text())
+    expect(names()).toEqual(['第一个项目', '第二个项目'])
+    const moveUp = wrapper.findAll('button').find((button) => button.text() === '上移' && button.attributes('disabled') === undefined)
+    expect(moveUp).toBeDefined()
+    await moveUp!.trigger('click')
+    expect(names()).toEqual(['第二个项目', '第一个项目'])
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(0)
+
+    const save = wrapper.findAll('button').find((button) => button.text() === '保存顺序')
+    expect(save).toBeDefined()
+    await save!.trigger('click')
+    await flushPromises()
+    const orderCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(orderCall?.[1]?.body).toBe(JSON.stringify({ public_ids: [2, 1], order_version: 4 }))
+    expect(wrapper.text()).toContain('公开项目顺序已保存')
+  })
+
+  it('项目顺序冲突时保留本地顺序并提示刷新', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects/order') && init?.method === 'PUT') {
+        return Promise.resolve(jsonResponse(409, {
+          type: 'about:blank',
+          title: '版本冲突',
+          status: 409,
+          code: 'version_conflict',
+          request_id: 'order-conflict',
+          errors: { order_version: ['current=9'] },
+        }))
+      }
+      if (url.endsWith('/projects')) return Promise.resolve(jsonResponse(200, projectGroups()))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/projects')
+    await flushPromises()
+    const moveUp = wrapper.findAll('button').find((button) => button.text() === '上移' && button.attributes('disabled') === undefined)
+    await moveUp!.trigger('click')
+    const save = wrapper.findAll('button').find((button) => button.text() === '保存顺序')
+    await save!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('.project-list:not(.project-list--hidden) .project-list__name').map((item) => item.text())).toEqual(['第二个项目', '第一个项目'])
+    expect(wrapper.get('[role="alert"]').text()).toContain('当前顺序已保留')
+  })
+
+  it('新建项目保存后使用最新排序版本立即公开', async () => {
+    const created = { ...hiddenProject, id: 9, name: '新项目', github_url: null, image_asset_id: null, image_preview_url: null, version: 1 }
+    const updated = { ...created, github_url: 'https://github.com/example/new', image_asset_id: '01JMEDIA', image_preview_url: '/api/v1/media/01JMEDIA', version: 2 }
+    const published = { ...updated, status: 'public' as const, sort_order: 0, version: 3 }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects') && init?.method === 'POST') return Promise.resolve(jsonResponse(201, created))
+      if (url.endsWith('/projects/9') && init?.method === 'PUT') return Promise.resolve(jsonResponse(200, updated))
+      if (url.endsWith('/projects/9/publish') && init?.method === 'POST') return Promise.resolve(jsonResponse(200, published))
+      if (url.endsWith('/projects')) return Promise.resolve(jsonResponse(200, { public: [], hidden: [updated], order_version: 7 }))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    class UploadSuccessXHR {
+      upload = { addEventListener: (_type: string, callback: (event: { lengthComputable: boolean; loaded: number; total: number }) => void) => callback({ lengthComputable: true, loaded: 1, total: 1 }) }
+      status = 201
+      responseText = JSON.stringify({ id: '01JMEDIA', preview_url: '/api/v1/media/01JMEDIA', markdown_reference: '![请填写图片说明](/media/01JMEDIA)' })
+      private listeners = new Map<string, (event: Event) => void>()
+      open(): void {}
+      setRequestHeader(): void {}
+      addEventListener(type: string, callback: (event: Event) => void): void { this.listeners.set(type, callback) }
+      send(): void { this.listeners.get('load')?.(new Event('load')) }
+    }
+    vi.stubGlobal('XMLHttpRequest', UploadSuccessXHR)
+    await initSession(true)
+    const { testRouter, wrapper } = await renderAt('/projects/new')
+    await flushPromises()
+    await wrapper.get('#project-name').setValue('新项目')
+    await wrapper.get('#project-github').setValue('https://github.com/example/new')
+    const projectFile = new File(['image'], 'project.png', { type: 'image/png' })
+    const projectImageInput = wrapper.get('#project-image').element as HTMLInputElement
+    Object.defineProperty(projectImageInput, 'files', { configurable: true, value: [projectFile] })
+    await wrapper.get('#project-image').trigger('change')
+    await flushPromises()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(testRouter.currentRoute.value.path).toBe('/projects/9')
+    const createCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
+    const updateCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(createCall?.[1]?.body).toBe(JSON.stringify({ name: '新项目' }))
+    expect(updateCall?.[1]?.body).toBe(JSON.stringify({ name: '新项目', github_url: 'https://github.com/example/new', image_asset_id: '01JMEDIA', version: 1 }))
+
+    await wrapper.get('button.button--primary').trigger('click')
+    await flushPromises()
+
+    const publishCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith('/projects/9/publish') && init?.method === 'POST')
+    expect(publishCall?.[1]?.body).toBe(JSON.stringify({ name: '新项目', github_url: 'https://github.com/example/new', image_asset_id: '01JMEDIA', version: 2, order_version: 7 }))
+    expect(wrapper.get('.status').text()).toBe('公开')
+  })
+
+  it('项目公开和隐藏使用完整请求体，并在状态变更后同步排序版本', async () => {
+    const hidden = { ...hiddenProject, id: 5, name: '待公开项目', github_url: 'https://github.com/example/five', version: 1 }
+    type ProjectState = Omit<typeof hidden, 'status' | 'sort_order'> & { status: 'hidden' | 'public'; sort_order: number | null }
+    const published: ProjectState = { ...hidden, status: 'public', version: 2, sort_order: 0 }
+    const rehiden: ProjectState = { ...published, status: 'hidden', version: 3, sort_order: null }
+    let current: ProjectState = hidden
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects/5/publish') && init?.method === 'POST') {
+        current = published
+        return Promise.resolve(jsonResponse(200, published))
+      }
+      if (url.endsWith('/projects/5/hide') && init?.method === 'POST') {
+        current = rehiden
+        return Promise.resolve(new Response(null, { status: 204 }))
+      }
+      if (url.endsWith('/projects/5')) return Promise.resolve(jsonResponse(200, current))
+      if (url.endsWith('/projects')) return Promise.resolve(jsonResponse(200, { public: current.status === 'public' ? [current] : [], hidden: current.status === 'hidden' ? [current] : [], order_version: current.version === 1 ? 4 : current.status === 'public' ? 8 : 9 }))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/projects/5')
+    await flushPromises()
+    await wrapper.get('button.button--primary').trigger('click')
+    await flushPromises()
+    const publishCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith('/projects/5/publish') && init?.method === 'POST')
+    expect(publishCall?.[1]?.body).toBe(JSON.stringify({ name: '待公开项目', github_url: 'https://github.com/example/five', image_asset_id: null, version: 1, order_version: 4 }))
+
+    await wrapper.get('button.button--danger').trigger('click')
+    await wrapper.get('[role="dialog"] .button--danger').trigger('click')
+    await flushPromises()
+    const hideCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith('/projects/5/hide') && init?.method === 'POST')
+    expect(hideCall?.[1]?.body).toBe(JSON.stringify({ version: 2, order_version: 8 }))
+    expect(wrapper.text()).toContain('项目已隐藏')
+  })
+
+  it('文章图片上传失败保留文件，重试后把引用插入正文', async () => {
+    const responses = [
+      { status: 500, body: { type: 'about:blank', title: '上传失败', status: 500, code: 'save_failed', request_id: 'upload-failed', errors: {} } },
+      { status: 201, body: { id: '01JMEDIA', preview_url: '/api/v1/media/01JMEDIA', markdown_reference: '![请填写图片说明](/media/01JMEDIA)' } },
+    ]
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/articles/1') && !init?.method) return Promise.resolve(jsonResponse(200, article))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    class UploadSequenceXHR {
+      upload = { addEventListener: (_type: string, callback: (event: { lengthComputable: boolean; loaded: number; total: number }) => void) => callback({ lengthComputable: true, loaded: 1, total: 1 }) }
+      status: number
+      responseText: string
+      private listeners = new Map<string, (event: Event) => void>()
+      constructor() {
+        const response = responses.shift()!
+        this.status = response.status
+        this.responseText = JSON.stringify(response.body)
+      }
+      open(): void {}
+      setRequestHeader(): void {}
+      addEventListener(type: string, callback: (event: Event) => void): void { this.listeners.set(type, callback) }
+      send(): void { this.listeners.get('load')?.(new Event('load')) }
+    }
+    vi.stubGlobal('XMLHttpRequest', UploadSequenceXHR)
+    await initSession(true)
+    const { wrapper } = await renderAt('/articles/1')
+    await flushPromises()
+    await wrapper.get('#article-body').setValue('正文')
+    const textarea = wrapper.get('#article-body').element as HTMLTextAreaElement
+    textarea.setSelectionRange(2, 2)
+    const file = new File(['image'], 'article.png', { type: 'image/png' })
+    const articleImageInput = wrapper.get('#article-image').element as HTMLInputElement
+    Object.defineProperty(articleImageInput, 'files', { configurable: true, value: [file] })
+    await wrapper.get('#article-image').trigger('change')
+    await flushPromises()
+    expect(wrapper.get('#article-body').element).toHaveProperty('value', '正文')
+    expect(wrapper.get('[role="alert"]').text()).toContain('上传失败')
+    await wrapper.findAll('button').find((button) => button.text() === '重试上传')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('#article-body').element).toHaveProperty('value', '正文\n![请填写图片说明](/media/01JMEDIA)')
   })
 })

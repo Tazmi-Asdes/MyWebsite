@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import type { components } from '../api/schema'
-import { ApiError, request } from '../api/client'
+import { ApiError, request, uploadMedia } from '../api/client'
 import { handleApiError } from '../composables/useSession'
 import {
   consumePreparedLeave,
@@ -34,6 +34,12 @@ const saving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showWithdraw = ref(false)
+const articleBodyRef = ref<HTMLTextAreaElement | null>(null)
+const imageInput = ref<HTMLInputElement | null>(null)
+const selectedImageFile = ref<File | null>(null)
+const imageUploading = ref(false)
+const imageUploadProgress = ref(0)
+const imageUploadError = ref('')
 
 const dirty = computed(() => title.value !== baselineTitle.value || body.value !== baselineBody.value || version.value !== baselineVersion.value)
 
@@ -102,12 +108,12 @@ function updateFromResponse(article: ArticleEdit): void {
 }
 
 async function saveArticle(): Promise<void> {
-  if (saving.value || loading.value) return
+  if (saving.value || loading.value || imageUploading.value) return
   await persist('save')
 }
 
 async function publishArticle(): Promise<void> {
-  if (saving.value || loading.value) return
+  if (saving.value || loading.value || imageUploading.value) return
   if (isNew.value) {
     errorMessage.value = '请先保存草稿后发布。'
     return
@@ -117,6 +123,58 @@ async function publishArticle(): Promise<void> {
     return
   }
   await persist('publish')
+}
+
+function selectArticleImage(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  selectedImageFile.value = file
+  imageUploadError.value = ''
+  void uploadArticleImage()
+}
+
+async function uploadArticleImage(): Promise<void> {
+  const file = selectedImageFile.value
+  if (!file || imageUploading.value) return
+  const accepted = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  if (!accepted.has(file.type)) {
+    imageUploadError.value = '仅支持 JPEG、PNG 或 WebP 图片。'
+    return
+  }
+  imageUploading.value = true
+  imageUploadProgress.value = 0
+  imageUploadError.value = ''
+  try {
+    const asset = await uploadMedia(file, (progress) => {
+      imageUploadProgress.value = progress
+    })
+    insertMarkdownReference(asset.markdown_reference)
+    imageUploadProgress.value = 100
+    selectedImageFile.value = null
+    if (imageInput.value) imageInput.value.value = ''
+  } catch (error) {
+    handleApiError(error)
+    imageUploadError.value = formatError(error)
+  } finally {
+    imageUploading.value = false
+  }
+}
+
+function insertMarkdownReference(reference: string): void {
+  const textarea = articleBodyRef.value
+  const start = textarea?.selectionStart ?? body.value.length
+  const end = textarea?.selectionEnd ?? start
+  const before = body.value.slice(0, start)
+  const after = body.value.slice(end)
+  const leading = before && !before.endsWith('\n') ? '\n' : ''
+  const trailing = after && !after.startsWith('\n') ? '\n' : ''
+  body.value = `${before}${leading}${reference}${trailing}${after}`
+  const cursor = before.length + leading.length + reference.length + trailing.length
+  void nextTick(() => {
+    articleBodyRef.value?.focus()
+    articleBodyRef.value?.setSelectionRange(cursor, cursor)
+  })
 }
 
 async function persist(action: 'save' | 'publish'): Promise<void> {
@@ -207,9 +265,9 @@ function closeWithdraw(): void {
       <div class="editor-actions" aria-label="文章操作">
         <RouterLink class="button button--secondary" to="/articles">返回列表</RouterLink>
         <div class="editor-actions__group">
-          <button class="button button--secondary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存草稿' }}</button>
-          <button class="button button--primary" type="button" :disabled="saving || isNew" :aria-describedby="isNew ? 'publish-hint' : undefined" @click="publishArticle">发布文章</button>
-          <button v-if="!isNew && status === 'published'" class="button button--danger" type="button" :disabled="saving" @click="showWithdraw = true">撤回文章</button>
+          <button class="button button--secondary" type="submit" :disabled="saving || imageUploading">{{ saving ? '保存中…' : '保存草稿' }}</button>
+          <button class="button button--primary" type="button" :disabled="saving || imageUploading || isNew" :aria-describedby="isNew ? 'publish-hint' : undefined" @click="publishArticle">发布文章</button>
+          <button v-if="!isNew && status === 'published'" class="button button--danger" type="button" :disabled="saving || imageUploading" @click="showWithdraw = true">撤回文章</button>
         </div>
         <p v-if="isNew" id="publish-hint" class="muted editor-actions__hint">请先保存草稿后发布。</p>
       </div>
@@ -221,7 +279,25 @@ function closeWithdraw(): void {
       <div class="field">
         <label for="article-body">Markdown 正文</label>
         <span id="article-body-hint" class="field__hint">草稿允许正文为空；发布前必须填写正文。首版不提供草稿预览。</span>
-        <textarea id="article-body" v-model="body" name="body" class="textarea" rows="18" aria-describedby="article-body-hint" placeholder="使用 Markdown 编写文章内容" />
+        <textarea id="article-body" ref="articleBodyRef" v-model="body" name="body" class="textarea" rows="18" aria-describedby="article-body-hint" placeholder="使用 Markdown 编写文章内容" />
+      </div>
+      <div class="field media-upload-field">
+        <label for="article-image">正文图片</label>
+        <span id="article-image-hint" class="field__hint">上传后会把 Markdown 图片引用插入正文光标位置。支持 JPEG、PNG、WebP。</span>
+        <input
+          id="article-image"
+          ref="imageInput"
+          class="input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          aria-describedby="article-image-hint"
+          :disabled="imageUploading"
+          @change="selectArticleImage"
+        />
+        <progress v-if="imageUploading" class="upload-progress" max="100" :value="imageUploadProgress">{{ imageUploadProgress }}%</progress>
+        <p v-if="imageUploading" class="field__hint" role="status">上传中 {{ imageUploadProgress }}%</p>
+        <p v-if="imageUploadError" class="field__hint field__hint--error" role="alert">{{ imageUploadError }}</p>
+        <button v-if="imageUploadError && selectedImageFile && !imageUploading" class="button button--secondary" type="button" @click="uploadArticleImage">重试上传</button>
       </div>
     </form>
   </AdminLayout>

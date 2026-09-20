@@ -17,13 +17,35 @@
       <a href="/about">关于</a>
     </nav>
   </header>
-  <main class="page-shell">
-    <p class="eyebrow">{{.Eyebrow}}</p>
-    <h1>{{.Heading}}</h1>
-    <p class="lede">{{.Description}}</p>
-    <section class="empty-state" aria-live="polite">
-      <h2>{{.EmptyTitle}}</h2>
-      <p>{{.EmptyText}}</p>
+  <main id="main-content">
+    <header class="page-heading">
+      <div class="container">
+        <p class="eyebrow">{{.Eyebrow}}</p>
+        <h1>{{.Heading}}</h1>
+        <p class="lede">{{.Description}}</p>
+      </div>
+    </header>
+    <section class="section" aria-label="项目列表">
+      <div class="container">
+        {{if .Projects}}
+        <div class="grid grid--three project-grid">
+          {{range .Projects}}
+          <article class="card project-card">
+            <div class="project-card__media"><img src="{{.ImageURL}}" alt="{{.ImageAlt}}"></div>
+            <div class="project-card__footer">
+              <h2>{{.Name}}</h2>
+              {{if .HasGitHub}}<a href="{{.GitHubURL}}" target="_blank" rel="noopener noreferrer">GitHub</a>{{end}}
+            </div>
+          </article>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state" aria-live="polite">
+          <h2>{{.EmptyTitle}}</h2>
+          <p>{{.EmptyText}}</p>
+        </div>
+        {{end}}
+      </div>
     </section>
   </main>
   <footer class="site-footer">© {{.Year}} MyWebsite</footer>

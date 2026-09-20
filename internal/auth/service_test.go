@@ -27,6 +27,9 @@ type fakeStore struct {
 	touchResult      sql.Result
 	revokeResult     sql.Result
 	session          dbgen.GetAdminSessionByTokenHashRow
+	sessionRows      []dbgen.GetAdminSessionByTokenHashRow
+	sessionErrs      []error
+	sessionCalls     int
 	createAdmin      dbgen.CreateAdminParams
 	createSession    dbgen.CreateAdminSessionParams
 	touchSession     dbgen.TouchAdminSessionParams
@@ -63,6 +66,18 @@ func (store *fakeStore) CreateAdminSession(_ context.Context, params dbgen.Creat
 
 func (store *fakeStore) GetAdminSessionByTokenHash(_ context.Context, tokenHash []byte) (dbgen.GetAdminSessionByTokenHashRow, error) {
 	store.operations = append(store.operations, "get-session")
+	call := store.sessionCalls
+	store.sessionCalls++
+	if call < len(store.sessionErrs) && store.sessionErrs[call] != nil {
+		return dbgen.GetAdminSessionByTokenHashRow{}, store.sessionErrs[call]
+	}
+	if call < len(store.sessionRows) {
+		row := store.sessionRows[call]
+		if !bytes.Equal(tokenHash, row.TokenHash) {
+			return dbgen.GetAdminSessionByTokenHashRow{}, sql.ErrNoRows
+		}
+		return row, nil
+	}
 	if !bytes.Equal(tokenHash, store.session.TokenHash) {
 		return dbgen.GetAdminSessionByTokenHashRow{}, sql.ErrNoRows
 	}
@@ -300,7 +315,6 @@ func TestAuthenticateTouchRowsMustBeExactlyOne(t *testing.T) {
 		result    sql.Result
 		wantError error
 	}{
-		{name: "zero rows", result: fakeResult{rows: 0}, wantError: ErrSessionRevoked},
 		{name: "multiple rows", result: fakeResult{rows: 2}, wantError: ErrStore},
 		{name: "rows error", result: fakeResult{rowsErr: errors.New("rows failed")}, wantError: ErrStore},
 	} {
@@ -312,6 +326,72 @@ func TestAuthenticateTouchRowsMustBeExactlyOne(t *testing.T) {
 			service := NewService(store, WithClock(func() time.Time { return now }))
 			if _, err := service.Authenticate(context.Background(), token); !errors.Is(err, test.wantError) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, test.wantError)
+			}
+		})
+	}
+}
+
+func TestAuthenticateZeroTouchRechecksSession(t *testing.T) {
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	tokenRaw := bytes.Repeat([]byte{9}, tokenBytes)
+	token := base64.RawURLEncoding.EncodeToString(tokenRaw)
+	tokenHash := sha256.Sum256(tokenRaw)
+	initial := dbgen.GetAdminSessionByTokenHashRow{
+		ID: 1, TokenHash: tokenHash[:], CsrfHash: bytes.Repeat([]byte{8}, sha256.Size), AdminID: 2,
+		Username: "initial user", LastSeenAt: now, AbsoluteExpiresAt: now.Add(24 * time.Hour),
+	}
+	refreshed := initial
+	refreshed.ID = 3
+	refreshed.AdminID = 4
+	refreshed.Username = "refreshed user"
+	refreshed.CsrfHash = bytes.Repeat([]byte{10}, sha256.Size)
+	refreshed.LastSeenAt = now.Add(time.Minute)
+	for _, test := range []struct {
+		name        string
+		secondRow   dbgen.GetAdminSessionByTokenHashRow
+		secondError error
+		wantError   error
+	}{
+		{name: "valid refreshed session", secondRow: refreshed},
+		{name: "session revoked", secondError: sql.ErrNoRows, wantError: ErrSessionRevoked},
+		{name: "refreshed session expired", secondRow: func() dbgen.GetAdminSessionByTokenHashRow {
+			row := refreshed
+			row.LastSeenAt = now.Add(-9 * time.Hour)
+			return row
+		}(), wantError: ErrSessionExpired},
+		{name: "session lookup store error", secondError: errors.New("lookup failed"), wantError: ErrStore},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &fakeStore{
+				session:     initial,
+				touchResult: fakeResult{rows: 0},
+				sessionErrs: []error{nil, test.secondError},
+			}
+			if test.secondError == nil {
+				store.sessionRows = []dbgen.GetAdminSessionByTokenHashRow{initial, test.secondRow}
+			}
+			service := NewService(store, WithClock(func() time.Time { return now }))
+			session, err := service.Authenticate(context.Background(), token)
+			if test.wantError != nil {
+				if !errors.Is(err, test.wantError) {
+					t.Fatalf("Authenticate() error = %v, want %v", err, test.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Authenticate() error = %v", err)
+			}
+			if session.ID != refreshed.ID || session.AdminID != refreshed.AdminID || session.Username != refreshed.Username {
+				t.Fatalf("session identity = %+v, want refreshed row", session)
+			}
+			if !bytes.Equal(session.CSRFHash, refreshed.CsrfHash) {
+				t.Fatalf("CSRF hash = %x, want refreshed row hash %x", session.CSRFHash, refreshed.CsrfHash)
+			}
+			if !session.LastSeenAt.Equal(refreshed.LastSeenAt) || !session.IdleExpiresAt.Equal(refreshed.LastSeenAt.Add(service.idleTimeout)) {
+				t.Fatalf("session activity = %v/%v, want %v/%v", session.LastSeenAt, session.IdleExpiresAt, refreshed.LastSeenAt, refreshed.LastSeenAt.Add(service.idleTimeout))
+			}
+			if got := fmt.Sprint(store.operations); got != "[get-session touch get-session]" {
+				t.Fatalf("operations = %s, want initial lookup, touch, and recovery lookup", got)
 			}
 		})
 	}

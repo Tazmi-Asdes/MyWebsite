@@ -15,7 +15,9 @@ import (
 	"mywebsite/internal/auth"
 	"mywebsite/internal/database"
 	"mywebsite/internal/markdown"
+	"mywebsite/internal/media"
 	"mywebsite/internal/platform"
+	"mywebsite/internal/project"
 )
 
 func main() {
@@ -42,17 +44,35 @@ func main() {
 	}
 	defer databaseConnection.Close()
 	queries := databaseConnection.Queries()
+	clock := platform.NewShanghaiClock()
 	authService := auth.NewService(queries, auth.WithSessionTimeouts(config.SessionIdleDuration, config.SessionAbsoluteDuration))
-	articleService := article.NewService(queries, markdown.NewRenderer())
+	articleStore := article.NewSQLStore(databaseConnection.DB(), queries)
+	articleService := article.NewService(articleStore, markdown.NewRenderer())
+	mediaService, err := media.NewService(queries, media.Config{
+		UploadDir:      config.UploadDir,
+		MaxUploadBytes: config.MaxUploadBytes,
+		MaxImagePixels: config.MaxImagePixels,
+		MaxImageEdge:   config.MaxImageEdge,
+	}, media.WithClock(clock.Now))
+	if err != nil {
+		logger.Error("media_initialization_failed", "error", err)
+		os.Exit(1)
+	}
+	projectRepository := project.NewSQLRepository(databaseConnection.DB(), queries)
+	githubVerifier := project.NewGitHubHTTPVerifier(&http.Client{Timeout: config.GitHubTimeout}, config.GitHubAPIBaseURL)
+	projectService := project.NewService(projectRepository, githubVerifier, project.WithClock(clock.Now))
 
 	handler, err := app.NewHandler(app.HandlerOptions{
-		Logger:        logger,
-		Clock:         platform.NewShanghaiClock(),
-		Readiness:     databaseConnection,
-		Auth:          authService,
-		Articles:      articleService,
-		PublicBaseURL: config.PublicBaseURL,
-		CookieSecure:  config.CookieSecure,
+		Logger:         logger,
+		Clock:          clock,
+		Readiness:      databaseConnection,
+		Auth:           authService,
+		Articles:       articleService,
+		Projects:       projectService,
+		Media:          mediaService,
+		MaxUploadBytes: config.MaxUploadBytes,
+		PublicBaseURL:  config.PublicBaseURL,
+		CookieSecure:   config.CookieSecure,
 	})
 	if err != nil {
 		logger.Error("handler_initialization_failed", "error", err)

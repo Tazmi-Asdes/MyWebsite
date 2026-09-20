@@ -395,7 +395,28 @@ func (service *Service) Authenticate(ctx context.Context, token string) (Session
 	}
 	switch touchedRows {
 	case 0:
-		return Session{}, ErrSessionRevoked
+		refreshedRow, err := service.store.GetAdminSessionByTokenHash(ctx, tokenHash[:])
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return Session{}, ErrSessionRevoked
+			}
+			return Session{}, ErrStore
+		}
+		if refreshedRow.RevokedAt.Valid {
+			return Session{}, ErrSessionRevoked
+		}
+		if !now.Before(refreshedRow.AbsoluteExpiresAt) || !now.Before(refreshedRow.LastSeenAt.Add(service.idleTimeout)) {
+			return Session{}, ErrSessionExpired
+		}
+		return Session{
+			ID:                refreshedRow.ID,
+			AdminID:           refreshedRow.AdminID,
+			Username:          refreshedRow.Username,
+			CSRFHash:          cloneBytes(refreshedRow.CsrfHash),
+			LastSeenAt:        refreshedRow.LastSeenAt,
+			IdleExpiresAt:     refreshedRow.LastSeenAt.Add(service.idleTimeout),
+			AbsoluteExpiresAt: refreshedRow.AbsoluteExpiresAt,
+		}, nil
 	case 1:
 		// Continue with the refreshed session below.
 	default:

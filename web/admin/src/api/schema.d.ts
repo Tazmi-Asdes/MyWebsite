@@ -254,7 +254,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** 读取媒体资源 */
+        /**
+         * 读取媒体资源
+         * @description 管理员预览二进制媒体资源；公开站路由 GET /media/{id} 不属于本 API 的 /api/v1 server 范围。
+         */
         get: operations["getMedia"];
         put?: never;
         post?: never;
@@ -280,7 +283,7 @@ export interface components {
              * @description 稳定机器可读错误码。
              * @enum {string}
              */
-            code: "validation_failed" | "authentication_required" | "session_expired" | "csrf_failed" | "version_conflict" | "github_repository_invalid" | "github_verification_unavailable" | "upload_too_large" | "upload_type_invalid" | "image_dimensions_exceeded" | "save_failed" | "invalid_request" | "not_found" | "unsupported_media_type" | "rate_limited" | "dependency_unavailable";
+            code: "validation_failed" | "authentication_required" | "session_expired" | "csrf_failed" | "version_conflict" | "github_repository_invalid" | "github_verification_unavailable" | "upload_too_large" | "upload_type_invalid" | "image_dimensions_exceeded" | "invalid_media_reference" | "image_alt_required" | "image_alt_invalid" | "referenced_media_not_found" | "invalid_actor" | "internal_error" | "save_failed" | "invalid_request" | "not_found" | "unsupported_media_type" | "rate_limited" | "dependency_unavailable";
             request_id: string;
             errors: {
                 [key: string]: string[];
@@ -369,6 +372,11 @@ export interface components {
             /** Format: uri */
             github_url?: string | null;
             image_asset_id?: components["schemas"]["ULID"] | null;
+            /**
+             * Format: uri-reference
+             * @description 有图片时为 /api/v1/media/{id}，无图片时为 null。
+             */
+            readonly image_preview_url: string | null;
             /** @enum {string} */
             status: "hidden" | "public";
             /** Format: int64 */
@@ -380,16 +388,47 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
-        ProjectWriteRequest: {
+        ProjectCreateRequest: {
+            name: string;
+        };
+        ProjectUpdateRequest: {
             name: string;
             /** Format: uri */
             github_url?: string | null;
             image_asset_id?: components["schemas"]["ULID"] | null;
             /**
              * Format: int64
-             * @description 更新、公开和隐藏时必填的乐观锁版本。
+             * @description 更新时必填的乐观锁版本。
              */
-            version?: number;
+            version: number;
+        };
+        ProjectPublishRequest: {
+            name: string;
+            /** Format: uri */
+            github_url: string;
+            image_asset_id: components["schemas"]["ULID"] | null;
+            /**
+             * Format: int64
+             * @description 公开时必填的项目乐观锁版本。
+             */
+            version: number;
+            /**
+             * Format: int64
+             * @description 公开时必填的公开项目集合版本。
+             */
+            order_version: number;
+        };
+        ProjectHideRequest: {
+            /**
+             * Format: int64
+             * @description 隐藏时必填的项目乐观锁版本。
+             */
+            version: number;
+            /**
+             * Format: int64
+             * @description 隐藏时必填的公开项目集合版本。
+             */
+            order_version: number;
         };
         ProjectGroups: {
             public: components["schemas"]["ProjectEdit"][];
@@ -400,12 +439,24 @@ export interface components {
         ProjectOrderRequest: {
             /** Format: int64 */
             order_version: number;
-            project_ids: number[];
+            /** @description 完整的当前公开项目 ID 顺序；不得缺少或重复任何公开项目。 */
+            public_ids: number[];
+        };
+        ProjectOrderResult: {
+            /**
+             * Format: int64
+             * @description 更新后的公开项目集合版本。
+             */
+            order_version: number;
         };
         MediaAsset: {
             id: components["schemas"]["ULID"];
-            /** Format: uri-reference */
+            /**
+             * Format: uri-reference
+             * @description 管理员预览地址，格式为 /api/v1/media/{id}。
+             */
             preview_url: string;
+            /** @description 固定为本地绝对路径 Markdown 图片引用；alt 文本必须为 1..300 个 Unicode 字符。上传返回的占位文本为 ![请填写图片说明](/media/{id})。 */
             markdown_reference: string;
             source_media_type: string;
             stored_media_type: string;
@@ -415,7 +466,7 @@ export interface components {
             width: number;
             /** Format: int32 */
             height: number;
-            sha256?: string;
+            sha256: string;
             /** Format: date-time */
             created_at: string;
         };
@@ -441,7 +492,7 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["Session"] | components["schemas"]["ArticleListResponse"] | components["schemas"]["ArticleEdit"] | components["schemas"]["ProjectGroups"] | components["schemas"]["ProjectEdit"] | components["schemas"]["MediaAsset"];
+                "application/json": components["schemas"]["Session"] | components["schemas"]["ArticleListResponse"] | components["schemas"]["ArticleEdit"];
             };
         };
         /** @description 资源创建成功。 */
@@ -450,7 +501,80 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["ArticleEdit"] | components["schemas"]["ProjectEdit"] | components["schemas"]["MediaAsset"];
+                "application/json": components["schemas"]["ArticleEdit"];
+            };
+        };
+        /** @description 项目公开组、隐藏组及当前排序集合版本。 */
+        ProjectGroups: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectGroups"];
+            };
+        };
+        /** @description 隐藏项目创建成功。 */
+        ProjectCreated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectEdit"];
+            };
+        };
+        /** @description 项目编辑数据读取成功。 */
+        ProjectEdit: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectEdit"];
+            };
+        };
+        /** @description 项目更新成功。 */
+        ProjectUpdated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectEdit"];
+            };
+        };
+        /** @description 项目公开成功。 */
+        ProjectPublished: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectEdit"];
+            };
+        };
+        /** @description 项目公开顺序更新成功。 */
+        ProjectOrderUpdated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProjectOrderResult"];
+            };
+        };
+        /** @description 媒体资源上传成功。 */
+        MediaCreated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["MediaAsset"];
+            };
+        };
+        /** @description 管理员媒体预览二进制内容。 */
+        MediaBinary: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "image/jpeg": string;
+                "image/png": string;
             };
         };
         /** @description 请求成功，无响应正文。 */
@@ -818,7 +942,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["ProjectGroups"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalServerError"];
@@ -834,11 +958,11 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectWriteRequest"];
+                "application/json": components["schemas"]["ProjectCreateRequest"];
             };
         };
         responses: {
-            201: components["responses"]["Created"];
+            201: components["responses"]["ProjectCreated"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -861,7 +985,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["ProjectEdit"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -881,11 +1005,11 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectWriteRequest"];
+                "application/json": components["schemas"]["ProjectUpdateRequest"];
             };
         };
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["ProjectUpdated"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -910,11 +1034,11 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectWriteRequest"];
+                "application/json": components["schemas"]["ProjectPublishRequest"];
             };
         };
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["ProjectPublished"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -937,7 +1061,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectHideRequest"];
+            };
+        };
         responses: {
             204: components["responses"]["NoContent"];
             401: components["responses"]["Unauthorized"];
@@ -961,7 +1089,7 @@ export interface operations {
             };
         };
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["ProjectOrderUpdated"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -992,7 +1120,7 @@ export interface operations {
             };
         };
         responses: {
-            201: components["responses"]["Created"];
+            201: components["responses"]["MediaCreated"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -1016,7 +1144,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: components["responses"]["OK"];
+            200: components["responses"]["MediaBinary"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

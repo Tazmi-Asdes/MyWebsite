@@ -3,21 +3,28 @@ package publicsite
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 	"mywebsite/internal/article"
+	"mywebsite/internal/media"
 	"mywebsite/internal/platform"
+	"mywebsite/internal/project"
 )
 
 const articlesPerPage int32 = 10
@@ -30,17 +37,74 @@ type ArticleReader interface {
 	GetPublishedByULID(context.Context, string) (article.Article, error)
 }
 
+// ProjectReader is the smallest project domain contract needed by the public
+// site. The service methods deliberately expose both the home-page featured
+// projection and the complete public collection.
+type ProjectReader interface {
+	ListPublicProjects(context.Context) ([]project.Project, error)
+	ListFeatured(context.Context) ([]project.Project, error)
+	CountPublicProjects(context.Context) (int64, error)
+}
+
+// MediaReader is the public media read contract. Media.Open applies the
+// publication/reference policy before returning a filesystem path.
+type MediaReader interface {
+	Open(context.Context, string, bool) (media.OpenResult, error)
+}
+
+// Stage2Options contains the optional domain readers used by the public
+// home, projects, about, and media routes. A nil reader keeps the matching
+// projection in its early-stage empty state for compatibility with callers
+// that only enabled article pages.
+type Stage2Options struct {
+	ArticleReader ArticleReader
+	ProjectReader ProjectReader
+	MediaReader   MediaReader
+}
+
+// PublicOptions is an explicit alias for callers that prefer a public-site
+// focused name when assembling the Stage 2 handler.
+type PublicOptions = Stage2Options
+
 // Handler renders the read-only public pages.
 type Handler struct {
 	templates     *template.Template
 	clock         platform.Clock
 	articleReader ArticleReader
+	projectReader ProjectReader
+	mediaReader   MediaReader
 }
 
 // NewHandler parses the embedded public templates and returns a renderer.
 // The optional article reader keeps the Stage 0 constructor source-compatible
 // while allowing the app layer to enable the Stage 1 article pages.
 func NewHandler(files fs.FS, clock platform.Clock, readers ...ArticleReader) (*Handler, error) {
+	var options Stage2Options
+	if len(readers) > 0 {
+		options.ArticleReader = readers[0]
+	}
+	return newHandler(files, clock, options)
+}
+
+// NewHandlerWithStage2 constructs the public handler with the complete Stage
+// 2 reader set while keeping all readers optional for incremental rollout.
+func NewHandlerWithStage2(files fs.FS, clock platform.Clock, options Stage2Options) (*Handler, error) {
+	return newHandler(files, clock, options)
+}
+
+// NewHandlerStage2 is a concise compatibility alias for the Stage 2
+// constructor.
+func NewHandlerStage2(files fs.FS, clock platform.Clock, options Stage2Options) (*Handler, error) {
+	return NewHandlerWithStage2(files, clock, options)
+}
+
+// NewHandlerWithOptions is an explicit options-named alias for callers that
+// use constructor naming conventions shared by other HTTP adapters.
+func NewHandlerWithOptions(files fs.FS, clock platform.Clock, options Stage2Options) (*Handler, error) {
+	return NewHandlerWithStage2(files, clock, options)
+}
+
+func newHandler(files fs.FS, clock platform.Clock, options Stage2Options) (*Handler, error) {
 	if files == nil {
 		return nil, fmt.Errorf("public template filesystem is nil")
 	}
@@ -51,11 +115,13 @@ func NewHandler(files fs.FS, clock platform.Clock, readers ...ArticleReader) (*H
 	if err != nil {
 		return nil, fmt.Errorf("parse public templates: %w", err)
 	}
-	var reader ArticleReader
-	if len(readers) > 0 {
-		reader = readers[0]
-	}
-	return &Handler{templates: templates, clock: clock, articleReader: reader}, nil
+	return &Handler{
+		templates:     templates,
+		clock:         clock,
+		articleReader: options.ArticleReader,
+		projectReader: options.ProjectReader,
+		mediaReader:   options.MediaReader,
+	}, nil
 }
 
 // NewHandlerWithArticles is an explicit constructor for callers that prefer
@@ -66,6 +132,7 @@ func NewHandlerWithArticles(files fs.FS, clock platform.Clock, reader ArticleRea
 
 // RegisterRoutes registers the public GET routes on a Go 1.22+ ServeMux.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	mux.Handle("GET /media/{id}", http.HandlerFunc(h.media))
 	mux.Handle("GET /", http.HandlerFunc(h.homeOrNotFound))
 	mux.Handle("GET /articles", http.HandlerFunc(h.articles))
 	mux.Handle("GET /articles/{ulid}", http.HandlerFunc(h.articleDetail))
@@ -78,14 +145,29 @@ func (h *Handler) homeOrNotFound(w http.ResponseWriter, r *http.Request) {
 		h.NotFound(w, r)
 		return
 	}
-	h.render(w, http.StatusOK, "home.html", pageData{
+	data := homePageData{
 		Title:       "首页 — MyWebsite",
 		Description: "一个简洁、安静的个人网站首页。",
 		Heading:     "你好，这里是我的个人网站。",
 		Eyebrow:     "PERSONAL SITE",
-		EmptyTitle:  "内容正在准备中",
-		EmptyText:   "文章与项目会在完成整理后陆续发布。",
-	})
+	}
+	if h.articleReader != nil {
+		items, err := h.articleReader.ListPublished(r.Context(), 3, 0)
+		if err != nil {
+			h.serviceUnavailable(w, r)
+			return
+		}
+		data.Articles = makeArticleListItems(limitArticles(items, 3))
+	}
+	if h.projectReader != nil {
+		items, err := h.projectReader.ListFeatured(r.Context())
+		if err != nil {
+			h.serviceUnavailable(w, r)
+			return
+		}
+		data.Projects = makeProjectItems(limitProjects(items, 3))
+	}
+	h.renderTemplate(w, http.StatusOK, "home.html", data)
 }
 
 func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
@@ -184,25 +266,119 @@ func (h *Handler) articleDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) projects(w http.ResponseWriter, r *http.Request) {
-	h.render(w, http.StatusOK, "projects.html", pageData{
+	data := projectPageData{
 		Title:       "项目 — MyWebsite",
 		Description: "正在做过、正在做和想要继续做的项目。",
 		Heading:     "项目",
 		Eyebrow:     "PROJECTS",
 		EmptyTitle:  "暂时还没有公开项目",
 		EmptyText:   "项目资料会在整理完成后展示在这里。",
-	})
+	}
+	if h.projectReader != nil {
+		items, err := h.projectReader.ListPublicProjects(r.Context())
+		if err != nil {
+			h.serviceUnavailable(w, r)
+			return
+		}
+		data.Projects = makeProjectItems(items)
+	}
+	h.renderTemplate(w, http.StatusOK, "projects.html", data)
 }
 
 func (h *Handler) about(w http.ResponseWriter, r *http.Request) {
-	h.render(w, http.StatusOK, "about.html", pageData{
+	data := aboutPageData{
 		Title:       "关于 — MyWebsite",
 		Description: "关于我、我的工作方式，以及这个网站。",
 		Heading:     "关于我",
 		Eyebrow:     "ABOUT",
-		EmptyTitle:  "个人介绍正在准备中",
-		EmptyText:   "这里会放置一份简短、真实且持续更新的介绍。",
-	})
+		DisplayName: "你的网名",
+		AvatarURL:   "/assets/default-avatar.svg",
+		HasStats:    h.articleReader != nil || h.projectReader != nil,
+	}
+	if h.articleReader != nil {
+		count, err := h.articleReader.CountPublished(r.Context())
+		if err != nil {
+			h.serviceUnavailable(w, r)
+			return
+		}
+		data.ArticleCount = count
+	}
+	if h.projectReader != nil {
+		count, err := h.projectReader.CountPublicProjects(r.Context())
+		if err != nil {
+			h.serviceUnavailable(w, r)
+			return
+		}
+		data.ProjectCount = count
+	}
+	h.renderTemplate(w, http.StatusOK, "about.html", data)
+}
+
+func (h *Handler) media(w http.ResponseWriter, r *http.Request) {
+	value := r.PathValue("id")
+	if !isStrictULID(value) || h.mediaReader == nil {
+		h.NotFound(w, r)
+		return
+	}
+
+	opened, err := h.mediaReader.Open(r.Context(), value, false)
+	if err != nil {
+		if errors.Is(err, media.ErrNotFound) || errors.Is(err, sql.ErrNoRows) {
+			h.NotFound(w, r)
+			return
+		}
+		h.serviceUnavailable(w, r)
+		return
+	}
+
+	contentType, ok := publicMediaContentType(opened)
+	if !ok {
+		h.serviceUnavailable(w, r)
+		return
+	}
+	path := opened.Path
+	if path == "" {
+		path = opened.FilePath
+	}
+	if !filepath.IsAbs(path) {
+		h.serviceUnavailable(w, r)
+		return
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		h.serviceUnavailable(w, r)
+		return
+	}
+	defer file.Close()
+	stat, err := file.Stat()
+	if err != nil || !stat.Mode().IsRegular() || stat.Size() < 0 {
+		h.serviceUnavailable(w, r)
+		return
+	}
+
+	digest, err := mediaDigest(file, opened)
+	if err != nil {
+		h.serviceUnavailable(w, r)
+		return
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		h.serviceUnavailable(w, r)
+		return
+	}
+	etag := `"` + hex.EncodeToString(digest) + `"`
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.FormatInt(stat.Size(), 10))
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "no-cache")
+	if !opened.CreatedAt.IsZero() {
+		w.Header().Set("Last-Modified", opened.CreatedAt.UTC().Format(http.TimeFormat))
+	}
+	if r.Header.Get("If-None-Match") == etag {
+		w.Header().Del("Content-Length")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	http.ServeContent(w, r, filepath.Base(path), opened.CreatedAt, file)
 }
 
 func (h *Handler) serviceUnavailable(w http.ResponseWriter, _ *http.Request) {
@@ -237,6 +413,40 @@ type pageData struct {
 	Year        int
 }
 
+type homePageData struct {
+	Title       string
+	Description string
+	Heading     string
+	Eyebrow     string
+	Year        int
+	Articles    []articleListItem
+	Projects    []projectItem
+}
+
+type projectPageData struct {
+	Title       string
+	Description string
+	Heading     string
+	Eyebrow     string
+	EmptyTitle  string
+	EmptyText   string
+	Year        int
+	Projects    []projectItem
+}
+
+type aboutPageData struct {
+	Title        string
+	Description  string
+	Heading      string
+	Eyebrow      string
+	Year         int
+	DisplayName  string
+	AvatarURL    string
+	HasStats     bool
+	ArticleCount int64
+	ProjectCount int64
+}
+
 type articleListPageData struct {
 	Title        string
 	Description  string
@@ -261,6 +471,15 @@ type articleListItem struct {
 	DateTime  string
 	URL       string
 	HasURL    bool
+}
+
+type projectItem struct {
+	Name      string
+	ImageURL  string
+	ImageAlt  string
+	HasImage  bool
+	GitHubURL string
+	HasGitHub bool
 }
 
 type articleDetailPageData struct {
@@ -337,6 +556,24 @@ func withYear(data any, clock platform.Clock) any {
 	case serviceFaultPageData:
 		value.Year = year
 		return value
+	case *homePageData:
+		value.Year = year
+		return value
+	case homePageData:
+		value.Year = year
+		return value
+	case *projectPageData:
+		value.Year = year
+		return value
+	case projectPageData:
+		value.Year = year
+		return value
+	case *aboutPageData:
+		value.Year = year
+		return value
+	case aboutPageData:
+		value.Year = year
+		return value
 	}
 	return data
 }
@@ -391,6 +628,96 @@ func makeArticleListItems(items []article.PublishedArticle) []articleListItem {
 		result = append(result, listItem)
 	}
 	return result
+}
+
+func limitArticles(items []article.PublishedArticle, limit int) []article.PublishedArticle {
+	if len(items) <= limit {
+		return items
+	}
+	return items[:limit]
+}
+
+func makeProjectItems(items []project.Project) []projectItem {
+	result := make([]projectItem, 0, len(items))
+	for _, item := range items {
+		imageURL := strings.TrimSpace(item.ImageURL)
+		if imageURL == "" && item.ImageAssetID != nil {
+			assetID := strings.TrimSpace(*item.ImageAssetID)
+			if assetID != "" {
+				imageURL = "/media/" + url.PathEscape(assetID)
+			}
+		}
+		if imageURL == "" {
+			imageURL = project.DefaultImageURL
+		}
+		customImage := imageURL != project.DefaultImageURL
+		githubURL := ""
+		if item.GitHubURL != nil {
+			githubURL = strings.TrimSpace(*item.GitHubURL)
+		}
+		result = append(result, projectItem{
+			Name:      item.Name,
+			ImageURL:  imageURL,
+			ImageAlt:  valueWhen(customImage, item.Name, ""),
+			HasImage:  customImage,
+			GitHubURL: githubURL,
+			HasGitHub: githubURL != "",
+		})
+	}
+	return result
+}
+
+func limitProjects(items []project.Project, limit int) []project.Project {
+	if len(items) <= limit {
+		return items
+	}
+	return items[:limit]
+}
+
+func valueWhen(condition bool, value, fallback string) string {
+	if condition {
+		return value
+	}
+	return fallback
+}
+
+func isStrictULID(value string) bool {
+	if len(value) != ulid.EncodedSize {
+		return false
+	}
+	_, err := ulid.ParseStrict(value)
+	return err == nil
+}
+
+func publicMediaContentType(value media.OpenResult) (string, bool) {
+	contentType := strings.ToLower(strings.TrimSpace(value.StoredMediaType))
+	if contentType == "" {
+		contentType = strings.ToLower(strings.TrimSpace(value.SourceMediaType))
+	}
+	switch contentType {
+	case "image/jpeg", "image/png":
+		return contentType, true
+	default:
+		return "", false
+	}
+}
+
+func mediaDigest(file *os.File, value media.OpenResult) ([]byte, error) {
+	digest := value.SHA256
+	if len(digest) == 0 {
+		digest = value.Sha256
+	}
+	if len(digest) == sha256.Size {
+		return append([]byte(nil), digest...), nil
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return nil, err
+	}
+	return hasher.Sum(nil), nil
 }
 
 func articlePreview(value *string, fallback string) string {

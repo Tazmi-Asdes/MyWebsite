@@ -14,6 +14,8 @@ import (
 
 	"mywebsite/internal/article"
 	"mywebsite/internal/auth"
+	"mywebsite/internal/media"
+	"mywebsite/internal/project"
 )
 
 type fixedClock struct {
@@ -48,6 +50,94 @@ func (handlerAuthStub) Reauthenticate(context.Context, auth.Session, string) (au
 
 type handlerArticleStub struct {
 	item article.PublishedArticle
+}
+
+type authorizedHandlerAuthStub struct{}
+
+func (authorizedHandlerAuthStub) Login(context.Context, string, string) (auth.LoginResult, error) {
+	return auth.LoginResult{}, auth.ErrInvalidCredentials
+}
+
+func (authorizedHandlerAuthStub) Authenticate(context.Context, string) (auth.Session, error) {
+	return auth.Session{ID: 1, AdminID: 1, Username: "admin"}, nil
+}
+
+func (authorizedHandlerAuthStub) AuthenticateForReauth(ctx context.Context, token string) (auth.Session, error) {
+	return authorizedHandlerAuthStub{}.Authenticate(ctx, token)
+}
+
+func (authorizedHandlerAuthStub) ValidateCSRF(any, string) error { return nil }
+
+func (authorizedHandlerAuthStub) Logout(context.Context, uint64) error { return nil }
+
+func (authorizedHandlerAuthStub) Reauthenticate(context.Context, auth.Session, string) (auth.LoginResult, error) {
+	return auth.LoginResult{}, auth.ErrInvalidCredentials
+}
+
+type handlerProjectStub struct {
+	groupsCalls   int
+	publicCalls   int
+	featuredCalls int
+}
+
+func (stub *handlerProjectStub) ListGroups(context.Context) (project.ProjectGroups, error) {
+	stub.groupsCalls++
+	return project.ProjectGroups{Public: []project.Project{{ID: 1, Name: "管理项目"}}}, nil
+}
+
+func (stub *handlerProjectStub) Create(context.Context, project.CreateRequest) (project.Project, error) {
+	return project.Project{}, nil
+}
+
+func (stub *handlerProjectStub) Get(context.Context, uint64) (project.Project, error) {
+	return project.Project{}, nil
+}
+
+func (stub *handlerProjectStub) Update(context.Context, uint64, project.UpdateRequest) (project.Project, error) {
+	return project.Project{}, nil
+}
+
+func (stub *handlerProjectStub) Publish(context.Context, uint64, project.PublishRequest) (project.Project, uint64, error) {
+	return project.Project{}, 0, nil
+}
+
+func (stub *handlerProjectStub) Hide(context.Context, uint64, project.HideRequest) (uint64, error) {
+	return 0, nil
+}
+
+func (stub *handlerProjectStub) Reorder(context.Context, project.OrderRequest) (uint64, error) {
+	return 0, nil
+}
+
+func (stub *handlerProjectStub) ListPublicProjects(context.Context) ([]project.Project, error) {
+	stub.publicCalls++
+	return []project.Project{{ID: 2, Name: "公开项目"}}, nil
+}
+
+func (stub *handlerProjectStub) ListFeatured(context.Context) ([]project.Project, error) {
+	stub.featuredCalls++
+	return []project.Project{{ID: 2, Name: "精选项目"}}, nil
+}
+
+func (stub *handlerProjectStub) CountPublicProjects(context.Context) (int64, error) {
+	return 1, nil
+}
+
+type handlerMediaStub struct {
+	openCalls int
+	lastID    string
+	lastAdmin bool
+}
+
+func (stub *handlerMediaStub) Upload(context.Context, uint64, io.Reader) (media.Asset, error) {
+	return media.Asset{}, nil
+}
+
+func (stub *handlerMediaStub) Open(_ context.Context, id string, admin bool) (media.OpenResult, error) {
+	stub.openCalls++
+	stub.lastID = id
+	stub.lastAdmin = admin
+	return media.OpenResult{}, media.ErrNotFound
 }
 
 func (stub handlerArticleStub) ListAdmin(context.Context, *article.Status, *string, int32, int32) ([]article.AdminArticleSummary, error) {
@@ -301,6 +391,60 @@ func TestStage1RoutesAreMountedAlongsidePublicRoutes(t *testing.T) {
 	handler.ServeHTTP(publicResponse, httptest.NewRequest(http.MethodGet, "/articles", nil))
 	if publicResponse.Code != http.StatusOK || !strings.Contains(publicResponse.Body.String(), "已发布文章") {
 		t.Fatalf("public response = %d %s, want rendered published article", publicResponse.Code, publicResponse.Body.String())
+	}
+}
+
+func TestStage2RoutesAreMountedForSharedServices(t *testing.T) {
+	projects := &handlerProjectStub{}
+	mediaReader := &handlerMediaStub{}
+	handler, err := NewHandler(HandlerOptions{
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Clock:          fixedClock{value: time.Date(2025, time.December, 31, 16, 30, 0, 0, time.UTC)},
+		Auth:           authorizedHandlerAuthStub{},
+		Articles:       handlerArticleStub{},
+		Projects:       projects,
+		Media:          mediaReader,
+		MaxUploadBytes: 1024,
+		PublicBaseURL:  "https://example.test",
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	adminResponse := httptest.NewRecorder()
+	adminRequest := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	adminRequest.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf"})
+	handler.ServeHTTP(adminResponse, adminRequest)
+	if adminResponse.Code != http.StatusOK || !strings.Contains(adminResponse.Body.String(), "管理项目") {
+		t.Fatalf("admin projects response = %d %s", adminResponse.Code, adminResponse.Body.String())
+	}
+	if projects.groupsCalls != 1 {
+		t.Fatalf("admin project calls = %d, want 1", projects.groupsCalls)
+	}
+
+	publicResponse := httptest.NewRecorder()
+	handler.ServeHTTP(publicResponse, httptest.NewRequest(http.MethodGet, "/projects", nil))
+	if publicResponse.Code != http.StatusOK || !strings.Contains(publicResponse.Body.String(), "公开项目") {
+		t.Fatalf("public projects response = %d %s", publicResponse.Code, publicResponse.Body.String())
+	}
+	if projects.publicCalls != 1 {
+		t.Fatalf("public project calls = %d, want 1", projects.publicCalls)
+	}
+
+	aboutResponse := httptest.NewRecorder()
+	handler.ServeHTTP(aboutResponse, httptest.NewRequest(http.MethodGet, "/about", nil))
+	if aboutResponse.Code != http.StatusOK || !strings.Contains(aboutResponse.Body.String(), ">1</strong><span>已发布文章</span>") || !strings.Contains(aboutResponse.Body.String(), ">1</strong><span>公开项目</span>") {
+		t.Fatalf("about response = %d %s", aboutResponse.Code, aboutResponse.Body.String())
+	}
+
+	const mediaID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+	mediaResponse := httptest.NewRecorder()
+	handler.ServeHTTP(mediaResponse, httptest.NewRequest(http.MethodGet, "/media/"+mediaID, nil))
+	if mediaResponse.Code != http.StatusNotFound {
+		t.Fatalf("media response = %d, want 404 from configured reader", mediaResponse.Code)
+	}
+	if mediaReader.openCalls != 1 || mediaReader.lastID != mediaID || mediaReader.lastAdmin {
+		t.Fatalf("media reader calls = (%d, %q, %t), want (1, %q, false)", mediaReader.openCalls, mediaReader.lastID, mediaReader.lastAdmin, mediaID)
 	}
 }
 

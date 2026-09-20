@@ -327,7 +327,7 @@ paths:
         - sessionCookie: []
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/ProjectGroups'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -347,10 +347,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectWriteRequest'
+              $ref: '#/components/schemas/ProjectCreateRequest'
       responses:
         '201':
-          $ref: '#/components/responses/Created'
+          $ref: '#/components/responses/ProjectCreated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -379,7 +379,7 @@ paths:
         - sessionCookie: []
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/ProjectEdit'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -401,10 +401,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectWriteRequest'
+              $ref: '#/components/schemas/ProjectUpdateRequest'
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/ProjectUpdated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -441,10 +441,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectWriteRequest'
+              $ref: '#/components/schemas/ProjectPublishRequest'
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/ProjectPublished'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -475,6 +475,12 @@ paths:
       summary: 隐藏项目
       security:
         - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectHideRequest'
       responses:
         '204':
           $ref: '#/components/responses/NoContent'
@@ -506,7 +512,7 @@ paths:
               $ref: '#/components/schemas/ProjectOrderRequest'
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/ProjectOrderUpdated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -547,7 +553,7 @@ paths:
                   description: 图片文件。
       responses:
         '201':
-          $ref: '#/components/responses/Created'
+          $ref: '#/components/responses/MediaCreated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -574,11 +580,12 @@ paths:
       tags: [media]
       operationId: getMedia
       summary: 读取媒体资源
+      description: 管理员预览二进制媒体资源；公开站路由 GET /media/{id} 不属于本 API 的 /api/v1 server 范围。
       security:
         - sessionCookie: []
       responses:
         '200':
-          $ref: '#/components/responses/OK'
+          $ref: '#/components/responses/MediaBinary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -654,9 +661,6 @@ components:
               - $ref: '#/components/schemas/Session'
               - $ref: '#/components/schemas/ArticleListResponse'
               - $ref: '#/components/schemas/ArticleEdit'
-              - $ref: '#/components/schemas/ProjectGroups'
-              - $ref: '#/components/schemas/ProjectEdit'
-              - $ref: '#/components/schemas/MediaAsset'
     Created:
       description: 资源创建成功。
       content:
@@ -664,8 +668,59 @@ components:
           schema:
             oneOf:
               - $ref: '#/components/schemas/ArticleEdit'
-              - $ref: '#/components/schemas/ProjectEdit'
-              - $ref: '#/components/schemas/MediaAsset'
+    ProjectGroups:
+      description: 项目公开组、隐藏组及当前排序集合版本。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectGroups'
+    ProjectCreated:
+      description: 隐藏项目创建成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectEdit'
+    ProjectEdit:
+      description: 项目编辑数据读取成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectEdit'
+    ProjectUpdated:
+      description: 项目更新成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectEdit'
+    ProjectPublished:
+      description: 项目公开成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectEdit'
+    ProjectOrderUpdated:
+      description: 项目公开顺序更新成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectOrderResult'
+    MediaCreated:
+      description: 媒体资源上传成功。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MediaAsset'
+    MediaBinary:
+      description: 管理员媒体预览二进制内容。
+      content:
+        image/jpeg:
+          schema:
+            type: string
+            format: binary
+        image/png:
+          schema:
+            type: string
+            format: binary
     NoContent:
       description: 请求成功，无响应正文。
     BadRequest:
@@ -775,6 +830,12 @@ components:
             - upload_too_large
             - upload_type_invalid
             - image_dimensions_exceeded
+            - invalid_media_reference
+            - image_alt_required
+            - image_alt_invalid
+            - referenced_media_not_found
+            - invalid_actor
+            - internal_error
             - save_failed
             - invalid_request
             - not_found
@@ -960,7 +1021,7 @@ components:
           minimum: 1
     ProjectEdit:
       type: object
-      required: [id, name, status, version, created_at, updated_at]
+      required: [id, name, status, image_preview_url, version, created_at, updated_at]
       properties:
         id:
           type: integer
@@ -979,6 +1040,12 @@ components:
           allOf:
             - $ref: '#/components/schemas/ULID'
           nullable: true
+        image_preview_url:
+          type: string
+          format: uri-reference
+          nullable: true
+          readOnly: true
+          description: 有图片时为 /api/v1/media/{id}，无图片时为 null。
         status:
           type: string
           enum: [hidden, public]
@@ -999,9 +1066,18 @@ components:
           type: string
           format: date-time
           readOnly: true
-    ProjectWriteRequest:
+    ProjectCreateRequest:
       type: object
       required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    ProjectUpdateRequest:
+      type: object
+      required: [name, version]
       additionalProperties: false
       properties:
         name:
@@ -1021,7 +1097,49 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: 更新、公开和隐藏时必填的乐观锁版本。
+          description: 更新时必填的乐观锁版本。
+    ProjectPublishRequest:
+      type: object
+      required: [name, github_url, image_asset_id, version, order_version]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        github_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        image_asset_id:
+          allOf:
+            - $ref: '#/components/schemas/ULID'
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 公开时必填的项目乐观锁版本。
+        order_version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 公开时必填的公开项目集合版本。
+    ProjectHideRequest:
+      type: object
+      required: [version, order_version]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 隐藏时必填的项目乐观锁版本。
+        order_version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 隐藏时必填的公开项目集合版本。
     ProjectGroups:
       type: object
       required: [public, hidden, order_version]
@@ -1040,31 +1158,44 @@ components:
           minimum: 1
     ProjectOrderRequest:
       type: object
-      required: [order_version, project_ids]
+      required: [order_version, public_ids]
       additionalProperties: false
       properties:
         order_version:
           type: integer
           format: int64
           minimum: 1
-        project_ids:
+        public_ids:
           type: array
           uniqueItems: true
+          description: 完整的当前公开项目 ID 顺序；不得缺少或重复任何公开项目。
           items:
             type: integer
             format: int64
             minimum: 1
+    ProjectOrderResult:
+      type: object
+      required: [order_version]
+      properties:
+        order_version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 更新后的公开项目集合版本。
     MediaAsset:
       type: object
-      required: [id, preview_url, markdown_reference, source_media_type, stored_media_type, byte_size, width, height, created_at]
+      required: [id, preview_url, markdown_reference, source_media_type, stored_media_type, byte_size, width, height, sha256, created_at]
       properties:
         id:
           $ref: '#/components/schemas/ULID'
         preview_url:
           type: string
           format: uri-reference
+          description: 管理员预览地址，格式为 /api/v1/media/{id}。
         markdown_reference:
           type: string
+          pattern: '^!\[[^\]\r\n]{1,300}\]\(/media/[0-9A-HJKMNP-TV-Z]{26}\)$'
+          description: 固定为本地绝对路径 Markdown 图片引用；alt 文本必须为 1..300 个 Unicode 字符。上传返回的占位文本为 ![请填写图片说明](/media/{id})。
         source_media_type:
           type: string
         stored_media_type:

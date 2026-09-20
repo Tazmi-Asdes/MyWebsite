@@ -28,15 +28,32 @@ type ArticleServices interface {
 	publicsite.ArticleReader
 }
 
+// ProjectServices is the shared project dependency used by the administrator
+// API and the public project renderer.
+type ProjectServices interface {
+	adminapi.ProjectService
+	publicsite.ProjectReader
+}
+
+// MediaServices is the shared media dependency used by the administrator API
+// and the public media renderer.
+type MediaServices interface {
+	adminapi.MediaService
+	publicsite.MediaReader
+}
+
 // HandlerOptions controls the dependencies used by the HTTP handler.
 type HandlerOptions struct {
-	Logger        *slog.Logger
-	Clock         platform.Clock
-	Readiness     Readiness
-	Auth          adminapi.AuthService
-	Articles      ArticleServices
-	PublicBaseURL string
-	CookieSecure  bool
+	Logger         *slog.Logger
+	Clock          platform.Clock
+	Readiness      Readiness
+	Auth           adminapi.AuthService
+	Articles       ArticleServices
+	Projects       ProjectServices
+	Media          MediaServices
+	MaxUploadBytes int64
+	PublicBaseURL  string
+	CookieSecure   bool
 }
 
 // NewHandler creates the Stage 0 HTTP handler and all of its routes.
@@ -58,7 +75,13 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 		publicHandler *publicsite.Handler
 		err           error
 	)
-	if options.Articles == nil {
+	if options.Projects != nil || options.Media != nil {
+		publicHandler, err = publicsite.NewHandlerWithStage2(publicassets.Files, clock, publicsite.Stage2Options{
+			ArticleReader: options.Articles,
+			ProjectReader: options.Projects,
+			MediaReader:   options.Media,
+		})
+	} else if options.Articles == nil {
 		publicHandler, err = publicsite.NewHandler(publicassets.Files, clock)
 	} else {
 		publicHandler, err = publicsite.NewHandlerWithArticles(publicassets.Files, clock, options.Articles)
@@ -71,11 +94,14 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 	publicHandler.RegisterRoutes(mux)
 	if options.Auth != nil {
 		adminHandler, adminErr := adminapi.NewHandler(adminapi.HandlerOptions{
-			Auth:          options.Auth,
-			Articles:      options.Articles,
-			PublicBaseURL: options.PublicBaseURL,
-			CookieSecure:  options.CookieSecure,
-			Now:           clock.Now,
+			Auth:           options.Auth,
+			Articles:       options.Articles,
+			Projects:       options.Projects,
+			Media:          options.Media,
+			MaxUploadBytes: options.MaxUploadBytes,
+			PublicBaseURL:  options.PublicBaseURL,
+			CookieSecure:   options.CookieSecure,
+			Now:            clock.Now,
 		})
 		if adminErr != nil {
 			return nil, adminErr
