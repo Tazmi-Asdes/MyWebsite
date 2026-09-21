@@ -137,13 +137,29 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			if strings.Count(body, `id="main-content"`) != 1 {
 				t.Fatalf("main content id count = %d, body = %s", strings.Count(body, `id="main-content"`), body)
 			}
-			if strings.Count(body, `<details class="site-menu">`) != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav aria-label="主导航">`) != 1 {
-				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", strings.Count(body, `<details class="site-menu">`), strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav aria-label="主导航">`), body)
+			if strings.Count(body, `<details class="site-menu">`) != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`) != 1 {
+				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", strings.Count(body, `<details class="site-menu">`), strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`), body)
+			}
+			if strings.Count(body, `<header class="site-header">`) != 1 || strings.Count(body, `<div class="container site-header__inner">`) != 1 || strings.Count(body, `<a class="site-brand" href="/">MyWebsite</a>`) != 1 {
+				t.Fatalf("header shell structure missing: %s", body)
+			}
+			if strings.Count(body, `<footer class="site-footer">`) != 1 || strings.Count(body, `<div class="container site-footer__inner">`) != 1 || !strings.Contains(body, `<span>© 2026 MyWebsite</span>`) {
+				t.Fatalf("footer shell structure missing: %s", body)
+			}
+			if strings.Contains(body, `class="brand"`) {
+				t.Fatalf("legacy brand class remains: %s", body)
+			}
+			wantCurrent := 0
+			if page.activeHref != "" {
+				wantCurrent = 1
+			}
+			if strings.Count(body, `aria-current="page"`) != wantCurrent {
+				t.Fatalf("aria-current count = %d, want %d: %s", strings.Count(body, `aria-current="page"`), wantCurrent, body)
 			}
 			if strings.Contains(body, "<script") {
 				t.Fatalf("public page unexpectedly depends on a script: %s", body)
 			}
-			if page.activeHref != "" && !strings.Contains(body, `<a class="active" href="`+page.activeHref+`">`) {
+			if page.activeHref != "" && !strings.Contains(body, `<a class="active" href="`+page.activeHref+`" aria-current="page">`) {
 				t.Fatalf("active navigation link %q missing: %s", page.activeHref, body)
 			}
 		})
@@ -183,17 +199,32 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 		t.Fatal("public styles must not add manual theme switching")
 	}
 	for _, rule := range []string{
-		".site-menu > nav {\n  display: flex;",
+		".site-menu > .site-nav {\n  display: flex;",
 		".menu-button::-webkit-details-marker",
 		".menu-button::marker",
 		".menu-button:focus-visible",
 		"@media (max-width: 640px)",
 		".menu-button {\n    display: flex;",
-		".site-menu[open] > nav {\n    display: flex;",
+		".site-menu[open] > .site-nav {\n    display: flex;",
 	} {
 		if !strings.Contains(css, rule) {
 			t.Errorf("mobile menu CSS rule %q missing", rule)
 		}
+	}
+	for _, rule := range []string{
+		".site-header {",
+		".site-header__inner",
+		".site-brand",
+		".site-nav",
+		".site-footer {",
+		".site-footer__inner",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("public shell CSS rule %q missing", rule)
+		}
+	}
+	if strings.Contains(css, "\nnav {") || strings.Contains(css, "\nnav a") || strings.Contains(css, "\n.brand {") {
+		t.Fatal("public shell still uses legacy global nav or brand selectors")
 	}
 }
 
