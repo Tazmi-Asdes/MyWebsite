@@ -85,8 +85,18 @@ func request(t *testing.T, handler http.Handler, target string) *httptest.Respon
 func TestArticlesWithoutReaderRemainEmptyAndRejectUnknownQuery(t *testing.T) {
 	handler := newPublicHandler(t)
 	response := request(t, handler, "/articles")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "暂时还没有文章") {
-		t.Fatalf("empty articles response = %d %s", response.Code, response.Body.String())
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "暂时还没有文章") {
+		t.Fatalf("empty articles response = %d %s", response.Code, body)
+	}
+	if strings.Contains(body, `class="page-shell"`) || strings.Count(body, `<header class="page-heading">`) != 1 || strings.Count(body, `<div class="container">`) != 2 {
+		t.Fatalf("empty article heading structure is incorrect: %s", body)
+	}
+	if strings.Count(body, `<section class="section" aria-label="文章列表">`) != 1 || strings.Count(body, `<div class="empty-state" aria-live="polite">`) != 1 {
+		t.Fatalf("empty article section structure is incorrect: %s", body)
+	}
+	if strings.Contains(body, `class="article-list"`) || strings.Contains(body, `class="article-list__item"`) || strings.Contains(body, `<nav class="pagination" aria-label="文章分页">`) {
+		t.Fatalf("empty article page unexpectedly contains filled-list structure: %s", body)
 	}
 	if response := request(t, handler, "/articles?page=2"); response.Code != http.StatusNotFound {
 		t.Fatalf("unconfigured page 2 status = %d", response.Code)
@@ -222,6 +232,22 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 		if !strings.Contains(css, rule) {
 			t.Errorf("public shell CSS rule %q missing", rule)
 		}
+	}
+	for _, rule := range []string{
+		".page-heading {\n  padding: clamp(3rem, 6vw, 5rem) 0 2.5rem;",
+		".page-heading h1 {",
+		".page-heading p {",
+		".article-list {",
+		".article-list__item {",
+		".pagination [aria-current=\"page\"]",
+		".section[aria-label=\"文章列表\"] .empty-state {",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("article list CSS rule %q missing", rule)
+		}
+	}
+	if strings.Contains(css, ".article-list-item") {
+		t.Fatal("public styles still use the legacy article list item selector")
 	}
 	if strings.Contains(css, "\nnav {") || strings.Contains(css, "\nnav a") || strings.Contains(css, "\n.brand {") {
 		t.Fatal("public shell still uses legacy global nav or brand selectors")
@@ -376,8 +402,18 @@ func TestArticlesPaginationAndStrictPageQuery(t *testing.T) {
 	}}}
 	handler := newPublicHandler(t, reader)
 	response := request(t, handler, "/articles?page=2")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "第 2 页文章") || !strings.Contains(response.Body.String(), "2026-09-19") {
-		t.Fatalf("page 2 response = %d %s", response.Code, response.Body.String())
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "第 2 页文章") || !strings.Contains(body, "2026-09-19") {
+		t.Fatalf("page 2 response = %d %s", response.Code, body)
+	}
+	if strings.Contains(body, `class="page-shell"`) || strings.Count(body, `<header class="page-heading">`) != 1 || strings.Count(body, `<div class="container">`) != 2 {
+		t.Fatalf("article heading structure is incorrect: %s", body)
+	}
+	if strings.Count(body, `<section class="section" aria-label="文章列表">`) != 1 || strings.Count(body, `<div class="article-list">`) != 1 || strings.Count(body, `class="article-list__item"`) != 1 {
+		t.Fatalf("article list structure is incorrect: %s", body)
+	}
+	if strings.Count(body, `<nav class="pagination" aria-label="文章分页">`) != 1 || !strings.Contains(body, `href="/articles?page=1" aria-label="上一页"`) || !strings.Contains(body, `<span aria-current="page">第 2 / 2 页</span>`) || strings.Contains(body, `aria-label="下一页"`) {
+		t.Fatalf("pagination semantics are incorrect: %s", body)
 	}
 	if reader.listLimit != 10 || reader.listOffset != 10 || !reader.listCalled {
 		t.Fatalf("list arguments = limit %d offset %d called %t", reader.listLimit, reader.listOffset, reader.listCalled)

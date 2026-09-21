@@ -474,15 +474,37 @@ h1 {
 }
 
 .page-heading {
-  padding-bottom: 2.5rem;
+  padding: clamp(3rem, 6vw, 5rem) 0 2.5rem;
   border-bottom: 1px solid var(--border);
 }
 
-.article-list {
-  border-top: 1px solid var(--border-strong);
+.page-heading h1 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  font-size: clamp(2.2rem, 5vw, 4rem);
 }
 
-.article-list-item {
+.page-heading p {
+  max-width: 42rem;
+  margin: 1rem 0 0;
+  color: var(--text-muted);
+}
+
+.page-heading .eyebrow {
+  max-width: none;
+  margin: 0 0 1.25rem;
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.article-list {
+  border-top: 1px solid var(--border);
+}
+
+.article-list__item {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);
   gap: 2rem;
@@ -490,30 +512,31 @@ h1 {
   border-bottom: 1px solid var(--border);
 }
 
-.article-list-item time,
+.article-list__item time,
 .article-header time {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
-.article-list-item h2 {
+.article-list__item h2 {
   margin: 0;
   font-size: clamp(1.35rem, 3vw, 1.9rem);
+  font-weight: 550;
   line-height: 1.3;
   letter-spacing: -0.02em;
 }
 
-.article-list-item h2 a {
+.article-list__item h2 a {
   text-decoration: none;
 }
 
-.article-list-item h2 a:hover,
-.article-list-item h2 a:focus-visible {
+.article-list__item h2 a:hover,
+.article-list__item h2 a:focus-visible {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
-.article-list-item p {
+.article-list__item p {
   max-width: 48rem;
   margin: 0.75rem 0 0;
   color: var(--text-muted);
@@ -524,25 +547,48 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.4rem;
   margin-top: 2.5rem;
 }
 
 .pagination a,
 .pagination span {
-  min-height: 2.5rem;
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
   border: 1px solid var(--border);
   text-decoration: none;
 }
 
 .pagination a:hover,
-.pagination a:focus-visible {
+.pagination a:focus-visible,
+.pagination [aria-current="page"] {
   border-color: var(--border-strong);
   background: var(--text);
   color: var(--inverse);
+}
+
+.section[aria-label="文章列表"] .empty-state {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  margin-top: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  padding: 2rem;
+}
+
+.section[aria-label="文章列表"] .empty-state h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.section[aria-label="文章列表"] .empty-state p {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
 }
 
 .article-header {
@@ -786,7 +832,7 @@ h1 {
     min-height: calc(100vh - 12rem);
   }
 
-  .article-list-item {
+  .article-list__item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
