@@ -95,6 +95,50 @@ func TestArticlesWithoutReaderRemainEmptyAndRejectUnknownQuery(t *testing.T) {
 	}
 }
 
+func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
+	articleReader := &fakeArticleReader{article: article.Article{
+		Title:       "可访问文章",
+		Status:      article.StatusPublished,
+		BodyHTML:    stringPointer("<p>正文</p>"),
+		PreviewText: stringPointer("文章摘要"),
+	}}
+	pages := []struct {
+		name    string
+		handler http.Handler
+		target  string
+	}{
+		{name: "home", handler: newPublicHandler(t), target: "/"},
+		{name: "articles", handler: newPublicHandler(t), target: "/articles"},
+		{name: "article", handler: newPublicHandler(t, articleReader), target: "/articles/" + testArticleULID},
+		{name: "projects", handler: newPublicHandler(t), target: "/projects"},
+		{name: "about", handler: newPublicHandler(t), target: "/about"},
+		{name: "404", handler: newPublicHandler(t), target: "/missing"},
+		{name: "500", handler: newPublicHandler(t, &fakeArticleReader{listErr: errors.New("database unavailable")}), target: "/"},
+	}
+
+	for _, page := range pages {
+		t.Run(page.name, func(t *testing.T) {
+			response := request(t, page.handler, page.target)
+			body := response.Body.String()
+			if page.name == "404" && response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
+			}
+			if page.name == "500" && response.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusInternalServerError)
+			}
+			if page.name != "404" && page.name != "500" && response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+			}
+			if strings.Count(body, `class="skip-link" href="#main-content"`) != 1 {
+				t.Fatalf("skip link count = %d, body = %s", strings.Count(body, `class="skip-link" href="#main-content"`), body)
+			}
+			if strings.Count(body, `id="main-content"`) != 1 {
+				t.Fatalf("main content id count = %d, body = %s", strings.Count(body, `id="main-content"`), body)
+			}
+		})
+	}
+}
+
 func TestArticlesPaginationAndStrictPageQuery(t *testing.T) {
 	reader := &fakeArticleReader{total: 11, items: []article.PublishedArticle{{
 		Title:            "第 2 页文章",

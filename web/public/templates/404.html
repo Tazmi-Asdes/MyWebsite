@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
   <header class="site-header">
     <a class="brand" href="/">MyWebsite</a>
     <nav aria-label="主导航">
@@ -17,7 +18,7 @@
       <a href="/about">关于</a>
     </nav>
   </header>
-  <main class="page-shell">
+  <main id="main-content" class="page-shell">
     <p class="eyebrow">{{.Eyebrow}}</p>
     <h1>{{.Heading}}</h1>
     <p class="lede">{{.Description}}</p>
