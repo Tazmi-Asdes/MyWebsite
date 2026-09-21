@@ -95,12 +95,33 @@ describe('管理端路由页面', () => {
     closeReauth()
   })
 
-  it('渲染登录页并提供正确的表单标签', async () => {
+  it('渲染 V2 登录结构并提供完整的键盘入口和表单语义', async () => {
     const { wrapper } = await renderAt('/login')
 
+    expect(wrapper.get('.skip-link').text()).toBe('跳到登录表单')
+    expect(wrapper.get('.skip-link').attributes('href')).toBe('#login-main')
+    expect(wrapper.find('main#login-main').exists()).toBe(true)
+    expect(wrapper.get('.login-panel__brand').text()).toBe('个人技术网站')
     expect(wrapper.get('h1').text()).toBe('管理员登录')
+    expect(wrapper.get('.login-intro').text()).toBe('登录后管理文章与公开项目。')
+    expect(wrapper.get('form.form-grid').attributes('novalidate')).toBeDefined()
     expect(wrapper.get('label[for="username"]').text()).toBe('用户名')
     expect(wrapper.get('label[for="password"]').text()).toBe('密码')
+
+    const usernameInput = wrapper.get('#username')
+    const passwordInput = wrapper.get('#password')
+    expect(usernameInput.classes()).toContain('input')
+    expect(usernameInput.attributes('autocomplete')).toBe('username')
+    expect(usernameInput.attributes('required')).toBeDefined()
+    expect(usernameInput.attributes('autofocus')).toBeDefined()
+    expect(passwordInput.classes()).toContain('input')
+    expect(passwordInput.attributes('autocomplete')).toBe('current-password')
+    expect(passwordInput.attributes('required')).toBeDefined()
+
+    const submitButton = wrapper.get('form.form-grid button[type="submit"]')
+    expect(submitButton.classes()).toEqual(expect.arrayContaining(['button', 'button--primary']))
+    expect(submitButton.text()).toBe('登录')
+    expect(submitButton.attributes('disabled')).toBeUndefined()
   })
 
   it('渲染文章管理占位页', async () => {
@@ -171,6 +192,65 @@ describe('管理端路由页面', () => {
 
     expect(testRouter.currentRoute.value.path).toBe('/articles')
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true)
+  })
+
+  it('登录返回 validation_failed 时显示校验错误并保留输入', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session') && !init?.method) {
+        return Promise.resolve(jsonResponse(401, { status: 401, code: 'authentication_required' }))
+      }
+      if (url.endsWith('/session') && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse(422, {
+          status: 422,
+          code: 'validation_failed',
+          type: 'https://example.test/problems/validation_failed',
+          title: '请求参数无效',
+          request_id: 'request-validation-failed',
+          errors: {},
+        }))
+      }
+      return Promise.resolve(jsonResponse(401, { status: 401, code: 'authentication_required' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { testRouter, wrapper } = await renderAt('/login')
+
+    await wrapper.get('#username').setValue('  admin  ')
+    await wrapper.get('#password').setValue('bad-password')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(testRouter.currentRoute.value.path).toBe('/login')
+    expect(wrapper.get('[role="alert"]').text()).toBe('请输入有效的用户名和密码。')
+    expect(wrapper.get('#username').element).toHaveProperty('value', '  admin  ')
+    expect(wrapper.get('#password').element).toHaveProperty('value', 'bad-password')
+  })
+
+  it('普通认证失败时显示认证错误并保留输入', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session') && !init?.method) {
+        return Promise.resolve(jsonResponse(401, { status: 401, code: 'authentication_required' }))
+      }
+      if (url.endsWith('/session') && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse(401, { status: 401, code: 'authentication_required' }))
+      }
+      return Promise.resolve(jsonResponse(401, { status: 401, code: 'authentication_required' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { testRouter, wrapper } = await renderAt('/login')
+
+    await wrapper.get('#username').setValue('admin')
+    await wrapper.get('#password').setValue('wrong-password')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(testRouter.currentRoute.value.path).toBe('/login')
+    expect(wrapper.get('[role="alert"]').text()).toBe('用户名或密码不正确，请检查后重试。')
+    expect(wrapper.get('#username').element).toHaveProperty('value', 'admin')
+    expect(wrapper.get('#password').element).toHaveProperty('value', 'wrong-password')
   })
 
   it('文章列表请求并渲染标题和状态', async () => {

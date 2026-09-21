@@ -341,19 +341,65 @@ textarea:focus-visible {
   display: grid;
   min-height: 100vh;
   place-items: center;
-  padding: 1.5rem;
+  padding: 1rem;
   background: var(--bg);
 }
 
 .login-panel {
-  width: min(100%, 28rem);
-  padding: clamp(1.5rem, 5vw, 3rem);
+  width: min(100%, 25rem);
+  padding: clamp(1.5rem, 5vw, 2.5rem);
   border: 1px solid var(--border);
   background: var(--surface);
 }
 
-.login-intro {
-  margin: 1rem 0 0;
+.login-panel__brand {
+  margin-bottom: 2.5rem;
+  font-weight: 750;
+}
+
+.login-panel h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.7rem;
+  font-weight: 550;
+}
+
+.login-panel > p {
+  margin: 0 0 2rem;
+  color: var(--muted);
+}
+
+.login-panel .field {
+  gap: 0.4rem;
+}
+
+.login-panel .field label {
+  font-size: 0.8rem;
+}
+
+.login-panel .input {
+  padding: 0.7rem 0.8rem;
+}
+
+.login-panel .notice {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  font-size: 0.85rem;
+}
+
+.login-panel .notice--error {
+  border-color: var(--text);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.form-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.login-panel .form-grid {
+  gap: 1rem;
 }
 
 .form-stack {
@@ -364,7 +410,7 @@ textarea:focus-visible {
 
 .login-panel .button {
   width: 100%;
-  margin-top: 0.35rem;
+  margin-top: 0.5rem;
 }
 
 .login-panel .stage-note {

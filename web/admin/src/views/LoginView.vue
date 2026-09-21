@@ -36,21 +36,23 @@ async function submitLogin(): Promise<void> {
 </script>
 
 <template>
-  <main class="login-page">
+  <a class="skip-link" href="#login-main">跳到登录表单</a>
+  <main id="login-main" class="login-page">
     <section class="login-panel" aria-labelledby="login-title">
-      <p class="eyebrow">个人技术网站 / 管理端</p>
+      <div class="login-panel__brand">个人技术网站</div>
       <h1 id="login-title">管理员登录</h1>
       <p class="login-intro">登录后管理文章与公开项目。</p>
 
       <p v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</p>
 
-      <form class="form-stack" novalidate @submit.prevent="submitLogin">
+      <form class="form-grid" novalidate @submit.prevent="submitLogin">
         <div class="field">
           <label for="username">用户名</label>
           <input
             id="username"
             name="username"
             type="text"
+            class="input"
             autocomplete="username"
             required
             autofocus
@@ -64,6 +66,7 @@ async function submitLogin(): Promise<void> {
             id="password"
             name="password"
             type="password"
+            class="input"
             autocomplete="current-password"
             required
             v-model="password"
