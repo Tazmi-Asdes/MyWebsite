@@ -115,6 +115,12 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 	if home.Code != http.StatusOK || !strings.Contains(body, "第一篇") || !strings.Contains(body, "精选一") || strings.Contains(body, "不应展示") {
 		t.Fatalf("home response = %d %s", home.Code, body)
 	}
+	if !strings.Contains(body, `<section class="hero">`) || !strings.Contains(body, `<div class="container hero__content">`) {
+		t.Fatalf("home hero structure missing: %s", body)
+	}
+	if strings.Count(body, "查看全部") != 2 {
+		t.Fatalf("home view-all link count = %d, body = %s", strings.Count(body, "查看全部"), body)
+	}
 	if article.listLimit != 3 || article.listOffset != 0 || projects.featuredCalls != 1 {
 		t.Fatalf("home projection calls = article(%d,%d), featured(%d)", article.listLimit, article.listOffset, projects.featuredCalls)
 	}
@@ -140,6 +146,11 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 
 func TestStage2EmptyPagesAndDependencyErrors(t *testing.T) {
 	empty := newStage2Handler(t, &fakeArticleReader{}, &fakeProjectReader{}, nil)
+	home := request(t, empty, "/")
+	homeBody := home.Body.String()
+	if home.Code != http.StatusOK || strings.Count(homeBody, "查看全部") != 0 || !strings.Contains(homeBody, "暂时没有公开文章") || !strings.Contains(homeBody, "暂时没有公开项目") || strings.Count(homeBody, `<div class="empty-state" aria-live="polite">`) != 2 {
+		t.Fatalf("empty home response = %d %s", home.Code, homeBody)
+	}
 	for _, target := range []string{"/", "/projects"} {
 		response := request(t, empty, target)
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "没有公开") {

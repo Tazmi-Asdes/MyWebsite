@@ -214,14 +214,13 @@ h1 {
   margin: 0 auto;
 }
 
-.home-hero {
+.hero {
+  padding: clamp(4rem, 9vw, 8rem) 0;
   border-bottom: 1px solid var(--border);
 }
 
-.home-hero__content {
-  min-height: auto;
-  padding-top: clamp(5rem, 13vw, 10rem);
-  padding-bottom: clamp(5rem, 13vw, 10rem);
+.hero__content {
+  max-width: 48rem;
 }
 
 .button-row {

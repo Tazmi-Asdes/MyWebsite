@@ -22,8 +22,8 @@
     </details>
   </header>
   <main id="main-content">
-    <section class="home-hero">
-      <div class="page-shell home-hero__content">
+    <section class="hero">
+      <div class="container hero__content">
         <p class="eyebrow">{{.Eyebrow}}</p>
         <h1>{{.Heading}}</h1>
         <p class="lede">{{.Description}}</p>
@@ -38,7 +38,7 @@
       <div class="container">
         <div class="section-head">
           <h2 id="latest-heading">最新文章</h2>
-          <a href="/articles">查看全部</a>
+          {{if .Articles}}<a href="/articles">查看全部</a>{{end}}
         </div>
         {{if .Articles}}
         <div class="grid grid--three">
@@ -54,8 +54,10 @@
         </div>
         {{else}}
         <div class="empty-state" aria-live="polite">
-          <h3>暂时没有公开文章</h3>
-          <p>文章发布后会出现在这里。</p>
+          <div>
+            <h3>暂时没有公开文章</h3>
+            <p>文章发布后会出现在这里。</p>
+          </div>
         </div>
         {{end}}
       </div>
@@ -65,7 +67,7 @@
       <div class="container">
         <div class="section-head">
           <h2 id="projects-heading">项目</h2>
-          <a href="/projects">查看全部</a>
+          {{if .Projects}}<a href="/projects">查看全部</a>{{end}}
         </div>
         {{if .Projects}}
         <div class="grid grid--three">
@@ -81,8 +83,10 @@
         </div>
         {{else}}
         <div class="empty-state" aria-live="polite">
-          <h3>暂时没有公开项目</h3>
-          <p>公开项目后会出现在这里。</p>
+          <div>
+            <h3>暂时没有公开项目</h3>
+            <p>公开项目后会出现在这里。</p>
+          </div>
         </div>
         {{end}}
       </div>
