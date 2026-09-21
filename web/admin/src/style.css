@@ -302,7 +302,12 @@ textarea:focus-visible {
 }
 
 .field label {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.field__label {
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -326,11 +331,18 @@ textarea:focus-visible {
 }
 
 .editor-actions {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border);
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: -1px 0 1.5rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .stage-note {
@@ -528,10 +540,6 @@ textarea:focus-visible {
     padding: 1.25rem;
   }
 
-  .editor-actions {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 
 .admin-toolbar {
@@ -569,7 +577,7 @@ textarea:focus-visible {
 }
 
 .textarea {
-  min-height: 20rem;
+  min-height: 28rem;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   line-height: 1.65;
@@ -742,9 +750,7 @@ textarea:focus-visible {
 }
 
 .heading-row,
-.heading-links,
-.editor-actions,
-.editor-actions__group {
+.heading-links {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -759,10 +765,21 @@ textarea:focus-visible {
   justify-content: flex-end;
 }
 
-.editor-actions {
-  justify-content: space-between;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+.editor-actions__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.upload {
+  border: 1px dashed var(--border-strong);
+  background: var(--bg);
+  padding: 1.25rem;
+}
+
+.media-upload-field .input[type="file"] {
+  display: block;
+  width: 100%;
 }
 
 .button--secondary {
@@ -968,16 +985,19 @@ textarea:focus-visible {
 }
 
 @media (max-width: 720px) {
-  .admin-toolbar,
-  .editor-actions {
+  .admin-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .admin-toolbar__filters,
-  .editor-actions__group {
+  .admin-toolbar__filters {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .editor-actions,
+  .editor-actions__group {
+    align-items: stretch;
   }
 
   .admin-toolbar__filters {
@@ -987,6 +1007,10 @@ textarea:focus-visible {
 
   .admin-toolbar .field {
     min-width: 0;
+  }
+
+  .textarea {
+    min-height: 22rem;
   }
 
   .data-table {

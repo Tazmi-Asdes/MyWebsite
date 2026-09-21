@@ -253,10 +253,10 @@ useDialogFocus(showWithdraw, withdrawDialogRef, withdrawCancelRef, closeWithdraw
         <p class="eyebrow">文章管理</p>
         <div class="heading-row">
           <h1>{{ pageTitle }}</h1>
-          <span v-if="!isNew" class="status" :class="status === 'published' ? 'status--solid' : 'status--outline'">{{ status === 'published' ? '已发布' : '草稿' }}</span>
         </div>
       </div>
       <div class="heading-links">
+        <span v-if="!isNew" class="status" :class="status === 'published' ? 'status--solid' : 'status--outline'">{{ status === 'published' ? '已发布' : '草稿' }}</span>
         <a v-if="publicUlid" class="text-link" :href="`/articles/${publicUlid}`" target="_blank" rel="noreferrer">查看公开文章</a>
         <RouterLink class="text-link" to="/articles">返回文章管理</RouterLink>
       </div>
@@ -269,41 +269,43 @@ useDialogFocus(showWithdraw, withdrawDialogRef, withdrawCancelRef, closeWithdraw
         <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
 
         <div class="editor-actions" aria-label="文章操作">
-          <RouterLink class="button button--secondary" to="/articles">返回列表</RouterLink>
+          <RouterLink class="button button--secondary button--small" to="/articles">返回列表</RouterLink>
           <div class="editor-actions__group">
-            <button class="button button--secondary" type="submit" :disabled="saving || imageUploading">{{ saving ? '保存中…' : '保存草稿' }}</button>
-            <button class="button button--primary" type="button" :disabled="saving || imageUploading || isNew" :aria-describedby="isNew ? 'publish-hint' : undefined" @click="publishArticle">发布文章</button>
-            <button v-if="!isNew && status === 'published'" class="button button--danger" type="button" :disabled="saving || imageUploading" @click="showWithdraw = true">撤回文章</button>
+            <button class="button button--secondary button--small" type="submit" :disabled="saving || imageUploading">{{ saving ? '保存中…' : '保存草稿' }}</button>
+            <button class="button button--primary button--small" type="button" :disabled="saving || imageUploading || isNew" :aria-describedby="isNew ? 'publish-hint' : undefined" @click="publishArticle">发布文章</button>
+            <button v-if="!isNew && status === 'published'" class="button button--danger button--small" type="button" :disabled="saving || imageUploading" @click="showWithdraw = true">撤回文章</button>
           </div>
           <p v-if="isNew" id="publish-hint" class="muted editor-actions__hint">请先保存草稿后发布。</p>
         </div>
 
-        <div class="field">
-          <label for="article-title">标题</label>
-          <input id="article-title" v-model="title" name="title" class="input" type="text" placeholder="输入文章标题" required />
-        </div>
-        <div class="field">
-          <label for="article-body">Markdown 正文</label>
-          <span id="article-body-hint" class="field__hint">草稿允许正文为空；发布前必须填写正文。首版不提供草稿预览。</span>
-          <textarea id="article-body" ref="articleBodyRef" v-model="body" name="body" class="textarea" rows="18" aria-describedby="article-body-hint" placeholder="使用 Markdown 编写文章内容" />
-        </div>
-        <div class="field media-upload-field">
-          <label for="article-image">正文图片</label>
-          <span id="article-image-hint" class="field__hint">上传后会把 Markdown 图片引用插入正文光标位置。支持 JPEG、PNG、WebP。</span>
-          <input
-            id="article-image"
-            ref="imageInput"
-            class="input"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            aria-describedby="article-image-hint"
-            :disabled="imageUploading"
-            @change="selectArticleImage"
-          />
-          <progress v-if="imageUploading" class="upload-progress" max="100" :value="imageUploadProgress">{{ imageUploadProgress }}%</progress>
-          <p v-if="imageUploading" class="field__hint" role="status">上传中 {{ imageUploadProgress }}%</p>
-          <p v-if="imageUploadError" class="field__hint field__hint--error" role="alert">{{ imageUploadError }}</p>
-          <button v-if="imageUploadError && selectedImageFile && !imageUploading" class="button button--secondary" type="button" @click="uploadArticleImage">重试上传</button>
+        <div class="form-grid">
+          <div class="field">
+            <label for="article-title">标题</label>
+            <input id="article-title" v-model="title" name="title" class="input" type="text" placeholder="输入文章标题" required />
+          </div>
+          <div class="field">
+            <label for="article-body">Markdown 正文</label>
+            <span id="article-body-hint" class="field__hint">草稿允许正文为空；发布前必须填写正文。首版不提供草稿预览。</span>
+            <textarea id="article-body" ref="articleBodyRef" v-model="body" name="body" class="textarea" rows="18" aria-describedby="article-body-hint" placeholder="使用 Markdown 编写文章内容" />
+          </div>
+          <div class="field media-upload-field upload">
+            <label for="article-image">正文图片</label>
+            <span id="article-image-hint" class="field__hint">上传后会把 Markdown 图片引用插入正文光标位置。支持 JPEG、PNG、WebP。</span>
+            <input
+              id="article-image"
+              ref="imageInput"
+              class="input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-describedby="article-image-hint"
+              :disabled="imageUploading"
+              @change="selectArticleImage"
+            />
+            <progress v-if="imageUploading" class="upload-progress" max="100" :value="imageUploadProgress">{{ imageUploadProgress }}%</progress>
+            <p v-if="imageUploading" class="field__hint" role="status">上传中 {{ imageUploadProgress }}%</p>
+            <p v-if="imageUploadError" class="field__hint field__hint--error" role="alert">{{ imageUploadError }}</p>
+            <button v-if="imageUploadError && selectedImageFile && !imageUploading" class="button button--secondary button--small" type="button" @click="uploadArticleImage">重试上传</button>
+          </div>
         </div>
       </form>
     </div>
