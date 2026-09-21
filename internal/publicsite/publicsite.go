@@ -290,10 +290,8 @@ func (h *Handler) about(w http.ResponseWriter, r *http.Request) {
 		Title:       "关于 — MyWebsite",
 		Description: "关于我、我的工作方式，以及这个网站。",
 		Heading:     "关于我",
-		Eyebrow:     "ABOUT",
 		DisplayName: "你的网名",
 		AvatarURL:   "/assets/default-avatar.svg",
-		HasStats:    h.articleReader != nil || h.projectReader != nil,
 	}
 	if h.articleReader != nil {
 		count, err := h.articleReader.CountPublished(r.Context())
@@ -438,11 +436,9 @@ type aboutPageData struct {
 	Title        string
 	Description  string
 	Heading      string
-	Eyebrow      string
 	Year         int
 	DisplayName  string
 	AvatarURL    string
-	HasStats     bool
 	ArticleCount int64
 	ProjectCount int64
 }

@@ -158,6 +158,91 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 	}
 }
 
+func TestStage2AboutAlwaysRendersProfileStatsInterestsAndContact(t *testing.T) {
+	assertAbout := func(t *testing.T, body string, articleCount, projectCount string) {
+		t.Helper()
+		for _, marker := range []string{
+			`<main id="main-content" class="container">`,
+			`<div class="about-layout">`,
+			`<header class="about-profile">`,
+			`<img class="avatar" src="/assets/default-avatar.svg" alt="你的网名的默认头像">`,
+			`<section class="about-block" aria-labelledby="stats-heading">`,
+			`<div class="stats">`,
+			`<section class="about-block" aria-labelledby="interests-heading">`,
+			`<section class="about-block" aria-labelledby="contact-heading">`,
+			`<div class="contact-list">`,
+		} {
+			if !strings.Contains(body, marker) {
+				t.Errorf("about structure missing %q: %s", marker, body)
+			}
+		}
+		if strings.Count(body, `<div class="stat">`) != 2 || strings.Count(body, `<section class="about-block"`) != 3 {
+			t.Errorf("about stats/block count = %d/%d, body = %s", strings.Count(body, `<div class="stat">`), strings.Count(body, `<section class="about-block"`), body)
+		}
+		if !strings.Contains(body, `<div class="stat"><strong>`+articleCount+`</strong><span>已发布文章</span></div>`) || !strings.Contains(body, `<div class="stat"><strong>`+projectCount+`</strong><span>公开项目</span></div>`) {
+			t.Errorf("about counts missing %q/%q: %s", articleCount, projectCount, body)
+		}
+		if strings.Contains(body, "个人介绍正在准备中") || strings.Contains(body, `<p class="eyebrow">`) || strings.Contains(body, `class="empty-state"`) {
+			t.Errorf("about page contains the removed fallback profile state: %s", body)
+		}
+		if !strings.Contains(body, `href="mailto:hello@example.com"`) || !strings.Contains(body, `href="https://github.com/example" target="_blank" rel="noopener noreferrer"`) {
+			t.Errorf("about contact links missing: %s", body)
+		}
+		for _, marker := range []string{
+			`<header class="about-profile">`,
+			`<section class="about-block" aria-labelledby="stats-heading">`,
+			`<section class="about-block" aria-labelledby="interests-heading">`,
+			`<section class="about-block" aria-labelledby="contact-heading">`,
+		} {
+			if index := strings.Index(body, marker); index < 0 {
+				t.Errorf("about order marker missing %q", marker)
+			}
+		}
+		profileIndex := strings.Index(body, `<header class="about-profile">`)
+		statsIndex := strings.Index(body, `<section class="about-block" aria-labelledby="stats-heading">`)
+		interestsIndex := strings.Index(body, `<section class="about-block" aria-labelledby="interests-heading">`)
+		contactIndex := strings.Index(body, `<section class="about-block" aria-labelledby="contact-heading">`)
+		if !(profileIndex < statsIndex && statsIndex < interestsIndex && interestsIndex < contactIndex) {
+			t.Errorf("about content order is incorrect: %d, %d, %d, %d", profileIndex, statsIndex, interestsIndex, contactIndex)
+		}
+	}
+
+	t.Run("zero counts without readers", func(t *testing.T) {
+		response := request(t, newStage2Handler(t, nil, nil, nil), "/about")
+		if response.Code != http.StatusOK {
+			t.Fatalf("about status = %d", response.Code)
+		}
+		assertAbout(t, response.Body.String(), "0", "0")
+	})
+
+	t.Run("configured counts", func(t *testing.T) {
+		articles := &fakeArticleReader{total: 4}
+		projects := &fakeProjectReader{project: 7}
+		response := request(t, newStage2Handler(t, articles, projects, nil), "/about")
+		if response.Code != http.StatusOK {
+			t.Fatalf("about status = %d", response.Code)
+		}
+		assertAbout(t, response.Body.String(), "4", "7")
+	})
+
+	for _, test := range []struct {
+		name     string
+		articles publicsite.ArticleReader
+		projects publicsite.ProjectReader
+		secret   string
+	}{
+		{name: "article count error", articles: &fakeArticleReader{countErr: errors.New("article count secret")}, secret: "article count secret"},
+		{name: "project count error", projects: &fakeProjectReader{countErr: errors.New("project count secret")}, secret: "project count secret"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := request(t, newStage2Handler(t, test.articles, test.projects, nil), "/about")
+			if response.Code != http.StatusInternalServerError || strings.Contains(response.Body.String(), test.secret) {
+				t.Fatalf("about error response = %d %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestStage2EmptyPagesAndDependencyErrors(t *testing.T) {
 	empty := newStage2Handler(t, &fakeArticleReader{}, &fakeProjectReader{}, nil)
 	home := request(t, empty, "/")

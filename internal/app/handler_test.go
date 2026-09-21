@@ -235,7 +235,19 @@ func TestPublicRoutesRenderIndependentPages(t *testing.T) {
 					t.Fatalf("body does not contain navigation link %q", navigationPath)
 				}
 			}
-			if !strings.Contains(body, "暂时") && !strings.Contains(body, "正在准备中") {
+			if route.path == "/about" {
+				for _, want := range []string{
+					`<strong>0</strong><span>已发布文章</span>`,
+					`<strong>0</strong><span>公开项目</span>`,
+				} {
+					if !strings.Contains(body, want) {
+						t.Fatalf("about body does not contain %q", want)
+					}
+				}
+				if strings.Contains(body, "个人介绍正在准备中") {
+					t.Fatalf("about body contains the removed profile fallback")
+				}
+			} else if !strings.Contains(body, "暂时") && !strings.Contains(body, "正在准备中") {
 				t.Fatalf("body does not contain a Chinese empty state")
 			}
 			if !strings.Contains(body, "© 2026 MyWebsite") {

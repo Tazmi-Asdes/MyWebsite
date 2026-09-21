@@ -26,13 +26,11 @@
   <main id="main-content" class="container">
     <div class="about-layout">
       <header class="about-profile">
-        <img class="avatar" src="{{.AvatarURL}}" alt="{{.DisplayName}}">
-        <p class="eyebrow">{{.Eyebrow}}</p>
+        <img class="avatar" src="{{.AvatarURL}}" alt="{{.DisplayName}}的默认头像">
         <h1>{{.DisplayName}}</h1>
         <p class="muted">个人技术网站</p>
       </header>
       <div>
-        {{if .HasStats}}
         <section class="about-block" aria-labelledby="stats-heading">
           <h2 id="stats-heading">内容</h2>
           <div class="stats">
@@ -40,12 +38,6 @@
             <div class="stat"><strong>{{.ProjectCount}}</strong><span>公开项目</span></div>
           </div>
         </section>
-        {{else}}
-        <section class="empty-state" aria-live="polite">
-          <h2>个人介绍正在准备中</h2>
-          <p>这里会放置一份简短、真实且持续更新的介绍。</p>
-        </section>
-        {{end}}
         <section class="about-block" aria-labelledby="interests-heading">
           <h2 id="interests-heading">个人兴趣</h2>
           <p>这里是个人兴趣的占位内容。未来可以写正在关注的技术方向，也可以记录摄影、阅读、音乐或其他长期兴趣。</p>
