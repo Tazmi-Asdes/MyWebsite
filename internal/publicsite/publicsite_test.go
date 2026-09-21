@@ -246,6 +246,21 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 			t.Errorf("article list CSS rule %q missing", rule)
 		}
 	}
+	for _, rule := range []string{
+		".reading-container {",
+		".article-header {",
+		".article-shell {",
+		".article-shell--single {\n  grid-template-columns: minmax(0, 760px);",
+		".article-content {",
+		".article-body",
+		".toc {",
+		".toc-mobile",
+		".article-back {",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("article detail CSS rule %q missing", rule)
+		}
+	}
 	if strings.Contains(css, ".article-list-item") {
 		t.Fatal("public styles still use the legacy article list item selector")
 	}
@@ -451,6 +466,15 @@ func TestArticleDetailRendersPublishedContentAndTOC(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, "从本地开发到服务器部署") || !strings.Contains(body, "<h2 id=\"intro\">介绍</h2>") || !strings.Contains(body, "介绍") || !strings.Contains(body, "2026-09-19") {
 		t.Fatalf("detail response = %d %s", response.Code, body)
 	}
+	if strings.Contains(body, `class="article-page"`) || strings.Count(body, `<main id="main-content">`) != 1 || strings.Count(body, `<header class="article-header reading-container">`) != 1 || !strings.Contains(body, `<p class="eyebrow">实践记录</p>`) {
+		t.Fatalf("article V2 header structure is incorrect: %s", body)
+	}
+	if strings.Count(body, `<div class="article-shell">`) != 1 || strings.Count(body, `<article class="article-content">`) != 1 || strings.Count(body, `<div class="article-body">`) != 1 {
+		t.Fatalf("article reading structure is incorrect: %s", body)
+	}
+	if strings.Count(body, `<details class="toc-mobile">`) != 1 || strings.Count(body, `<nav class="toc" aria-label="文章目录">`) != 1 || strings.Count(body, `href="#intro"`) != 2 {
+		t.Fatalf("article TOC structure is incorrect: %s", body)
+	}
 	if !strings.Contains(body, `property="og:title" content="从本地开发到服务器部署"`) || !strings.Contains(body, `property="og:description" content="构建、发布与验证的实践记录。"`) {
 		t.Fatalf("detail metadata missing: %s", body)
 	}
@@ -459,6 +483,27 @@ func TestArticleDetailRendersPublishedContentAndTOC(t *testing.T) {
 	}
 	if strings.Count(body, "返回文章列表") != 1 {
 		t.Fatalf("back link count = %d", strings.Count(body, "返回文章列表"))
+	}
+}
+
+func TestArticleDetailWithoutTOCUsesSingleColumn(t *testing.T) {
+	reader := &fakeArticleReader{article: article.Article{
+		Title:            "没有目录的文章",
+		Status:           article.StatusPublished,
+		BodyHTML:         stringPointer("<p>只有正文</p>"),
+		PreviewText:      stringPointer("没有目录的文章摘要"),
+		FirstPublishedAt: timePointer(time.Date(2026, 9, 19, 16, 0, 0, 0, time.UTC)),
+	}}
+	response := request(t, newPublicHandler(t, reader), "/articles/"+testArticleULID)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "只有正文") {
+		t.Fatalf("detail without TOC response = %d %s", response.Code, body)
+	}
+	if strings.Count(body, `<div class="article-shell article-shell--single">`) != 1 || strings.Contains(body, `<details class="toc-mobile">`) || strings.Contains(body, `<nav class="toc" aria-label="文章目录">`) {
+		t.Fatalf("article without TOC layout is incorrect: %s", body)
+	}
+	if strings.Count(body, `<article class="article-content">`) != 1 || strings.Count(body, `<div class="article-body">`) != 1 || strings.Count(body, "返回文章列表") != 1 {
+		t.Fatalf("article without TOC content structure is incorrect: %s", body)
 	}
 }
 

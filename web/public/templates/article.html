@@ -26,13 +26,13 @@
       </details>
     </div>
   </header>
-  <main id="main-content" class="article-page">
+  <main id="main-content">
     <header class="article-header reading-container">
-      <p class="eyebrow">WRITING</p>
+      <p class="eyebrow">实践记录</p>
       <h1>{{.Heading}}</h1>
       {{if .PublishedDate}}<time datetime="{{.PublishedDate}}">{{.PublishedDate}}</time>{{end}}
     </header>
-    <div class="article-shell">
+    <div class="article-shell{{if not .TOC}} article-shell--single{{end}}">
       <article class="article-content">
         {{if .TOC}}
         <details class="toc-mobile">

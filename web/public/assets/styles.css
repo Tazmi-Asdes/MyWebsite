@@ -216,6 +216,11 @@ h1 {
   margin: 0 auto;
 }
 
+.reading-container {
+  width: min(100% - 3rem, 760px);
+  margin: 0 auto;
+}
+
 .hero {
   padding: clamp(4rem, 9vw, 8rem) 0;
   border-bottom: 1px solid var(--border);
@@ -600,17 +605,23 @@ h1 {
   margin: 0 0 1.25rem;
   font-size: clamp(2.4rem, 6vw, 4.6rem);
   line-height: 1.05;
+  font-weight: 500;
   letter-spacing: -0.045em;
 }
 
 .article-shell {
-  width: min(calc(100% - 3rem), 1072px);
+  width: min(calc(100% - 2rem), 1072px);
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 760px) 224px;
   gap: 4rem;
   align-items: start;
   padding-bottom: 5rem;
+}
+
+.article-shell--single {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
 }
 
 .article-content {
@@ -757,6 +768,7 @@ h1 {
   display: none;
   margin-bottom: 2rem;
   border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .toc-mobile summary {
@@ -828,6 +840,10 @@ h1 {
     width: min(100% - 2rem, 1120px);
   }
 
+  .reading-container {
+    width: min(100% - 2rem, 760px);
+  }
+
   .page-shell {
     min-height: calc(100vh - 12rem);
   }
@@ -864,7 +880,7 @@ h1 {
   }
 
   .article-shell {
-    width: min(calc(100% - 3rem), 760px);
+    width: min(calc(100% - 2rem), 760px);
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
     padding-bottom: 3rem;
