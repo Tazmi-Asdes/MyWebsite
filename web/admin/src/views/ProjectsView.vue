@@ -24,8 +24,10 @@ const saving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const draggedId = ref<number | null>(null)
+const defaultProjectImage = `${import.meta.env.BASE_URL}assets/default-project.svg`
 
 const publicIds = computed(() => publicProjects.value.map((project) => project.id))
+const hasProjects = computed(() => publicProjects.value.length > 0 || hiddenProjects.value.length > 0)
 const dirty = computed(() => !sameIds(publicIds.value, baselinePublicIds.value))
 
 watch(dirty, (value) => setUnsavedChanges(value), { immediate: true })
@@ -165,41 +167,50 @@ function formatError(error: unknown): string {
         <div v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</div>
         <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
 
-        <section class="projects-section" aria-labelledby="public-projects-title">
-          <div class="projects-section__header">
+        <section v-if="!hasProjects" class="empty-state" aria-labelledby="projects-empty-title">
+          <div>
+            <h2 id="projects-empty-title">还没有项目</h2>
+            <p>创建一个隐藏项目，准备完成后再公开。</p>
+            <RouterLink class="button button--primary" to="/projects/new">新建项目</RouterLink>
+          </div>
+        </section>
+
+        <template v-else>
+        <section class="admin-section" aria-labelledby="public-projects-title">
+          <div class="admin-section__head">
             <div>
-              <p class="eyebrow">公开组</p>
               <h2 id="public-projects-title">公开项目</h2>
+              <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮。调整只会在点击“保存顺序”后提交。</p>
             </div>
-            <button class="button button--secondary" type="button" :disabled="saving || !dirty" @click="saveOrder">
+            <button class="button button--small button--secondary" type="button" :disabled="saving || !dirty" @click="saveOrder">
               {{ saving ? '保存中…' : '保存顺序' }}
             </button>
           </div>
-          <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮。调整只会在点击“保存顺序”后提交。</p>
           <div v-if="publicProjects.length === 0" class="empty-state project-group-empty">
             <div>
               <h3>暂无公开项目</h3>
               <p>新建项目并发布后，会显示在公开组中。</p>
             </div>
           </div>
-          <ol v-else class="project-list" aria-label="公开项目排序">
+          <ol v-else class="sortable-list" aria-label="公开项目排序">
             <li
               v-for="(project, index) in publicProjects"
               :key="project.id"
-              class="project-list__item"
-              :class="{ 'project-list__item--dragging': draggedId === project.id }"
+              class="sortable-item"
+              :class="{ 'is-dragging': draggedId === project.id }"
               draggable="true"
               @dragstart="handleDragStart($event, project.id)"
               @dragover.prevent
               @drop="handleDrop($event, index)"
               @dragend="handleDragEnd"
             >
-              <span class="project-list__handle" aria-hidden="true">⋮⋮</span>
-              <div class="project-list__content">
-                <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
-                <span v-if="project.github_url" class="project-list__meta">{{ project.github_url }}</span>
-              </div>
-              <div class="project-list__actions">
+              <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+              <img class="project-thumb" :src="project.image_preview_url || defaultProjectImage" :alt="project.name" />
+              <RouterLink class="sortable-item__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
+              <a v-if="project.github_url" class="sortable-item__link" :href="project.github_url" target="_blank" rel="noreferrer">{{ project.github_url }}</a>
+              <span v-else class="sortable-item__link">尚未填写 GitHub 链接</span>
+              <span class="status status--solid">公开</span>
+              <div class="sortable-item__actions">
                 <button class="button button--small button--secondary" type="button" :disabled="saving || index === 0" @click="moveProject(index, -1)">上移</button>
                 <button class="button button--small button--secondary" type="button" :disabled="saving || index === publicProjects.length - 1" @click="moveProject(index, 1)">下移</button>
                 <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
@@ -208,30 +219,34 @@ function formatError(error: unknown): string {
           </ol>
         </section>
 
-        <section class="projects-section" aria-labelledby="hidden-projects-title">
-          <div class="projects-section__header">
+        <section class="admin-section" aria-labelledby="hidden-projects-title">
+          <div class="admin-section__head">
             <div>
-              <p class="eyebrow">隐藏组</p>
               <h2 id="hidden-projects-title">隐藏项目</h2>
+              <p class="field__hint">隐藏项目不参与公开排序。</p>
             </div>
           </div>
-          <p class="field__hint">隐藏项目不参与公开排序。</p>
           <div v-if="hiddenProjects.length === 0" class="empty-state project-group-empty">
             <div>
               <h3>暂无隐藏项目</h3>
               <p>保存为草稿的新项目会显示在隐藏组中。</p>
             </div>
           </div>
-          <ul v-else class="project-list project-list--hidden" aria-label="隐藏项目">
-            <li v-for="project in hiddenProjects" :key="project.id" class="project-list__item">
-              <div class="project-list__content">
-                <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
-                <span class="status status--outline">隐藏</span>
+          <ul v-else class="sortable-list" aria-label="隐藏项目">
+            <li v-for="project in hiddenProjects" :key="project.id" class="sortable-item">
+              <span class="drag-handle" aria-hidden="true">—</span>
+              <img class="project-thumb" :src="project.image_preview_url || defaultProjectImage" :alt="project.name" />
+              <RouterLink class="sortable-item__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
+              <a v-if="project.github_url" class="sortable-item__link" :href="project.github_url" target="_blank" rel="noreferrer">{{ project.github_url }}</a>
+              <span v-else class="sortable-item__link">尚未填写 GitHub 链接</span>
+              <span class="status status--outline">隐藏</span>
+              <div class="sortable-item__actions">
+                <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
               </div>
-              <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
             </li>
           </ul>
         </section>
+        </template>
       </template>
     </div>
   </AdminLayout>

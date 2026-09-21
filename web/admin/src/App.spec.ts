@@ -181,17 +181,21 @@ describe('管理端路由页面', () => {
     wrapper.unmount()
   })
 
-  it('渲染项目管理公开组与隐藏组', async () => {
+  it('渲染项目管理全局空状态', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       if (String(input).endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
-      return Promise.resolve(jsonResponse(200, {}))
+      return Promise.resolve(jsonResponse(200, { public: [], hidden: [], order_version: 4 }))
     }))
     await initSession(true)
     const { wrapper } = await renderAt('/projects')
 
     expect(wrapper.get('h1').text()).toBe('项目管理')
-    expect(wrapper.get('[aria-labelledby="public-projects-title"]')).toBeTruthy()
-    expect(wrapper.get('[aria-labelledby="hidden-projects-title"]')).toBeTruthy()
+    expect(wrapper.get('#projects-empty-title').text()).toBe('还没有项目')
+    expect(wrapper.get('.empty-state').text()).toContain('创建一个隐藏项目，准备完成后再公开。')
+    expect(wrapper.get('.empty-state a').text()).toBe('新建项目')
+    expect(wrapper.get('.empty-state a').attributes('href')).toBe('/admin/projects/new')
+    expect(wrapper.find('[aria-labelledby="public-projects-title"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-labelledby="hidden-projects-title"]').exists()).toBe(false)
     const main = wrapper.get('main#main-content')
     expect(main.classes()).not.toContain('admin-content')
     expect(wrapper.find('main#main-content > .admin-page-header').exists()).toBe(true)
@@ -596,8 +600,19 @@ describe('管理端路由页面', () => {
     const { wrapper } = await renderAt('/projects')
     await flushPromises()
 
-    const names = () => wrapper.findAll('.project-list:not(.project-list--hidden) .project-list__name').map((item) => item.text())
+    const names = () => wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .sortable-item__name').map((item) => item.text())
     expect(names()).toEqual(['第一个项目', '第二个项目'])
+    expect(wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .sortable-item')).toHaveLength(2)
+    expect(wrapper.findAll('.sortable-list[aria-label="隐藏项目"] .sortable-item')).toHaveLength(1)
+    expect(wrapper.find('.sortable-list[aria-label="公开项目排序"] .project-thumb').attributes('src')).toMatch(/\/(?:admin\/)?assets\/default-project\.svg$/)
+    expect(wrapper.findAll('.status.status--solid')).toHaveLength(2)
+    expect(wrapper.findAll('.status.status--outline')).toHaveLength(1)
+    expect(wrapper.get('.sortable-list[aria-label="公开项目排序"] a.sortable-item__link').attributes()).toEqual(expect.objectContaining({
+      href: 'https://github.com/example/one',
+      target: '_blank',
+      rel: 'noreferrer',
+    }))
+    expect(wrapper.get('.sortable-list[aria-label="隐藏项目"] .sortable-item__link').text()).toBe('尚未填写 GitHub 链接')
     const moveUp = wrapper.findAll('button').find((button) => button.text() === '上移' && button.attributes('disabled') === undefined)
     expect(moveUp).toBeDefined()
     await moveUp!.trigger('click')
@@ -640,7 +655,7 @@ describe('管理端路由页面', () => {
     await save!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.project-list:not(.project-list--hidden) .project-list__name').map((item) => item.text())).toEqual(['第二个项目', '第一个项目'])
+    expect(wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .sortable-item__name').map((item) => item.text())).toEqual(['第二个项目', '第一个项目'])
     expect(wrapper.get('[role="alert"]').text()).toContain('当前顺序已保留')
   })
 
