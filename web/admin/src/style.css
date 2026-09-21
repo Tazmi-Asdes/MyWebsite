@@ -101,24 +101,12 @@ textarea:focus-visible {
   background: var(--bg);
 }
 
-.brand-block {
+.admin-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
   padding: 0.35rem 0 1.25rem;
   border-bottom: 1px solid var(--border);
   font-weight: 700;
-}
-
-.brand-mark {
-  display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  place-items: center;
-  border: 1px solid var(--border-strong);
-  background: var(--text);
-  color: var(--inverse);
-  font-size: 0.8rem;
 }
 
 .admin-nav {
@@ -147,8 +135,10 @@ textarea:focus-visible {
   color: var(--text);
 }
 
-.admin-nav-footer {
+.admin-nav--bottom {
   margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .nav-button {
@@ -172,7 +162,11 @@ textarea:focus-visible {
   background: var(--surface);
 }
 
-.mobile-header {
+.admin-mobile-header {
+  display: none;
+}
+
+.menu-button {
   display: none;
 }
 
@@ -439,60 +433,74 @@ textarea:focus-visible {
   }
 
   .admin-sidebar {
-    position: static;
-    display: block;
+    position: fixed;
+    z-index: 20;
+    top: 4rem;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: none;
     height: auto;
+    min-height: 0;
     padding: 0;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    overflow-y: auto;
   }
 
-  .brand-block {
-    padding: 1rem 1rem 0.9rem;
+  .admin-sidebar.is-open {
+    display: flex;
+  }
+
+  .admin-sidebar__brand {
+    display: none;
   }
 
   .admin-nav {
-    display: flex;
+    display: grid;
     gap: 0.35rem;
     margin: 0;
-    padding: 0.75rem 1rem;
-    overflow-x: auto;
+    padding: 1rem;
   }
 
   .admin-nav a,
   .nav-button {
-    width: auto;
-    min-width: max-content;
+    width: 100%;
   }
 
-  .admin-nav-footer {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0 1rem 0.9rem;
+  .admin-nav--bottom {
+    margin-top: auto;
+    padding: 1rem;
+    border-top: 1px solid var(--border);
   }
 
-  .nav-help {
-    margin: 0;
-  }
-
-  .mobile-header {
+  .admin-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    min-height: 4rem;
     padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
 
-  .mobile-header__title {
+  .admin-mobile-header__brand {
     font-size: 0.85rem;
     font-weight: 700;
   }
 
-  .mobile-header__status {
-    color: var(--muted);
-    font-size: 0.75rem;
+  .menu-button {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
   }
 
   .admin-content {

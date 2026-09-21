@@ -137,6 +137,42 @@ describe('管理端路由页面', () => {
     expect(wrapper.get('[aria-labelledby="articles-placeholder-title"]')).toBeTruthy()
   })
 
+  it('后台共用外壳支持移动导航开关、键盘关闭和账户入口', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      return Promise.resolve(jsonResponse(200, { items: [], pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 } }))
+    }))
+    await initSession(true)
+    const { wrapper } = await renderAt('/articles', true)
+
+    const aside = wrapper.get('#admin-navigation')
+    const menuButton = wrapper.get('button.menu-button')
+    expect(menuButton.attributes('aria-controls')).toBe('admin-navigation')
+    expect(menuButton.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.admin-nav--bottom a[href="/"]').attributes()).toEqual(expect.objectContaining({
+      target: '_blank',
+      rel: 'noreferrer',
+    }))
+    expect(wrapper.get('.admin-nav--bottom .nav-button').text()).toContain('退出')
+
+    await menuButton.trigger('click')
+    expect(menuButton.attributes('aria-expanded')).toBe('true')
+    expect(aside.classes()).toContain('is-open')
+
+    await menuButton.trigger('keydown', { key: 'Escape' })
+    expect(menuButton.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(menuButton.element)
+
+    await menuButton.trigger('click')
+    await wrapper.get('.admin-nav:not(.admin-nav--bottom) a[href="/admin/projects"]').trigger('click')
+    await flushPromises()
+    expect(menuButton.attributes('aria-expanded')).toBe('false')
+    expect(aside.classes()).not.toContain('is-open')
+
+    wrapper.unmount()
+  })
+
   it('渲染项目管理公开组与隐藏组', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       if (String(input).endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
