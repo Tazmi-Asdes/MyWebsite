@@ -104,15 +104,16 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 		PreviewText: stringPointer("文章摘要"),
 	}}
 	pages := []struct {
-		name    string
-		handler http.Handler
-		target  string
+		name       string
+		handler    http.Handler
+		target     string
+		activeHref string
 	}{
-		{name: "home", handler: newPublicHandler(t), target: "/"},
-		{name: "articles", handler: newPublicHandler(t), target: "/articles"},
-		{name: "article", handler: newPublicHandler(t, articleReader), target: "/articles/" + testArticleULID},
-		{name: "projects", handler: newPublicHandler(t), target: "/projects"},
-		{name: "about", handler: newPublicHandler(t), target: "/about"},
+		{name: "home", handler: newPublicHandler(t), target: "/", activeHref: "/"},
+		{name: "articles", handler: newPublicHandler(t), target: "/articles", activeHref: "/articles"},
+		{name: "article", handler: newPublicHandler(t, articleReader), target: "/articles/" + testArticleULID, activeHref: "/articles"},
+		{name: "projects", handler: newPublicHandler(t), target: "/projects", activeHref: "/projects"},
+		{name: "about", handler: newPublicHandler(t), target: "/about", activeHref: "/about"},
 		{name: "404", handler: newPublicHandler(t), target: "/missing"},
 		{name: "500", handler: newPublicHandler(t, &fakeArticleReader{listErr: errors.New("database unavailable")}), target: "/"},
 	}
@@ -135,6 +136,15 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			}
 			if strings.Count(body, `id="main-content"`) != 1 {
 				t.Fatalf("main content id count = %d, body = %s", strings.Count(body, `id="main-content"`), body)
+			}
+			if strings.Count(body, `<details class="site-menu">`) != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav aria-label="主导航">`) != 1 {
+				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", strings.Count(body, `<details class="site-menu">`), strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav aria-label="主导航">`), body)
+			}
+			if strings.Contains(body, "<script") {
+				t.Fatalf("public page unexpectedly depends on a script: %s", body)
+			}
+			if page.activeHref != "" && !strings.Contains(body, `<a class="active" href="`+page.activeHref+`">`) {
+				t.Fatalf("active navigation link %q missing: %s", page.activeHref, body)
 			}
 		})
 	}
@@ -171,6 +181,19 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 	}
 	if strings.Contains(css, "data-theme") || strings.Contains(css, "localStorage") {
 		t.Fatal("public styles must not add manual theme switching")
+	}
+	for _, rule := range []string{
+		".site-menu > nav {\n  display: flex;",
+		".menu-button::-webkit-details-marker",
+		".menu-button::marker",
+		".menu-button:focus-visible",
+		"@media (max-width: 640px)",
+		".menu-button {\n    display: flex;",
+		".site-menu[open] > nav {\n    display: flex;",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("mobile menu CSS rule %q missing", rule)
+		}
 	}
 }
 

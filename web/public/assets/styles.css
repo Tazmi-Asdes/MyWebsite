@@ -92,6 +92,51 @@ a {
   text-decoration: none;
 }
 
+.site-menu {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.site-menu > nav {
+  display: flex;
+}
+
+.menu-button {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.menu-button::-webkit-details-marker {
+  display: none;
+}
+
+.menu-button::marker {
+  content: "";
+}
+
+.menu-button::after {
+  content: "+";
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.menu-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 nav {
   display: flex;
   flex-wrap: wrap;
@@ -692,8 +737,35 @@ h1 {
     gap: 1rem;
   }
 
-  nav {
-    gap: 0.9rem;
+  .site-menu {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu-button {
+    display: flex;
+    width: 100%;
+  }
+
+  .site-menu[open] .menu-button::after {
+    content: "−";
+  }
+
+  .site-menu > nav {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+  }
+
+  .site-menu[open] > nav {
+    display: flex;
+  }
+
+  .site-menu > nav a {
+    padding: 0.4rem 0;
   }
 
   .container {
