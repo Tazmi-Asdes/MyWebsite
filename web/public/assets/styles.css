@@ -351,6 +351,8 @@ h1 {
 
 .project-card__media {
   aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
   background: var(--surface-muted);
@@ -360,26 +362,31 @@ h1 {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .project-card__footer {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 1rem 1.25rem;
 }
 
 .project-card__footer h2,
 .project-card__footer h3 {
   margin: 0;
+  font-size: 1rem;
 }
 
 .project-card__footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   flex: 0 0 auto;
   color: var(--text-muted);
   font-size: 0.85rem;
+  text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
@@ -592,6 +599,28 @@ h1 {
 }
 
 .section[aria-label="文章列表"] .empty-state p {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+}
+
+.section[aria-label="项目列表"] .empty-state {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  margin-top: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  padding: 2rem;
+}
+
+.section[aria-label="项目列表"] .empty-state h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.section[aria-label="项目列表"] .empty-state p {
   margin: 0.5rem 0 0;
   color: var(--text-muted);
 }

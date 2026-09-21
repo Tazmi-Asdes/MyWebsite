@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -130,10 +131,23 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 	if allProjects.Code != http.StatusOK || strings.Index(allBody, "项目二") > strings.Index(allBody, "项目一") {
 		t.Fatalf("projects order = %d %s", allProjects.Code, allBody)
 	}
+	for marker, want := range map[string]int{
+		`<header class="page-heading">`:               1,
+		`<div class="container">`:                     2,
+		`<section class="section" aria-label="项目列表">`: 1,
+		`<div class="grid grid--three project-grid">`: 1,
+		`<article class="card project-card">`:         2,
+		`<div class="project-card__media">`:           2,
+		`<div class="project-card__footer">`:          2,
+	} {
+		if got := strings.Count(allBody, marker); got != want {
+			t.Errorf("projects %q count = %d, want %d: %s", marker, got, want, allBody)
+		}
+	}
 	if !strings.Contains(allBody, `src="/media/custom" alt="项目一"`) || !strings.Contains(allBody, `src="/assets/default-project.svg" alt=""`) {
 		t.Fatalf("project image semantics missing: %s", allBody)
 	}
-	if !strings.Contains(allBody, `target="_blank" rel="noopener noreferrer"`) {
+	if strings.Count(allBody, `target="_blank" rel="noopener noreferrer">GitHub`) != 1 || !strings.Contains(allBody, `href="https://github.com/example/one"`) {
 		t.Fatalf("github attributes missing: %s", allBody)
 	}
 
@@ -157,9 +171,37 @@ func TestStage2EmptyPagesAndDependencyErrors(t *testing.T) {
 			t.Fatalf("empty %s response = %d %s", target, response.Code, response.Body.String())
 		}
 	}
+	projectPage := request(t, empty, "/projects")
+	projectBody := projectPage.Body.String()
+	if strings.Count(projectBody, `<section class="section" aria-label="项目列表">`) != 1 || strings.Count(projectBody, `<div class="container">`) != 2 || strings.Count(projectBody, `<div class="empty-state" aria-live="polite">`) != 1 || strings.Count(projectBody, `<h2>暂时还没有公开项目</h2>`) != 1 {
+		t.Fatalf("empty projects structure is incorrect: %s", projectBody)
+	}
+	if strings.Contains(projectBody, `class="project-grid"`) || strings.Contains(projectBody, `class="project-card"`) {
+		t.Fatalf("empty projects page unexpectedly contains project cards: %s", projectBody)
+	}
 	broken := newStage2Handler(t, &fakeArticleReader{listErr: errors.New("down")}, nil, nil)
 	if response := request(t, broken, "/"); response.Code != http.StatusInternalServerError || strings.Contains(response.Body.String(), "down") {
 		t.Fatalf("dependency error response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestStage2ProjectPageStylesUseV2Selectors(t *testing.T) {
+	content, err := fs.ReadFile(publicassets.Files, "assets/styles.css")
+	if err != nil {
+		t.Fatalf("read public styles: %v", err)
+	}
+	css := string(content)
+	for _, rule := range []string{
+		".project-card {",
+		".project-card__media {\n  aspect-ratio: 16 / 9;\n  display: grid;",
+		".project-card__media img {\n  display: block;",
+		"object-fit: contain;",
+		".project-card__footer {",
+		".section[aria-label=\"项目列表\"] .empty-state {",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("project page CSS rule %q missing", rule)
+		}
 	}
 }
 
