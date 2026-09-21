@@ -174,6 +174,145 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 	}
 }
 
+func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
+	const internalError = "secret storage connection string"
+	pages := []struct {
+		name        string
+		handler     http.Handler
+		target      string
+		status      int
+		title       string
+		description string
+		ogTitle     string
+		ogDesc      string
+	}{
+		{
+			name:        "home",
+			handler:     newPublicHandler(t),
+			target:      "/",
+			status:      http.StatusOK,
+			title:       "首页 — MyWebsite",
+			description: "一个简洁、安静的个人网站首页。",
+		},
+		{
+			name:        "articles",
+			handler:     newPublicHandler(t),
+			target:      "/articles",
+			status:      http.StatusOK,
+			title:       "文章 — MyWebsite",
+			description: "记录思考、实践与长期积累的文章。",
+		},
+		{
+			name: "article one",
+			handler: newPublicHandler(t, &fakeArticleReader{article: article.Article{
+				Title:       "第一篇独立文章",
+				Status:      article.StatusPublished,
+				BodyHTML:    stringPointer("<p>第一篇正文</p>"),
+				PreviewText: stringPointer("第一篇独立摘要"),
+			}}),
+			target:      "/articles/" + testArticleULID,
+			status:      http.StatusOK,
+			title:       "第一篇独立文章 — MyWebsite",
+			description: "第一篇独立摘要",
+			ogTitle:     "第一篇独立文章",
+			ogDesc:      "第一篇独立摘要",
+		},
+		{
+			name: "article two",
+			handler: newPublicHandler(t, &fakeArticleReader{article: article.Article{
+				Title:       "第二篇独立文章",
+				Status:      article.StatusPublished,
+				BodyHTML:    stringPointer("<p>第二篇正文</p>"),
+				PreviewText: stringPointer("第二篇独立摘要"),
+			}}),
+			target:      "/articles/" + testArticleULID,
+			status:      http.StatusOK,
+			title:       "第二篇独立文章 — MyWebsite",
+			description: "第二篇独立摘要",
+			ogTitle:     "第二篇独立文章",
+			ogDesc:      "第二篇独立摘要",
+		},
+		{
+			name:        "projects",
+			handler:     newPublicHandler(t),
+			target:      "/projects",
+			status:      http.StatusOK,
+			title:       "项目 — MyWebsite",
+			description: "正在做过、正在做和想要继续做的项目。",
+		},
+		{
+			name:        "about",
+			handler:     newPublicHandler(t),
+			target:      "/about",
+			status:      http.StatusOK,
+			title:       "关于 — MyWebsite",
+			description: "关于我、我的工作方式，以及这个网站。",
+		},
+		{
+			name:        "404",
+			handler:     newPublicHandler(t),
+			target:      "/missing",
+			status:      http.StatusNotFound,
+			title:       "页面不存在 — MyWebsite",
+			description: "你访问的页面不存在或已经移除。",
+		},
+		{
+			name:        "500",
+			handler:     newPublicHandler(t, &fakeArticleReader{listErr: errors.New(internalError)}),
+			target:      "/",
+			status:      http.StatusInternalServerError,
+			title:       "暂时无法加载 — MyWebsite",
+			description: "服务遇到了临时问题，请稍后重试。",
+		},
+	}
+
+	for _, page := range pages {
+		t.Run(page.name, func(t *testing.T) {
+			response := request(t, page.handler, page.target)
+			body := response.Body.String()
+			if response.Code != page.status {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, page.status, body)
+			}
+			for _, want := range []string{
+				"<title>" + page.title + "</title>",
+				`<meta name="description" content="` + page.description + `">`,
+			} {
+				if !strings.Contains(body, want) {
+					t.Errorf("metadata missing %q in %s", want, body)
+				}
+			}
+			if page.ogTitle != "" {
+				for _, want := range []string{
+					`<meta property="og:type" content="article">`,
+					`<meta property="og:title" content="` + page.ogTitle + `">`,
+					`<meta property="og:description" content="` + page.ogDesc + `">`,
+				} {
+					if !strings.Contains(body, want) {
+						t.Errorf("article sharing metadata missing %q in %s", want, body)
+					}
+				}
+			}
+			if page.name == "404" {
+				for _, want := range []string{"页面不存在", `href="/"`, `href="/articles"`} {
+					if !strings.Contains(body, want) {
+						t.Errorf("404 semantic affordance missing %q in %s", want, body)
+					}
+				}
+			}
+			if page.name == "500" {
+				for _, want := range []string{"页面暂时无法加载", "重试", `href="/"`} {
+					if !strings.Contains(body, want) {
+						t.Errorf("500 semantic affordance missing %q in %s", want, body)
+					}
+				}
+				if strings.Contains(body, internalError) {
+					t.Errorf("internal error leaked into response: %s", body)
+				}
+			}
+		})
+	}
+}
+
 func TestArticlesPaginationAndStrictPageQuery(t *testing.T) {
 	reader := &fakeArticleReader{total: 11, items: []article.PublishedArticle{{
 		Title:            "第 2 页文章",
