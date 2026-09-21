@@ -141,7 +141,6 @@ function statusLabel(value: ArticleStatus): string {
         <div><h2 id="articles-empty-title">还没有文章</h2><p>先创建一篇草稿，再决定何时公开发布。</p><RouterLink class="button button--primary" to="/articles/new">新建文章</RouterLink></div>
       </section>
 
-      <section class="sr-only" aria-labelledby="articles-placeholder-title"><h2 id="articles-placeholder-title">文章列表</h2></section>
     </section>
   </AdminLayout>
 </template>

@@ -538,15 +538,15 @@ textarea:focus-visible {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .admin-toolbar__filters {
   display: flex;
   align-items: flex-end;
-  gap: 1rem;
   flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .admin-toolbar .field {
@@ -609,23 +609,32 @@ textarea:focus-visible {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  border-top: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
 }
 
 .data-table th,
 .data-table td {
-  padding: 0.95rem 0.7rem;
+  padding: 0.8rem 0.9rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .data-table th {
+  background: var(--bg);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.data-table tbody tr:hover {
+  background: var(--bg);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .data-table td:first-child {
@@ -637,9 +646,11 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   min-height: 1.65rem;
-  padding: 0.12rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   border: 1px solid var(--border-strong);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -660,13 +671,14 @@ textarea:focus-visible {
 
 .mobile-records {
   display: none;
+  gap: 0.75rem;
 }
 
 .record-card {
   display: grid;
   gap: 0.8rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: 1rem;
+  border: 1px solid var(--border);
 }
 
 .record-card__head {
@@ -684,15 +696,14 @@ textarea:focus-visible {
 
 .record-card dl {
   display: grid;
-  grid-template-columns: 7rem 1fr;
-  gap: 0.2rem 0.75rem;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.85rem;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0.9rem 0;
+  font-size: 0.8rem;
 }
 
 .record-card dt {
-  font-weight: 700;
+  color: var(--muted);
 }
 
 .record-card dd {
@@ -701,12 +712,11 @@ textarea:focus-visible {
 
 .empty-state {
   display: grid;
-  min-height: 18rem;
+  min-height: 12rem;
   place-items: center;
-  margin-top: 1rem;
   padding: 2rem;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   text-align: center;
 }
 
@@ -970,6 +980,11 @@ textarea:focus-visible {
     flex-direction: column;
   }
 
+  .admin-toolbar__filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .admin-toolbar .field {
     min-width: 0;
   }
@@ -979,7 +994,7 @@ textarea:focus-visible {
   }
 
   .mobile-records {
-    display: block;
+    display: grid;
   }
 
   .heading-links {

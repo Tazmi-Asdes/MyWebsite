@@ -124,7 +124,7 @@ describe('管理端路由页面', () => {
     expect(submitButton.attributes('disabled')).toBeUndefined()
   })
 
-  it('渲染文章管理占位页', async () => {
+  it('渲染文章管理真实空状态', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
@@ -134,7 +134,11 @@ describe('管理端路由页面', () => {
     const { wrapper } = await renderAt('/articles')
 
     expect(wrapper.get('h1').text()).toBe('文章管理')
-    expect(wrapper.get('[aria-labelledby="articles-placeholder-title"]')).toBeTruthy()
+    expect(wrapper.get('#articles-empty-title').text()).toBe('还没有文章')
+    expect(wrapper.get('.empty-state').text()).toContain('先创建一篇草稿，再决定何时公开发布。')
+    expect(wrapper.get('.empty-state a').text()).toBe('新建文章')
+    expect(wrapper.get('.empty-state a').attributes('href')).toBe('/admin/articles/new')
+    expect(wrapper.find('[aria-labelledby="articles-placeholder-title"]').exists()).toBe(false)
     const main = wrapper.get('main#main-content')
     expect(main.classes()).not.toContain('admin-content')
     expect(wrapper.find('main#main-content > .admin-page-header').exists()).toBe(true)
@@ -327,6 +331,48 @@ describe('管理端路由页面', () => {
 
     expect(wrapper.text()).toContain('列表中的文章')
     expect(wrapper.text()).toContain('草稿')
+    expect(wrapper.findAll('.data-table tbody tr')).toHaveLength(1)
+    expect(wrapper.findAll('.mobile-records .record-card')).toHaveLength(1)
+    expect(wrapper.get('.data-table .status.status--outline').text()).toBe('草稿')
+    expect(wrapper.get('.mobile-records .status.status--outline').text()).toBe('草稿')
+    expect(wrapper.get('.data-table a[href="/admin/articles/1"]').text()).toBe('编辑')
+    expect(wrapper.get('.mobile-records a[href="/admin/articles/1"]').text()).toBe('编辑文章')
+    expect(wrapper.find('.empty-state').exists()).toBe(false)
+  })
+
+  it('提交搜索和状态筛选会从第一页请求对应参数', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      return Promise.resolve(jsonResponse(200, {
+        items: [{ ...article, title: '筛选结果' }],
+        pagination: { page: 1, per_page: 20, total: 1, total_pages: 1 },
+      }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/articles')
+    await flushPromises()
+    fetchMock.mockClear()
+
+    await wrapper.get('#article-search').setValue('云原生')
+    await wrapper.get('form.admin-toolbar').trigger('submit')
+    await flushPromises()
+
+    const searchRequest = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), 'http://localhost'))
+      .find((url) => url.pathname.endsWith('/articles'))
+    expect(searchRequest?.searchParams.get('q')).toBe('云原生')
+    expect(searchRequest?.searchParams.get('page')).toBe('1')
+
+    await wrapper.get('#article-status').setValue('draft')
+    await flushPromises()
+
+    const statusRequest = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), 'http://localhost'))
+      .find((url) => url.pathname.endsWith('/articles') && url.searchParams.get('status') === 'draft')
+    expect(statusRequest?.searchParams.get('status')).toBe('draft')
+    expect(statusRequest?.searchParams.get('page')).toBe('1')
   })
 
   it('编辑保存使用响应版本并保留已保存表单', async () => {
