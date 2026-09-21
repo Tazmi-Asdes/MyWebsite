@@ -3,7 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
 import { routes, sessionGuard } from './router'
-import { closeReauth, initSession } from './composables/useSession'
+import { closeReauth, initSession, openReauth } from './composables/useSession'
 
 function jsonResponse(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), {
@@ -71,7 +71,7 @@ function projectGroups() {
   return { public: [projectOne, projectTwo], hidden: [hiddenProject], order_version: 4 }
 }
 
-async function renderAt(path: string) {
+async function renderAt(path: string, attachToBody = false) {
   const testRouter = createRouter({
     history: createMemoryHistory('/admin/'),
     routes,
@@ -80,6 +80,7 @@ async function renderAt(path: string) {
   await testRouter.push(path)
   await testRouter.isReady()
   const wrapper = mount(App, {
+    attachTo: attachToBody ? document.body : undefined,
     global: {
       plugins: [testRouter],
     },
@@ -276,6 +277,91 @@ describe('管理端路由页面', () => {
 
     expect(wrapper.get('[role="dialog"]').text()).toContain('登录状态已过期')
     expect(wrapper.get('#article-body').element).toHaveProperty('value', '保留这段未保存正文')
+  })
+
+  it('重新认证对话框打开后聚焦密码，Escape 取消并恢复触发按钮', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/articles/1') && !init?.method) return Promise.resolve(jsonResponse(200, article))
+      if (url.endsWith('/articles/1') && init?.method === 'PUT') return Promise.resolve(jsonResponse(401, { status: 401, code: 'session_expired' }))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await renderAt('/articles/1', true)
+    await flushPromises()
+    await wrapper.get('#article-body').setValue('触发重新认证')
+    const trigger = wrapper.get('button[type="submit"]')
+    ;(trigger.element as HTMLElement).focus()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('#session-password').element)
+    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+    openReauth()
+    await flushPromises()
+    expect(wrapper.get('#session-password').element).toHaveProperty('value', '')
+    wrapper.unmount()
+  })
+
+  it('撤回对话框聚焦取消并在 Tab 边界循环，Escape 恢复触发按钮', async () => {
+    const publishedArticle = { ...article, status: 'published' as const, public_ulid: '01ARZ3NDEKTSV4RRFFQ69G5FAV' }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/articles/1') && !init?.method) return Promise.resolve(jsonResponse(200, publishedArticle))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/articles/1', true)
+    await flushPromises()
+    const trigger = wrapper.get('button.button--danger')
+    ;(trigger.element as HTMLElement).focus()
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.get('[role="dialog"]')
+    const cancel = dialog.get('button.button--secondary')
+    const confirm = dialog.get('button.button--danger')
+    expect(document.activeElement).toBe(cancel.element)
+    ;(confirm.element as HTMLElement).focus()
+    await dialog.trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(cancel.element)
+    ;(cancel.element as HTMLElement).focus()
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(confirm.element)
+    await dialog.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+    wrapper.unmount()
+  })
+
+  it('隐藏对话框打开后聚焦取消按钮', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects/1') && !init?.method) return Promise.resolve(jsonResponse(200, projectOne))
+      if (url.endsWith('/projects') && !init?.method) return Promise.resolve(jsonResponse(200, projectGroups()))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await initSession(true)
+    const { wrapper } = await renderAt('/projects/1', true)
+    await flushPromises()
+    const trigger = wrapper.get('button.button--danger')
+    ;(trigger.element as HTMLElement).focus()
+    await trigger.trigger('click')
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('[role="dialog"] button.button--secondary').element)
+    wrapper.unmount()
   })
 
   it('退出返回 session_expired 时清除本地会话并跳转登录', async () => {

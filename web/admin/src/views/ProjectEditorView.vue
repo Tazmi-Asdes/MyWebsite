@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import type { components } from '../api/schema'
 import { ApiError, request, uploadMedia } from '../api/client'
 import { handleApiError } from '../composables/useSession'
+import { useDialogFocus } from '../composables/useDialogFocus'
 import {
   consumePreparedLeave,
   confirmLeave,
@@ -39,6 +40,8 @@ const saving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showHide = ref(false)
+const hideDialogRef = ref<HTMLElement | null>(null)
+const hideCancelRef = ref<HTMLButtonElement | null>(null)
 
 const selectedFile = ref<File | null>(null)
 const imageUploading = ref(false)
@@ -280,6 +283,12 @@ function formatError(error: unknown): string {
   }
   return error instanceof Error ? error.message : '请求失败，请稍后重试。'
 }
+
+function closeHide(): void {
+  showHide.value = false
+}
+
+useDialogFocus(showHide, hideDialogRef, hideCancelRef, closeHide)
 </script>
 
 <template>
@@ -347,11 +356,11 @@ function formatError(error: unknown): string {
   </AdminLayout>
 
   <div v-if="showHide" class="dialog-backdrop" role="presentation">
-    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="hide-project-title">
+    <section ref="hideDialogRef" class="dialog" role="dialog" aria-modal="true" aria-labelledby="hide-project-title">
       <h2 id="hide-project-title">隐藏这个项目？</h2>
       <p>隐藏后项目将从公开站点移除，但项目资料不会被删除。</p>
       <div class="dialog__actions">
-        <button class="button button--secondary" type="button" :disabled="saving" @click="showHide = false">取消</button>
+        <button ref="hideCancelRef" class="button button--secondary" type="button" :disabled="saving" @click="closeHide">取消</button>
         <button class="button button--danger" type="button" :disabled="saving" @click="hideProject">确认隐藏</button>
       </div>
     </section>

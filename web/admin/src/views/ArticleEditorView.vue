@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import type { components } from '../api/schema'
 import { ApiError, request, uploadMedia } from '../api/client'
 import { handleApiError } from '../composables/useSession'
+import { useDialogFocus } from '../composables/useDialogFocus'
 import {
   consumePreparedLeave,
   confirmLeave,
@@ -34,6 +35,8 @@ const saving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showWithdraw = ref(false)
+const withdrawDialogRef = ref<HTMLElement | null>(null)
+const withdrawCancelRef = ref<HTMLButtonElement | null>(null)
 const articleBodyRef = ref<HTMLTextAreaElement | null>(null)
 const imageInput = ref<HTMLInputElement | null>(null)
 const selectedImageFile = ref<File | null>(null)
@@ -239,6 +242,8 @@ function formatError(error: unknown): string {
 function closeWithdraw(): void {
   showWithdraw.value = false
 }
+
+useDialogFocus(showWithdraw, withdrawDialogRef, withdrawCancelRef, closeWithdraw)
 </script>
 
 <template>
@@ -303,11 +308,11 @@ function closeWithdraw(): void {
   </AdminLayout>
 
   <div v-if="showWithdraw" class="dialog-backdrop" role="presentation">
-    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
+    <section ref="withdrawDialogRef" class="dialog" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
       <h2 id="withdraw-title">撤回这篇文章？</h2>
       <p>撤回后文章转为草稿，原公开地址将显示 404。正文不会被删除。</p>
       <div class="dialog__actions">
-        <button class="button button--secondary" type="button" @click="closeWithdraw">取消</button>
+        <button ref="withdrawCancelRef" class="button button--secondary" type="button" @click="closeWithdraw">取消</button>
         <button class="button button--danger" type="button" :disabled="saving" @click="withdrawArticle">确认撤回</button>
       </div>
     </section>

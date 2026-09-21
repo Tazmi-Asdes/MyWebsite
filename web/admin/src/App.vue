@@ -2,9 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { RouterView } from 'vue-router'
 import { reauthenticate, closeReauth, initSession, reauthError, reauthOpen } from './composables/useSession'
+import { useDialogFocus } from './composables/useDialogFocus'
 
 const password = ref('')
 const submitting = ref(false)
+const reauthDialogRef = ref<HTMLElement | null>(null)
+const reauthPasswordRef = ref<HTMLInputElement | null>(null)
 
 onMounted(() => {
   void initSession()
@@ -27,13 +30,15 @@ function cancelReauth(): void {
   password.value = ''
   closeReauth()
 }
+
+useDialogFocus(reauthOpen, reauthDialogRef, reauthPasswordRef, cancelReauth)
 </script>
 
 <template>
   <RouterView />
 
   <div v-if="reauthOpen" class="dialog-backdrop" role="presentation">
-    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="session-title">
+    <section ref="reauthDialogRef" class="dialog" role="dialog" aria-modal="true" aria-labelledby="session-title">
       <h2 id="session-title">登录状态已过期</h2>
       <p>当前页面和未保存内容已保留。重新登录后可继续保存。</p>
       <form class="form-stack" @submit.prevent="submitReauth">
@@ -45,6 +50,7 @@ function cancelReauth(): void {
             class="input"
             type="password"
             autocomplete="current-password"
+            ref="reauthPasswordRef"
             autofocus
           />
         </div>
