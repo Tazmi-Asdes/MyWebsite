@@ -135,6 +135,10 @@ describe('管理端路由页面', () => {
 
     expect(wrapper.get('h1').text()).toBe('文章管理')
     expect(wrapper.get('[aria-labelledby="articles-placeholder-title"]')).toBeTruthy()
+    const main = wrapper.get('main#main-content')
+    expect(main.classes()).not.toContain('admin-content')
+    expect(wrapper.find('main#main-content > .admin-page-header').exists()).toBe(true)
+    expect(wrapper.find('main#main-content > .admin-content').exists()).toBe(true)
   })
 
   it('后台共用外壳支持移动导航开关、键盘关闭和账户入口', async () => {
@@ -184,6 +188,24 @@ describe('管理端路由页面', () => {
     expect(wrapper.get('h1').text()).toBe('项目管理')
     expect(wrapper.get('[aria-labelledby="public-projects-title"]')).toBeTruthy()
     expect(wrapper.get('[aria-labelledby="hidden-projects-title"]')).toBeTruthy()
+    const main = wrapper.get('main#main-content')
+    expect(main.classes()).not.toContain('admin-content')
+    expect(wrapper.find('main#main-content > .admin-page-header').exists()).toBe(true)
+    expect(wrapper.find('main#main-content > .admin-content').exists()).toBe(true)
+  })
+
+  it('编辑页使用统一后台页头与内容区', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      return Promise.resolve(jsonResponse(200, {}))
+    }))
+    await initSession(true)
+    const { wrapper } = await renderAt('/articles/new')
+
+    const main = wrapper.get('main#main-content')
+    expect(main.classes()).not.toContain('admin-content')
+    expect(wrapper.find('main#main-content > .admin-page-header').exists()).toBe(true)
+    expect(wrapper.find('main#main-content > .admin-content').exists()).toBe(true)
   })
 
   it('未知管理路由渲染管理端 404', async () => {

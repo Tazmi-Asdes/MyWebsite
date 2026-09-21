@@ -150,87 +150,89 @@ function formatError(error: unknown): string {
 
 <template>
   <AdminLayout>
-    <header class="page-header">
+    <header class="admin-page-header">
       <div>
         <p class="eyebrow">内容管理</p>
         <h1>项目管理</h1>
         <p class="page-lede">创建、编辑和整理公开项目。</p>
       </div>
-      <RouterLink class="button button--primary" to="/projects/new">新建项目</RouterLink>
+      <RouterLink class="button button--primary button--small" to="/projects/new">新建项目</RouterLink>
     </header>
 
-    <p v-if="loading" class="loading-state" role="status">加载中…</p>
-    <template v-else>
-      <div v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</div>
-      <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
+    <div class="admin-content">
+      <p v-if="loading" class="loading-state" role="status">加载中…</p>
+      <template v-else>
+        <div v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</div>
+        <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
 
-      <section class="projects-section" aria-labelledby="public-projects-title">
-        <div class="projects-section__header">
-          <div>
-            <p class="eyebrow">公开组</p>
-            <h2 id="public-projects-title">公开项目</h2>
-          </div>
-          <button class="button button--secondary" type="button" :disabled="saving || !dirty" @click="saveOrder">
-            {{ saving ? '保存中…' : '保存顺序' }}
-          </button>
-        </div>
-        <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮。调整只会在点击“保存顺序”后提交。</p>
-        <div v-if="publicProjects.length === 0" class="empty-state project-group-empty">
-          <div>
-            <h3>暂无公开项目</h3>
-            <p>新建项目并发布后，会显示在公开组中。</p>
-          </div>
-        </div>
-        <ol v-else class="project-list" aria-label="公开项目排序">
-          <li
-            v-for="(project, index) in publicProjects"
-            :key="project.id"
-            class="project-list__item"
-            :class="{ 'project-list__item--dragging': draggedId === project.id }"
-            draggable="true"
-            @dragstart="handleDragStart($event, project.id)"
-            @dragover.prevent
-            @drop="handleDrop($event, index)"
-            @dragend="handleDragEnd"
-          >
-            <span class="project-list__handle" aria-hidden="true">⋮⋮</span>
-            <div class="project-list__content">
-              <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
-              <span v-if="project.github_url" class="project-list__meta">{{ project.github_url }}</span>
+        <section class="projects-section" aria-labelledby="public-projects-title">
+          <div class="projects-section__header">
+            <div>
+              <p class="eyebrow">公开组</p>
+              <h2 id="public-projects-title">公开项目</h2>
             </div>
-            <div class="project-list__actions">
-              <button class="button button--small button--secondary" type="button" :disabled="saving || index === 0" @click="moveProject(index, -1)">上移</button>
-              <button class="button button--small button--secondary" type="button" :disabled="saving || index === publicProjects.length - 1" @click="moveProject(index, 1)">下移</button>
+            <button class="button button--secondary" type="button" :disabled="saving || !dirty" @click="saveOrder">
+              {{ saving ? '保存中…' : '保存顺序' }}
+            </button>
+          </div>
+          <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮。调整只会在点击“保存顺序”后提交。</p>
+          <div v-if="publicProjects.length === 0" class="empty-state project-group-empty">
+            <div>
+              <h3>暂无公开项目</h3>
+              <p>新建项目并发布后，会显示在公开组中。</p>
+            </div>
+          </div>
+          <ol v-else class="project-list" aria-label="公开项目排序">
+            <li
+              v-for="(project, index) in publicProjects"
+              :key="project.id"
+              class="project-list__item"
+              :class="{ 'project-list__item--dragging': draggedId === project.id }"
+              draggable="true"
+              @dragstart="handleDragStart($event, project.id)"
+              @dragover.prevent
+              @drop="handleDrop($event, index)"
+              @dragend="handleDragEnd"
+            >
+              <span class="project-list__handle" aria-hidden="true">⋮⋮</span>
+              <div class="project-list__content">
+                <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
+                <span v-if="project.github_url" class="project-list__meta">{{ project.github_url }}</span>
+              </div>
+              <div class="project-list__actions">
+                <button class="button button--small button--secondary" type="button" :disabled="saving || index === 0" @click="moveProject(index, -1)">上移</button>
+                <button class="button button--small button--secondary" type="button" :disabled="saving || index === publicProjects.length - 1" @click="moveProject(index, 1)">下移</button>
+                <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="projects-section" aria-labelledby="hidden-projects-title">
+          <div class="projects-section__header">
+            <div>
+              <p class="eyebrow">隐藏组</p>
+              <h2 id="hidden-projects-title">隐藏项目</h2>
+            </div>
+          </div>
+          <p class="field__hint">隐藏项目不参与公开排序。</p>
+          <div v-if="hiddenProjects.length === 0" class="empty-state project-group-empty">
+            <div>
+              <h3>暂无隐藏项目</h3>
+              <p>保存为草稿的新项目会显示在隐藏组中。</p>
+            </div>
+          </div>
+          <ul v-else class="project-list project-list--hidden" aria-label="隐藏项目">
+            <li v-for="project in hiddenProjects" :key="project.id" class="project-list__item">
+              <div class="project-list__content">
+                <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
+                <span class="status status--outline">隐藏</span>
+              </div>
               <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
-            </div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="projects-section" aria-labelledby="hidden-projects-title">
-        <div class="projects-section__header">
-          <div>
-            <p class="eyebrow">隐藏组</p>
-            <h2 id="hidden-projects-title">隐藏项目</h2>
-          </div>
-        </div>
-        <p class="field__hint">隐藏项目不参与公开排序。</p>
-        <div v-if="hiddenProjects.length === 0" class="empty-state project-group-empty">
-          <div>
-            <h3>暂无隐藏项目</h3>
-            <p>保存为草稿的新项目会显示在隐藏组中。</p>
-          </div>
-        </div>
-        <ul v-else class="project-list project-list--hidden" aria-label="隐藏项目">
-          <li v-for="project in hiddenProjects" :key="project.id" class="project-list__item">
-            <div class="project-list__content">
-              <RouterLink class="project-list__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
-              <span class="status status--outline">隐藏</span>
-            </div>
-            <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
-          </li>
-        </ul>
-      </section>
-    </template>
+            </li>
+          </ul>
+        </section>
+      </template>
+    </div>
   </AdminLayout>
 </template>

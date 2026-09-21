@@ -171,28 +171,36 @@ textarea:focus-visible {
 }
 
 .admin-content {
-  width: min(100% - 3rem, 70rem);
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 5.5rem) 0;
+  padding: clamp(1rem, 4vw, 2.5rem);
 }
 
-.page-header {
+.admin-layout-notice {
+  margin: 1rem clamp(1rem, 4vw, 2.5rem) 0;
+}
+
+.admin-page-header {
+  min-height: 5rem;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 2rem;
-  padding-bottom: 2.25rem;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
   border-bottom: 1px solid var(--border);
 }
 
-.page-header--stacked {
-  align-items: flex-start;
-}
-
-.page-header h1,
+.admin-page-header h1,
 .login-panel h1,
 .not-found h1 {
   margin: 0;
+}
+
+.admin-page-header h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.login-panel h1,
+.not-found h1 {
   font-size: clamp(2rem, 4vw, 3.35rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -282,10 +290,10 @@ textarea:focus-visible {
 }
 
 .editor-form {
+  width: min(100%, 64rem);
   display: grid;
   gap: 1.25rem;
-  max-width: 52rem;
-  margin-top: 2rem;
+  margin-inline: auto;
 }
 
 .field {
@@ -504,14 +512,16 @@ textarea:focus-visible {
   }
 
   .admin-content {
-    width: min(100% - 2rem, 70rem);
-    padding: 2rem 0 3rem;
+    padding: 1rem;
   }
 
-  .page-header {
-    display: grid;
-    align-items: start;
-    gap: 1.5rem;
+  .admin-page-header {
+    min-height: 4.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
   }
 
   .placeholder-panel {
@@ -522,11 +532,6 @@ textarea:focus-visible {
     align-items: flex-start;
     flex-direction: column;
   }
-}
-
-/* Stage 1 content workflow */
-.admin-content-section {
-  padding-top: 2rem;
 }
 
 .admin-toolbar {
@@ -742,11 +747,6 @@ textarea:focus-visible {
 .heading-links {
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.editor-form {
-  max-width: 56rem;
-  margin-top: 2rem;
 }
 
 .editor-actions {

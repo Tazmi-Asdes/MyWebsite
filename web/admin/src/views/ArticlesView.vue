@@ -74,15 +74,15 @@ function statusLabel(value: ArticleStatus): string {
 
 <template>
   <AdminLayout>
-    <header class="page-header">
+    <header class="admin-page-header">
       <div>
         <p class="eyebrow">内容管理</p>
         <h1>文章管理</h1>
       </div>
-      <RouterLink class="button button--primary" to="/articles/new">新建文章</RouterLink>
+      <RouterLink class="button button--primary button--small" to="/articles/new">新建文章</RouterLink>
     </header>
 
-    <section class="admin-content-section" aria-label="文章列表">
+    <section class="admin-content" aria-label="文章列表">
       <form class="admin-toolbar" @submit.prevent="submitSearch">
         <div class="admin-toolbar__filters">
           <div class="field">

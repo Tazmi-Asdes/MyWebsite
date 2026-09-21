@@ -293,7 +293,7 @@ useDialogFocus(showHide, hideDialogRef, hideCancelRef, closeHide)
 
 <template>
   <AdminLayout>
-    <header class="page-header page-header--stacked">
+    <header class="admin-page-header">
       <div>
         <p class="eyebrow">项目管理</p>
         <div class="heading-row">
@@ -305,54 +305,56 @@ useDialogFocus(showHide, hideDialogRef, hideCancelRef, closeHide)
       <RouterLink class="text-link" to="/projects">返回项目管理</RouterLink>
     </header>
 
-    <p v-if="loading" class="loading-state" role="status">加载中…</p>
-    <form v-else class="editor-form project-editor-form" @submit.prevent="saveProject">
-      <div v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</div>
-      <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
+    <div class="admin-content">
+      <p v-if="loading" class="loading-state" role="status">加载中…</p>
+      <form v-else class="editor-form project-editor-form" @submit.prevent="saveProject">
+        <div v-if="errorMessage" class="notice notice--error" role="alert">{{ errorMessage }}</div>
+        <div v-if="successMessage" class="notice notice--success" role="status">{{ successMessage }}</div>
 
-      <div class="editor-actions" aria-label="项目操作">
-        <RouterLink class="button button--secondary" to="/projects">返回列表</RouterLink>
-        <div class="editor-actions__group">
-          <button class="button button--secondary" type="submit" :disabled="saving || imageUploading">
-            {{ saving ? '保存中…' : isNew ? '保存项目' : '保存更改' }}
-          </button>
-          <button v-if="!isNew && status === 'hidden'" class="button button--primary" type="button" :disabled="saving || imageUploading" @click="publishProject">公开项目</button>
-          <button v-if="!isNew && status === 'public'" class="button button--danger" type="button" :disabled="saving || imageUploading" @click="showHide = true">隐藏项目</button>
+        <div class="editor-actions" aria-label="项目操作">
+          <RouterLink class="button button--secondary" to="/projects">返回列表</RouterLink>
+          <div class="editor-actions__group">
+            <button class="button button--secondary" type="submit" :disabled="saving || imageUploading">
+              {{ saving ? '保存中…' : isNew ? '保存项目' : '保存更改' }}
+            </button>
+            <button v-if="!isNew && status === 'hidden'" class="button button--primary" type="button" :disabled="saving || imageUploading" @click="publishProject">公开项目</button>
+            <button v-if="!isNew && status === 'public'" class="button button--danger" type="button" :disabled="saving || imageUploading" @click="showHide = true">隐藏项目</button>
+          </div>
         </div>
-      </div>
 
-      <div class="field">
-        <label for="project-name">项目名称</label>
-        <input id="project-name" v-model="name" name="name" class="input" type="text" placeholder="输入项目名称" required />
-      </div>
-      <div class="field">
-        <label for="project-github">GitHub 链接</label>
-        <input id="project-github" v-model="githubUrl" name="github_url" class="input" type="url" placeholder="https://github.com/…" />
-      </div>
-      <div class="field">
-        <label for="project-image">项目图片</label>
-        <span id="project-image-hint" class="field__hint">支持 JPEG、PNG、WebP。上传后还需保存项目或公开项目才会绑定。</span>
-        <div v-if="imagePreviewUrl" class="image-upload-preview">
-          <img :src="imagePreviewUrl" alt="项目图片预览" />
-          <button class="button button--secondary" type="button" :disabled="imageUploading" @click="removeImage">移除图片</button>
+        <div class="field">
+          <label for="project-name">项目名称</label>
+          <input id="project-name" v-model="name" name="name" class="input" type="text" placeholder="输入项目名称" required />
         </div>
-        <p v-else class="image-upload-empty">暂无项目图片，将使用统一默认图。</p>
-        <input
-          id="project-image"
-          ref="imageInput"
-          class="input"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          aria-describedby="project-image-hint"
-          :disabled="imageUploading"
-          @change="selectImage"
-        />
-        <progress v-if="imageUploading" class="upload-progress" max="100" :value="imageUploadProgress">{{ imageUploadProgress }}%</progress>
-        <p v-if="imageUploading" class="field__hint" role="status">上传中 {{ imageUploadProgress }}%</p>
-        <p v-if="imageUploadError" class="field__hint field__hint--error" role="alert">{{ imageUploadError }}</p>
-        <button v-if="imageUploadError && selectedFile && !imageUploading" class="button button--secondary" type="button" @click="uploadSelectedImage">重试上传</button>
-      </div>
-    </form>
+        <div class="field">
+          <label for="project-github">GitHub 链接</label>
+          <input id="project-github" v-model="githubUrl" name="github_url" class="input" type="url" placeholder="https://github.com/…" />
+        </div>
+        <div class="field">
+          <label for="project-image">项目图片</label>
+          <span id="project-image-hint" class="field__hint">支持 JPEG、PNG、WebP。上传后还需保存项目或公开项目才会绑定。</span>
+          <div v-if="imagePreviewUrl" class="image-upload-preview">
+            <img :src="imagePreviewUrl" alt="项目图片预览" />
+            <button class="button button--secondary" type="button" :disabled="imageUploading" @click="removeImage">移除图片</button>
+          </div>
+          <p v-else class="image-upload-empty">暂无项目图片，将使用统一默认图。</p>
+          <input
+            id="project-image"
+            ref="imageInput"
+            class="input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-describedby="project-image-hint"
+            :disabled="imageUploading"
+            @change="selectImage"
+          />
+          <progress v-if="imageUploading" class="upload-progress" max="100" :value="imageUploadProgress">{{ imageUploadProgress }}%</progress>
+          <p v-if="imageUploading" class="field__hint" role="status">上传中 {{ imageUploadProgress }}%</p>
+          <p v-if="imageUploadError" class="field__hint field__hint--error" role="alert">{{ imageUploadError }}</p>
+          <button v-if="imageUploadError && selectedFile && !imageUploading" class="button button--secondary" type="button" @click="uploadSelectedImage">重试上传</button>
+        </div>
+      </form>
+    </div>
   </AdminLayout>
 
   <div v-if="showHide" class="dialog-backdrop" role="presentation">

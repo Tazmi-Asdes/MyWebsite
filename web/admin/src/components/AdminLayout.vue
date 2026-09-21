@@ -109,8 +109,8 @@ async function signOut(): Promise<void> {
           菜单
         </button>
       </header>
-      <main id="main-content" class="admin-content">
-        <p v-if="logoutError" class="notice notice--error" role="alert">{{ logoutError }}</p>
+      <main id="main-content">
+        <p v-if="logoutError" class="notice notice--error admin-layout-notice" role="alert">{{ logoutError }}</p>
         <slot />
       </main>
     </div>
