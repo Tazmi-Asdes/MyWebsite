@@ -961,13 +961,13 @@ textarea:focus-visible {
   margin-top: 0.25rem;
 }
 
-.image-upload-preview img {
+.upload__preview {
   display: block;
   width: min(100%, 18rem);
   max-height: 12rem;
   object-fit: contain;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface-muted);
 }
 
 .image-upload-empty {
