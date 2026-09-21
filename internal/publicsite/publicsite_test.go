@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,6 +137,40 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 				t.Fatalf("main content id count = %d, body = %s", strings.Count(body, `id="main-content"`), body)
 			}
 		})
+	}
+}
+
+func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
+	content, err := fs.ReadFile(publicassets.Files, "assets/styles.css")
+	if err != nil {
+		t.Fatalf("read public styles: %v", err)
+	}
+	css := string(content)
+	if !strings.Contains(css, "color-scheme: light;") || !strings.Contains(css, "@media (prefers-color-scheme: dark)") {
+		t.Fatalf("public styles do not declare system color schemes")
+	}
+	darkStart := strings.Index(css, "@media (prefers-color-scheme: dark)")
+	darkCSS := css[darkStart:]
+	for _, token := range []string{
+		"color-scheme: dark;",
+		"--bg: #151513;",
+		"--surface: #1d1d1a;",
+		"--surface-muted: #292925;",
+		"--text: #f1f1eb;",
+		"--text-muted: #aaa9a0;",
+		"--border: #42423c;",
+		"--border-strong: #f1f1eb;",
+		"--inverse: #151513;",
+		"--focus: #ffffff;",
+		"--code-bg: #090908;",
+		"--code-text: #f5f5ef;",
+	} {
+		if !strings.Contains(darkCSS, token) {
+			t.Errorf("dark theme token %q missing", token)
+		}
+	}
+	if strings.Contains(css, "data-theme") || strings.Contains(css, "localStorage") {
+		t.Fatal("public styles must not add manual theme switching")
 	}
 }
 
