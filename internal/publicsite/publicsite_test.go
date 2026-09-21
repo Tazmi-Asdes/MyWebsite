@@ -261,8 +261,22 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 			t.Errorf("article detail CSS rule %q missing", rule)
 		}
 	}
+	for _, rule := range []string{
+		".error-page {\n  min-height: calc(100vh - 4.25rem);",
+		".error-code {",
+		".error-page h1 {",
+		".error-page p {",
+		".error-page .button-row {",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("error page CSS rule %q missing", rule)
+		}
+	}
 	if strings.Contains(css, ".article-list-item") {
 		t.Fatal("public styles still use the legacy article list item selector")
+	}
+	if strings.Contains(css, ".temporary-fault") {
+		t.Fatal("public styles still use the removed temporary-fault selector")
 	}
 	if strings.Contains(css, "\nnav {") || strings.Contains(css, "\nnav a") || strings.Contains(css, "\n.brand {") {
 		t.Fatal("public shell still uses legacy global nav or brand selectors")
@@ -393,6 +407,21 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 						t.Errorf("404 semantic affordance missing %q in %s", want, body)
 					}
 				}
+				for _, want := range []string{
+					`<main id="main-content" class="error-page">`,
+					`<section aria-labelledby="not-found-heading">`,
+					`<p class="error-code" aria-hidden="true">404</p>`,
+					`<h1 id="not-found-heading">页面不存在</h1>`,
+					`<a class="button" href="/">返回首页</a>`,
+					`<a class="button button--secondary" href="/articles">浏览文章</a>`,
+				} {
+					if !strings.Contains(body, want) {
+						t.Errorf("404 V2 structure missing %q in %s", want, body)
+					}
+				}
+				if strings.Count(body, `<main id="main-content" class="error-page">`) != 1 || strings.Count(body, `<section aria-labelledby="not-found-heading">`) != 1 || strings.Count(body, `class="error-code"`) != 1 || strings.Count(body, `<h1 id="not-found-heading">`) != 1 || strings.Count(body, `<div class="button-row">`) != 1 {
+					t.Errorf("404 V2 structure is not unique: %s", body)
+				}
 			}
 			if page.name == "500" {
 				for _, want := range []string{"页面暂时无法加载", "重试", `href="/"`} {
@@ -402,6 +431,24 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 				}
 				if strings.Contains(body, internalError) {
 					t.Errorf("internal error leaked into response: %s", body)
+				}
+				for _, want := range []string{
+					`<main id="main-content" class="error-page">`,
+					`<section aria-labelledby="service-error-heading">`,
+					`<p class="error-code" aria-hidden="true">500</p>`,
+					`<h1 id="service-error-heading">页面暂时无法加载</h1>`,
+					`<a class="button" href="">重新尝试</a>`,
+					`<a class="button button--secondary" href="/">返回首页</a>`,
+				} {
+					if !strings.Contains(body, want) {
+						t.Errorf("500 V2 structure missing %q in %s", want, body)
+					}
+				}
+				if strings.Count(body, `<main id="main-content" class="error-page">`) != 1 || strings.Count(body, `<section aria-labelledby="service-error-heading">`) != 1 || strings.Count(body, `class="error-code"`) != 1 || strings.Count(body, `<h1 id="service-error-heading">`) != 1 || strings.Count(body, `<div class="button-row">`) != 1 {
+					t.Errorf("500 V2 structure is not unique: %s", body)
+				}
+				if strings.Contains(body, "返回文章列表") || strings.Contains(body, `href="/articles">返回文章列表`) {
+					t.Errorf("500 page exposes a non-required article-list entry: %s", body)
 				}
 			}
 		})

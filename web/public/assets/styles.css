@@ -470,6 +470,38 @@ h1 {
   text-underline-offset: 0.2em;
 }
 
+.error-page {
+  min-height: calc(100vh - 4.25rem);
+  display: grid;
+  place-items: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.error-code {
+  margin: 0;
+  font-size: clamp(6rem, 20vw, 14rem);
+  line-height: 0.8;
+  font-weight: 300;
+  letter-spacing: -0.08em;
+}
+
+.error-page h1 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.8rem;
+  font-weight: 500;
+}
+
+.error-page p {
+  max-width: 34rem;
+  margin: 0 auto;
+  color: var(--text-muted);
+}
+
+.error-page .button-row {
+  justify-content: center;
+}
+
 .site-footer {
   border-top: 1px solid var(--border);
   background: var(--surface);
@@ -819,10 +851,6 @@ h1 {
   margin-top: 3rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
-}
-
-.temporary-fault {
-  border-top-color: var(--border-strong);
 }
 
 @media (max-width: 640px) {

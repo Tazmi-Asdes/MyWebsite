@@ -23,13 +23,15 @@
       </details>
     </div>
   </header>
-  <main id="main-content" class="page-shell">
-    <p class="eyebrow">{{.Eyebrow}}</p>
-    <h1>{{.Heading}}</h1>
-    <p class="lede">{{.Description}}</p>
-    <section class="empty-state" aria-live="polite">
-      <h2>{{.EmptyTitle}}</h2>
+  <main id="main-content" class="error-page">
+    <section aria-labelledby="not-found-heading">
+      <p class="error-code" aria-hidden="true">404</p>
+      <h1 id="not-found-heading">{{.Heading}}</h1>
       <p>{{.EmptyText}}</p>
+      <div class="button-row">
+        <a class="button" href="/">返回首页</a>
+        <a class="button button--secondary" href="/articles">浏览文章</a>
+      </div>
     </section>
   </main>
   <footer class="site-footer">

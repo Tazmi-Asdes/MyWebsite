@@ -23,14 +23,15 @@
       </details>
     </div>
   </header>
-  <main id="main-content" class="page-shell">
-    <p class="eyebrow">{{.Eyebrow}}</p>
-    <h1>{{.Heading}}</h1>
-    <section class="empty-state temporary-fault" aria-live="polite">
+  <main id="main-content" class="error-page">
+    <section aria-labelledby="service-error-heading">
+      <p class="error-code" aria-hidden="true">500</p>
+      <h1 id="service-error-heading">{{.Heading}}</h1>
       <p>{{.EmptyText}}</p>
-      <p><a class="text-link" href="">重试</a></p>
-      <p><a class="text-link" href="/">返回首页</a></p>
-      <p><a class="text-link" href="/articles">返回文章列表</a></p>
+      <div class="button-row">
+        <a class="button" href="">重新尝试</a>
+        <a class="button button--secondary" href="/">返回首页</a>
+      </div>
     </section>
   </main>
   <footer class="site-footer">

@@ -384,7 +384,6 @@ func (h *Handler) serviceUnavailable(w http.ResponseWriter, _ *http.Request) {
 		Title:       "暂时无法加载 — MyWebsite",
 		Description: "服务遇到了临时问题，请稍后重试。",
 		Heading:     "页面暂时无法加载",
-		Eyebrow:     "TEMPORARY ERROR",
 		EmptyText:   "服务正在恢复，请稍后再试。",
 	})
 }
@@ -394,9 +393,7 @@ func (h *Handler) NotFound(w http.ResponseWriter, r *http.Request) {
 	h.render(w, http.StatusNotFound, "404.html", pageData{
 		Title:       "页面不存在 — MyWebsite",
 		Description: "你访问的页面不存在或已经移除。",
-		Heading:     "找不到这个页面",
-		Eyebrow:     "404",
-		EmptyTitle:  "页面不存在",
+		Heading:     "页面不存在",
 		EmptyText:   "请检查地址，或从导航回到公开页面。",
 	})
 }
@@ -405,8 +402,6 @@ type pageData struct {
 	Title       string
 	Description string
 	Heading     string
-	Eyebrow     string
-	EmptyTitle  string
 	EmptyText   string
 	Year        int
 }
@@ -504,7 +499,6 @@ type serviceFaultPageData struct {
 	Title       string
 	Description string
 	Heading     string
-	Eyebrow     string
 	EmptyText   string
 	Year        int
 }
