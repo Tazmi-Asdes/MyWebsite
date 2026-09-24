@@ -81,6 +81,12 @@ function moveProject(index: number, delta: -1 | 1): void {
   successMessage.value = ''
 }
 
+function handleKeyboardMove(event: KeyboardEvent, index: number): void {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  moveProject(index, event.key === 'ArrowUp' ? -1 : 1)
+}
+
 function handleDragStart(event: DragEvent, id: number): void {
   if (saving.value) {
     event.preventDefault()
@@ -180,7 +186,7 @@ function formatError(error: unknown): string {
           <div class="admin-section__head">
             <div>
               <h2 id="public-projects-title">公开项目</h2>
-              <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮。调整只会在点击“保存顺序”后提交。</p>
+              <p class="field__hint">拖动项目调整顺序，也可以使用每项的上移/下移按钮，或在排序手柄上按上下箭头。调整只会在点击“保存顺序”后提交。</p>
             </div>
             <button class="button button--small button--secondary" type="button" :disabled="saving || !dirty" @click="saveOrder">
               {{ saving ? '保存中…' : '保存顺序' }}
@@ -204,15 +210,15 @@ function formatError(error: unknown): string {
               @drop="handleDrop($event, index)"
               @dragend="handleDragEnd"
             >
-              <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+              <span class="drag-handle" role="button" tabindex="0" aria-label="拖拽排序" @keydown="handleKeyboardMove($event, index)">⋮⋮</span>
               <img class="project-thumb" :src="project.image_preview_url || defaultProjectImage" :alt="project.name" />
               <RouterLink class="sortable-item__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
               <a v-if="project.github_url" class="sortable-item__link" :href="project.github_url" target="_blank" rel="noreferrer">{{ project.github_url }}</a>
               <span v-else class="sortable-item__link">尚未填写 GitHub 链接</span>
               <span class="status status--solid">公开</span>
               <div class="sortable-item__actions">
-                <button class="button button--small button--secondary" type="button" :disabled="saving || index === 0" @click="moveProject(index, -1)">上移</button>
-                <button class="button button--small button--secondary" type="button" :disabled="saving || index === publicProjects.length - 1" @click="moveProject(index, 1)">下移</button>
+                <button class="button button--small button--secondary" type="button" :disabled="saving || index === 0" :aria-label="`将${project.name}上移`" @click="moveProject(index, -1)">上移</button>
+                <button class="button button--small button--secondary" type="button" :disabled="saving || index === publicProjects.length - 1" :aria-label="`将${project.name}下移`" @click="moveProject(index, 1)">下移</button>
                 <RouterLink class="text-link" :to="`/projects/${project.id}`">编辑</RouterLink>
               </div>
             </li>

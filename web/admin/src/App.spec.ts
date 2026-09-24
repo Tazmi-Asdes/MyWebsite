@@ -607,6 +607,13 @@ describe('管理端路由页面', () => {
     expect(wrapper.find('.sortable-list[aria-label="公开项目排序"] .project-thumb').attributes('src')).toMatch(/\/(?:admin\/)?assets\/default-project\.svg$/)
     expect(wrapper.findAll('.status.status--solid')).toHaveLength(2)
     expect(wrapper.findAll('.status.status--outline')).toHaveLength(1)
+    expect(wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .drag-handle').every((handle) => handle.attributes('tabindex') === '0')).toBe(true)
+    expect(wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .drag-handle').every((handle) => handle.attributes('aria-label') === '拖拽排序')).toBe(true)
+    const firstHandle = wrapper.findAll('.sortable-list[aria-label="公开项目排序"] .drag-handle')[0]
+    await firstHandle.trigger('keydown', { key: 'ArrowDown' })
+    expect(names()).toEqual(['第二个项目', '第一个项目'])
+    await firstHandle.trigger('keydown', { key: 'ArrowUp' })
+    expect(names()).toEqual(['第一个项目', '第二个项目'])
     expect(wrapper.get('.sortable-list[aria-label="公开项目排序"] a.sortable-item__link').attributes()).toEqual(expect.objectContaining({
       href: 'https://github.com/example/one',
       target: '_blank',
