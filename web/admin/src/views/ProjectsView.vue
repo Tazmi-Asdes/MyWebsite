@@ -210,7 +210,7 @@ function formatError(error: unknown): string {
               @drop="handleDrop($event, index)"
               @dragend="handleDragEnd"
             >
-              <span class="drag-handle" role="button" tabindex="0" aria-label="拖拽排序" @keydown="handleKeyboardMove($event, index)">⋮⋮</span>
+              <span class="drag-handle" tabindex="0" aria-label="拖拽排序" @keydown="handleKeyboardMove($event, index)">⋮⋮</span>
               <img class="project-thumb" :src="project.image_preview_url || defaultProjectImage" :alt="project.name" />
               <RouterLink class="sortable-item__name" :to="`/projects/${project.id}`">{{ project.name }}</RouterLink>
               <a v-if="project.github_url" class="sortable-item__link" :href="project.github_url" target="_blank" rel="noreferrer">{{ project.github_url }}</a>
