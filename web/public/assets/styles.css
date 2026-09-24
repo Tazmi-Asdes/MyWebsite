@@ -853,7 +853,28 @@ h1 {
   border-top: 1px solid var(--border);
 }
 
-@media (max-width: 640px) {
+@media (min-width: 768px) and (max-width: 1023px) {
+  .article-shell {
+    width: min(calc(100% - 2rem), 760px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    justify-content: center;
+  }
+
+  .toc {
+    display: none;
+  }
+
+  .toc-mobile {
+    display: block;
+  }
+
+  .project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
   .site-header__inner {
     align-items: flex-start;
     flex-direction: column;
