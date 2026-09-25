@@ -148,7 +148,7 @@ func (h *Handler) homeOrNotFound(w http.ResponseWriter, r *http.Request) {
 	data := homePageData{
 		Title:       "首页 — MyWebsite",
 		Description: "在网站耍起嘛,好舒服啊。",
-		Heading:     "个人网站首页。",
+		Heading:     "个人网站首页",
 		Eyebrow:     "PERSONAL SITE",
 	}
 	if h.articleReader != nil {
@@ -288,7 +288,7 @@ func (h *Handler) projects(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) about(w http.ResponseWriter, r *http.Request) {
 	data := aboutPageData{
 		Title:       "关于 — MyWebsite",
-		Description: "关于我、我的耍起方式，以及这个耍起网站。",
+		Description: "关于我、我的耍起方式,以及这个耍起网站。",
 		Heading:     "关于我",
 		DisplayName: "Tazmi",
 		AvatarURL:   "/assets/default-avatar.svg",

@@ -356,7 +356,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/about",
 			status:      http.StatusOK,
 			title:       "关于 — MyWebsite",
-			description: "关于我、我的耍起方式，以及这个耍起网站。",
+			description: "关于我、我的耍起方式,以及这个耍起网站。",
 		},
 		{
 			name:        "404",
