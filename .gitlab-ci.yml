@@ -1,5 +1,5 @@
 # Linux Shell Runner contract:
-# - the runner is tagged with MYWEBSITE_RUNNER_TAG (default: mywebsite-prod);
+# - the runner is tagged with MYWEBSITE_RUNNER_TAG (default: server);
 # - the runner can execute Docker CLI commands and access the Docker daemon;
 # - deploy/env.production, the database password file, the uploads directory,
 #   and the 1Panel network are provisioned outside Git and outside artifacts.
@@ -16,7 +16,7 @@ workflow:
     - when: never
 
 variables:
-  MYWEBSITE_RUNNER_TAG: "mywebsite-prod"
+  MYWEBSITE_RUNNER_TAG: "server"
   COMPOSE_PROJECT_NAME: "mywebsite"
   MYSQL_NETWORK_NAME: "1panel-network"
   APP_PORT: "18080"
