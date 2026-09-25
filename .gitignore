@@ -3,6 +3,7 @@
 .env.*
 !*.example
 !.env.example
+deploy/env.production
 *.secret
 secret/
 secrets/
