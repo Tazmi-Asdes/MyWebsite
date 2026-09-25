@@ -1,0 +1,170 @@
+# Linux Shell Runner contract:
+# - the runner is tagged with MYWEBSITE_RUNNER_TAG (default: mywebsite-prod);
+# - the runner can execute Docker CLI commands and access the Docker daemon;
+# - deploy/env.production, the database password file, the uploads directory,
+#   and the 1Panel network are provisioned outside Git and outside artifacts.
+
+stages:
+  - verify
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - when: never
+
+variables:
+  MYWEBSITE_RUNNER_TAG: "mywebsite-prod"
+  COMPOSE_PROJECT_NAME: "mywebsite"
+  MYSQL_NETWORK_NAME: "1panel-network"
+  APP_PORT: "18080"
+  ADMIN_WEB_PORT: "18081"
+  GOPROXY: "https://goproxy.cn,direct"
+  GOSUMDB: "sum.golang.org"
+  NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
+  DEPLOY_ROOT: "/opt/mywebsite"
+  PRODUCTION_URL: "https://tazmi.online"
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+  BUILDKIT_PROGRESS: "plain"
+
+verify:
+  stage: verify
+  tags:
+    - "$MYWEBSITE_RUNNER_TAG"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - when: never
+  script:
+    - |
+      set -eu
+      command -v docker >/dev/null
+      docker version
+    - |
+      set -eu
+      docker run --rm \
+        -e "GOPROXY=$GOPROXY" \
+        -e "GOSUMDB=$GOSUMDB" \
+        -e GOMODCACHE=/tmp/gomod \
+        -e GOCACHE=/tmp/gocache \
+        -e GOTMPDIR=/tmp/gotmp \
+        -v "$CI_PROJECT_DIR:/src:ro" \
+        -w /src \
+        golang:1.27.1-alpine \
+        sh -ec 'mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR" && go test ./...'
+    - |
+      set -eu
+      docker run --rm \
+        -e "NPM_CONFIG_REGISTRY=$NPM_CONFIG_REGISTRY" \
+        -v "$CI_PROJECT_DIR/web/admin:/src:ro" \
+        node:24.16.0-alpine \
+        sh -ec '
+          rm -rf /tmp/mywebsite-admin
+          cp -R /src /tmp/mywebsite-admin
+          cd /tmp/mywebsite-admin
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm test
+        '
+    - git diff --check
+
+deploy:
+  stage: deploy
+  tags:
+    - "$MYWEBSITE_RUNNER_TAG"
+  resource_group: production
+  environment:
+    name: production
+    url: "$PRODUCTION_URL"
+  needs:
+    - job: verify
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+  after_script:
+    - |
+      if [ "$DEPLOY_ROOT/deploy/env.production" != "$CI_PROJECT_DIR/deploy/env.production" ]; then
+        rm -f -- "$CI_PROJECT_DIR/deploy/env.production"
+      fi
+  script:
+    - |
+      set -eu
+      command -v docker >/dev/null
+      command -v curl >/dev/null
+      command -v install >/dev/null
+      docker version
+      docker compose version
+      curl --version
+      install --version
+    - |
+      set -eu
+      env_source="$DEPLOY_ROOT/deploy/env.production"
+      env_target="$CI_PROJECT_DIR/deploy/env.production"
+      password_file="$DEPLOY_ROOT/secrets/db_password"
+      test -r "$env_source"
+      test -r "$password_file"
+      test -s "$password_file"
+      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$password_file"
+      test -d "$DEPLOY_ROOT/data/uploads"
+      docker network inspect "$MYSQL_NETWORK_NAME" >/dev/null
+      if [ "$env_source" != "$env_target" ]; then
+        install -m 0600 "$env_source" "$env_target"
+      fi
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      docker compose \
+        --project-directory "$CI_PROJECT_DIR" \
+        -f "$CI_PROJECT_DIR/compose.yaml" \
+        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+        config --quiet
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      docker compose \
+        --project-directory "$CI_PROJECT_DIR" \
+        -f "$CI_PROJECT_DIR/compose.yaml" \
+        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+        build --pull app admin-web
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      docker compose \
+        --project-directory "$CI_PROJECT_DIR" \
+        -f "$CI_PROJECT_DIR/compose.yaml" \
+        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+        up -d --no-deps app admin-web
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      compose() {
+        docker compose \
+          --project-directory "$CI_PROJECT_DIR" \
+          -f "$CI_PROJECT_DIR/compose.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          "$@"
+      }
+
+      healthy=0
+      for attempt in $(seq 1 30); do
+        if curl --fail --silent --show-error --max-time 5 -o /dev/null \
+            "http://127.0.0.1:${APP_PORT}/-/live" && \
+           curl --fail --silent --show-error --max-time 5 -o /dev/null \
+            "http://127.0.0.1:${APP_PORT}/-/ready" && \
+           curl --fail --silent --show-error --max-time 5 -o /dev/null \
+            "http://127.0.0.1:${ADMIN_WEB_PORT}/admin/"; then
+          healthy=1
+          break
+        fi
+        sleep 2
+      done
+
+      if [ "$healthy" -ne 1 ]; then
+        compose ps || true
+        compose logs --tail=100 app admin-web || true
+        exit 1
+      fi
