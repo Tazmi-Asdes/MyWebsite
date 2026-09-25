@@ -205,10 +205,10 @@ func TestPublicRoutesRenderIndependentPages(t *testing.T) {
 		title       string
 		description string
 	}{
-		{path: "/", title: "首页 — MyWebsite", description: "一个简洁、安静的个人网站首页。"},
-		{path: "/articles", title: "文章 — MyWebsite", description: "记录思考、实践与长期积累的文章。"},
-		{path: "/projects", title: "项目 — MyWebsite", description: "正在做过、正在做和想要继续做的项目。"},
-		{path: "/about", title: "关于 — MyWebsite", description: "关于我、我的工作方式，以及这个网站。"},
+		{path: "/", title: "首页 — MyWebsite", description: "在网站耍起嘛,好舒服啊。"},
+		{path: "/articles", title: "文章 — MyWebsite", description: "耍起文章一览。"},
+		{path: "/projects", title: "项目 — MyWebsite", description: "耍起项目一览。"},
+		{path: "/about", title: "关于 — MyWebsite", description: "关于我、我的耍起方式，以及这个耍起网站。"},
 	}
 
 	for _, route := range routes {

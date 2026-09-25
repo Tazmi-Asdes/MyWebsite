@@ -187,7 +187,7 @@ func TestStage2AboutAlwaysRendersProfileStatsInterestsAndContact(t *testing.T) {
 		if strings.Contains(body, "个人介绍正在准备中") || strings.Contains(body, `<p class="eyebrow">`) || strings.Contains(body, `class="empty-state"`) {
 			t.Errorf("about page contains the removed fallback profile state: %s", body)
 		}
-		if !strings.Contains(body, `href="mailto:2926238971@qq.com"`) || !strings.Contains(body, `href="https://github.com/Tazmi-Asdes" target="_blank" rel="noopener noreferrer"`) {
+		if !strings.Contains(body, `<a href="mailto:2926238971@qq.com">2926238971@qq.com</a>`) || !strings.Contains(body, `<a href="https://github.com/Tazmi-Asdes" target="_blank" rel="noopener noreferrer">github.com/Tazmi-Asdes</a>`) {
 			t.Errorf("about contact links missing: %s", body)
 		}
 		for _, marker := range []string{
