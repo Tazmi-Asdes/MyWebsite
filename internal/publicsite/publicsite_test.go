@@ -147,8 +147,9 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			if strings.Count(body, `id="main-content"`) != 1 {
 				t.Fatalf("main content id count = %d, body = %s", strings.Count(body, `id="main-content"`), body)
 			}
-			if strings.Count(body, `<details class="site-menu">`) != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`) != 1 {
-				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", strings.Count(body, `<details class="site-menu">`), strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`), body)
+			detailsCount := strings.Count(body, `<details class="site-menu" open>`)
+			if detailsCount != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`) != 1 {
+				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", detailsCount, strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`), body)
 			}
 			if strings.Count(body, `<header class="site-header">`) != 1 || strings.Count(body, `<div class="container site-header__inner">`) != 1 || strings.Count(body, `<a class="site-brand" href="/">MyWebsite</a>`) != 1 {
 				t.Fatalf("header shell structure missing: %s", body)
