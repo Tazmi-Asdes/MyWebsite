@@ -128,7 +128,9 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 
 	allProjects := request(t, handler, "/projects")
 	allBody := allProjects.Body.String()
-	if allProjects.Code != http.StatusOK || strings.Index(allBody, "项目二") > strings.Index(allBody, "项目一") {
+	projectTwoIndex := strings.Index(allBody, `<h2>项目二</h2>`)
+	projectOneIndex := strings.Index(allBody, `<h2>项目一</h2>`)
+	if allProjects.Code != http.StatusOK || projectTwoIndex < 0 || projectOneIndex < 0 || projectTwoIndex > projectOneIndex {
 		t.Fatalf("projects order = %d %s", allProjects.Code, allBody)
 	}
 	for marker, want := range map[string]int{
@@ -165,7 +167,7 @@ func TestStage2AboutAlwaysRendersProfileStatsInterestsAndContact(t *testing.T) {
 			`<main id="main-content" class="container">`,
 			`<div class="about-layout">`,
 			`<header class="about-profile">`,
-			`<img class="avatar" src="/assets/default-avatar.svg" alt="你的网名的默认头像">`,
+			`<img class="avatar" src="/assets/default-avatar.svg" alt="Tazmi的默认头像">`,
 			`<section class="about-block" aria-labelledby="stats-heading">`,
 			`<div class="stats">`,
 			`<section class="about-block" aria-labelledby="interests-heading">`,
@@ -185,7 +187,7 @@ func TestStage2AboutAlwaysRendersProfileStatsInterestsAndContact(t *testing.T) {
 		if strings.Contains(body, "个人介绍正在准备中") || strings.Contains(body, `<p class="eyebrow">`) || strings.Contains(body, `class="empty-state"`) {
 			t.Errorf("about page contains the removed fallback profile state: %s", body)
 		}
-		if !strings.Contains(body, `href="mailto:hello@example.com"`) || !strings.Contains(body, `href="https://github.com/example" target="_blank" rel="noopener noreferrer"`) {
+		if !strings.Contains(body, `href="mailto:2926238971@qq.com"`) || !strings.Contains(body, `href="https://github.com/Tazmi-Asdes" target="_blank" rel="noopener noreferrer"`) {
 			t.Errorf("about contact links missing: %s", body)
 		}
 		for _, marker := range []string{

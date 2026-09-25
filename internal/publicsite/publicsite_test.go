@@ -302,7 +302,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/",
 			status:      http.StatusOK,
 			title:       "首页 — MyWebsite",
-			description: "一个简洁、安静的个人网站首页。",
+			description: "在网站耍起嘛,好舒服啊。",
 		},
 		{
 			name:        "articles",
@@ -310,7 +310,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/articles",
 			status:      http.StatusOK,
 			title:       "文章 — MyWebsite",
-			description: "记录思考、实践与长期积累的文章。",
+			description: "耍起文章一览。",
 		},
 		{
 			name: "article one",
@@ -348,7 +348,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/projects",
 			status:      http.StatusOK,
 			title:       "项目 — MyWebsite",
-			description: "正在做过、正在做和想要继续做的项目。",
+			description: "耍起项目一览。",
 		},
 		{
 			name:        "about",
@@ -356,7 +356,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/about",
 			status:      http.StatusOK,
 			title:       "关于 — MyWebsite",
-			description: "关于我、我的工作方式，以及这个网站。",
+			description: "关于我、我的耍起方式，以及这个耍起网站。",
 		},
 		{
 			name:        "404",

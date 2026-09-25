@@ -147,8 +147,8 @@ func (h *Handler) homeOrNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 	data := homePageData{
 		Title:       "首页 — MyWebsite",
-		Description: "一个简洁、安静的个人网站首页。",
-		Heading:     "你好，这里是我的个人网站。",
+		Description: "在网站耍起嘛,好舒服啊。",
+		Heading:     "个人网站首页。",
 		Eyebrow:     "PERSONAL SITE",
 	}
 	if h.articleReader != nil {
@@ -205,7 +205,7 @@ func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
 	}
 	data := articleListPageData{
 		Title:        "文章 — MyWebsite",
-		Description:  "记录思考、实践与长期积累的文章。",
+		Description:  "耍起文章一览。",
 		Heading:      "文章",
 		Eyebrow:      "WRITING",
 		EmptyTitle:   "暂时还没有文章",
@@ -268,7 +268,7 @@ func (h *Handler) articleDetail(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) projects(w http.ResponseWriter, r *http.Request) {
 	data := projectPageData{
 		Title:       "项目 — MyWebsite",
-		Description: "正在做过、正在做和想要继续做的项目。",
+		Description: "耍起项目一览。",
 		Heading:     "项目",
 		Eyebrow:     "PROJECTS",
 		EmptyTitle:  "暂时还没有公开项目",
@@ -288,9 +288,9 @@ func (h *Handler) projects(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) about(w http.ResponseWriter, r *http.Request) {
 	data := aboutPageData{
 		Title:       "关于 — MyWebsite",
-		Description: "关于我、我的工作方式，以及这个网站。",
+		Description: "关于我、我的耍起方式，以及这个耍起网站。",
 		Heading:     "关于我",
-		DisplayName: "你的网名",
+		DisplayName: "Tazmi",
 		AvatarURL:   "/assets/default-avatar.svg",
 	}
 	if h.articleReader != nil {
