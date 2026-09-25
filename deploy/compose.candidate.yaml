@@ -1,0 +1,19 @@
+# Candidate overlay.  Use with:
+#   docker compose -f compose.yaml -f deploy/compose.candidate.yaml config
+# after the read-only server preflight supplies MYSQL_NETWORK_NAME.
+services:
+  app:
+    ports:
+      - "127.0.0.1:${APP_CANDIDATE_PORT:-28080}:8080"
+    networks:
+      - default
+      - mysql_external
+
+  admin-web:
+    ports:
+      - "127.0.0.1:${ADMIN_WEB_CANDIDATE_PORT:-28081}:8080"
+
+networks:
+  mysql_external:
+    external: true
+    name: ${MYSQL_NETWORK_NAME:?set MYSQL_NETWORK_NAME from the read-only 1Panel preflight}

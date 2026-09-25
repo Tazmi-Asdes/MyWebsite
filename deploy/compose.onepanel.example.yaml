@@ -1,0 +1,13 @@
+# Stable-release network overlay.  The actual external network name must be
+# supplied by the read-only 1Panel preflight; this file intentionally guesses
+# neither a network name nor a MySQL container name.
+services:
+  app:
+    networks:
+      - default
+      - mysql_external
+
+networks:
+  mysql_external:
+    external: true
+    name: ${MYSQL_NETWORK_NAME:?set MYSQL_NETWORK_NAME from the read-only 1Panel preflight}

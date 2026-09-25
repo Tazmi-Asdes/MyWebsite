@@ -1,0 +1,70 @@
+name: ${COMPOSE_PROJECT_NAME:-mywebsite}
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app-runtime
+      args:
+        GO_VERSION: ${GO_VERSION:-1.27.1}
+        NODE_VERSION: ${NODE_VERSION:-24.16.0}
+    image: ${APP_IMAGE:-mywebsite/app}:${IMAGE_TAG:-dev}
+    restart: unless-stopped
+    user: "0:0"
+    env_file:
+      - ./deploy/env.example
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      HTTP_ADDR: 0.0.0.0:8080
+      UPLOAD_DIR: /data/uploads
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    ports:
+      - "127.0.0.1:${APP_PORT:-18080}:8080"
+    secrets:
+      - db_password
+    volumes:
+      - uploads:/data/uploads
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/-/live"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: admin-web
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.16.0}
+    image: ${ADMIN_WEB_IMAGE:-mywebsite/admin-web}:${IMAGE_TAG:-dev}
+    restart: unless-stopped
+    user: "0:0"
+    ports:
+      - "127.0.0.1:${ADMIN_WEB_PORT:-18081}:8080"
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/admin/"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+# The secret is provisioned outside this repository (for example by the
+# server's secret manager).  `docker compose config` remains deterministic;
+# `up` intentionally fails until this external secret exists.
+secrets:
+  db_password:
+    external: true
+    name: ${DB_PASSWORD_SECRET_NAME:-mywebsite-db-password}
+
+volumes:
+  uploads:
+    name: ${UPLOAD_VOLUME_NAME:-mywebsite_uploads}

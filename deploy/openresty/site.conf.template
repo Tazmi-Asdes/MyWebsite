@@ -1,0 +1,106 @@
+# Copy this template into the verified 1Panel website configuration only
+# after the read-only preflight resolves the site directory, domain and TLS
+# paths.  The placeholder paths below are intentionally not production data.
+
+upstream mywebsite_app_upstream {
+    # Host-network OpenResty reaches the stable app port through loopback.
+    # If preflight proves a different topology, stop and revise this template.
+    server 127.0.0.1:18080;
+}
+
+upstream mywebsite_admin_upstream {
+    server 127.0.0.1:18081;
+}
+
+server {
+    listen 80;
+    server_name __SITE_DOMAIN__;
+    return 308 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name __SITE_DOMAIN__;
+
+    # Replace all three values with paths returned by the 1Panel preflight.
+    ssl_certificate /path/from/read-only-preflight/fullchain.pem;
+    ssl_certificate_key /path/from/read-only-preflight/privkey.pem;
+    root /path/from/read-only-preflight/site-root;
+
+    # The marker is entered and left by an atomic rename in release.sh.  It is
+    # checked before proxying so the app can be stopped without exposing a
+    # connection error to visitors.
+    if (-f /path/from/read-only-preflight/site-root/maintenance.flag) {
+        return 503;
+    }
+
+    # Connection failures and upstream 502/503/504 responses become the
+    # independent static page.  App 404 responses are not listed here and
+    # therefore remain 404; only the admin upstream owns SPA fallback.
+    proxy_intercept_errors on;
+    error_page 502 503 504 =503 @mywebsite_static_503;
+
+    location = /admin {
+        return 308 /admin/;
+    }
+
+    location ^~ /admin/ {
+        proxy_pass http://mywebsite_admin_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+    }
+
+    location ^~ /api/v1/ {
+        proxy_pass http://mywebsite_app_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+    }
+
+    location ^~ /media/ {
+        proxy_pass http://mywebsite_app_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+    }
+
+    location ^~ /-/ {
+        proxy_pass http://mywebsite_app_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+    }
+
+    # All remaining public pages, including /assets/, are rendered by Go.
+    location / {
+        proxy_pass http://mywebsite_app_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+    }
+
+    # Internal error_page target.  `=503` above keeps the final status at 503
+    # while this location serves a file without consulting either upstream.
+    location @mywebsite_static_503 {
+        root /path/from/read-only-preflight/site-root;
+        try_files /static-503.html =503;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # A direct request cannot use the maintenance document as a public page.
+    location = /static-503.html {
+        internal;
+        return 404;
+    }
+}
