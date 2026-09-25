@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     user: "0:0"
     env_file:
-      - ./deploy/env.example
+      - ./deploy/env.production
     environment:
       APP_ENV: ${APP_ENV:-production}
       HTTP_ADDR: 0.0.0.0:8080
@@ -26,7 +26,7 @@ services:
     secrets:
       - db_password
     volumes:
-      - uploads:/data/uploads
+      - /opt/mywebsite/data/uploads:/data/uploads
     logging: &default-logging
       driver: json-file
       options:
@@ -65,8 +65,7 @@ services:
 # `up` intentionally fails until this external secret exists.
 secrets:
   db_password:
-    external: true
-    name: ${DB_PASSWORD_SECRET_NAME:-mywebsite-db-password}
+    file: /opt/mywebsite/secrets/db_password
 
 volumes:
   uploads:
