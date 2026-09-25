@@ -29,8 +29,15 @@ variables:
   DOCKER_BUILDKIT: "1"
   COMPOSE_DOCKER_CLI_BUILD: "1"
   BUILDKIT_PROGRESS: "plain"
+  PULL_BASE_IMAGES: "false"
+  MYWEBSITE_GO_MOD_CACHE: "mywebsite-go-mod-cache"
+  MYWEBSITE_GO_BUILD_CACHE: "mywebsite-go-build-cache"
+  MYWEBSITE_NPM_CACHE: "mywebsite-npm-cache"
 
-verify:
+# The Shell Runner reuses Docker layers and these named dependency caches.
+# Set PULL_BASE_IMAGES=true in a manual pipeline when refreshing base images.
+
+verify_go:
   stage: verify
   tags:
     - "$MYWEBSITE_RUNNER_TAG"
@@ -44,6 +51,8 @@ verify:
       set -eu
       command -v docker >/dev/null
       docker version
+      docker volume create "$MYWEBSITE_GO_MOD_CACHE" >/dev/null
+      docker volume create "$MYWEBSITE_GO_BUILD_CACHE" >/dev/null
     - |
       set -eu
       docker run --rm \
@@ -53,20 +62,41 @@ verify:
         -e GOCACHE=/tmp/gocache \
         -e GOTMPDIR=/tmp/gotmp \
         -v "$CI_PROJECT_DIR:/src:ro" \
+        -v "$MYWEBSITE_GO_MOD_CACHE:/tmp/gomod" \
+        -v "$MYWEBSITE_GO_BUILD_CACHE:/tmp/gocache" \
         -w /src \
         golang:1.27.1-alpine \
         sh -ec 'mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR" && go test ./...'
+    - git diff --check
+
+verify_admin:
+  stage: verify
+  tags:
+    - "$MYWEBSITE_RUNNER_TAG"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - when: never
+  script:
+    - |
+      set -eu
+      command -v docker >/dev/null
+      docker version
+      docker volume create "$MYWEBSITE_NPM_CACHE" >/dev/null
     - |
       set -eu
       docker run --rm \
         -e "NPM_CONFIG_REGISTRY=$NPM_CONFIG_REGISTRY" \
+        -e NPM_CONFIG_CACHE=/tmp/npm-cache \
         -v "$CI_PROJECT_DIR/web/admin:/src:ro" \
+        -v "$MYWEBSITE_NPM_CACHE:/tmp/npm-cache" \
         node:24.16.0-alpine \
         sh -ec '
           rm -rf /tmp/mywebsite-admin
           cp -R /src /tmp/mywebsite-admin
           cd /tmp/mywebsite-admin
-          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
           npm run typecheck
           npm test
         '
@@ -81,7 +111,8 @@ deploy:
     name: production
     url: "$PRODUCTION_URL"
   needs:
-    - job: verify
+    - job: verify_go
+    - job: verify_admin
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: never
@@ -125,11 +156,18 @@ deploy:
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
-      docker compose \
-        --project-directory "$CI_PROJECT_DIR" \
-        -f "$CI_PROJECT_DIR/compose.yaml" \
-        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-        build --pull app admin-web
+      compose() {
+        docker compose \
+          --project-directory "$CI_PROJECT_DIR" \
+          -f "$CI_PROJECT_DIR/compose.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          "$@"
+      }
+      if [ "$PULL_BASE_IMAGES" = "true" ]; then
+        compose build --pull app admin-web
+      else
+        compose build app admin-web
+      fi
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
