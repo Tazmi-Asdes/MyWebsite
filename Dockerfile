@@ -4,9 +4,14 @@
 # toolchain used to build its immutable images.
 ARG GO_VERSION=1.27.1
 ARG NODE_VERSION=24.16.0
+ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.org
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 
 FROM node:${NODE_VERSION}-alpine AS admin-build
 WORKDIR /src/web/admin
+ARG NPM_CONFIG_REGISTRY
+ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
 
 COPY web/admin/package.json web/admin/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
@@ -16,9 +21,13 @@ RUN npm run build
 
 FROM golang:${GO_VERSION}-alpine AS go-build
 WORKDIR /src
+ARG GOPROXY
+ARG GOSUMDB
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64
+    GOARCH=amd64 \
+    GOPROXY=${GOPROXY} \
+    GOSUMDB=${GOSUMDB}
 
 COPY go.mod go.sum ./
 RUN go mod download

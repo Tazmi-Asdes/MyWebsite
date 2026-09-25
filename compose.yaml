@@ -9,6 +9,8 @@ services:
       args:
         GO_VERSION: ${GO_VERSION:-1.27.1}
         NODE_VERSION: ${NODE_VERSION:-24.16.0}
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
     image: ${APP_IMAGE:-mywebsite/app}:${IMAGE_TAG:-dev}
     restart: unless-stopped
     user: "0:0"
@@ -44,6 +46,7 @@ services:
       target: admin-web
       args:
         NODE_VERSION: ${NODE_VERSION:-24.16.0}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}
     image: ${ADMIN_WEB_IMAGE:-mywebsite/admin-web}:${IMAGE_TAG:-dev}
     restart: unless-stopped
     user: "0:0"
