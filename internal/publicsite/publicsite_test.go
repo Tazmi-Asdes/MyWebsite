@@ -213,7 +213,7 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 		".menu-button::-webkit-details-marker",
 		".menu-button::marker",
 		".menu-button:focus-visible",
-		"@media (max-width: 640px)",
+		"@media (max-width: 767px)",
 		".menu-button {\n    display: flex;",
 		".site-menu[open] > .site-nav {\n    display: flex;",
 	} {
