@@ -106,6 +106,8 @@ deploy:
   stage: deploy
   tags:
     - "$MYWEBSITE_RUNNER_TAG"
+  variables:
+    DOCKER_CONFIG: "$CI_BUILDS_DIR/.mywebsite-docker-config-$CI_PIPELINE_ID"
   resource_group: production
   environment:
     name: production
@@ -120,6 +122,12 @@ deploy:
     - |
       if [ "$DEPLOY_ROOT/deploy/env.production" != "$CI_PROJECT_DIR/deploy/env.production" ]; then
         rm -f -- "$CI_PROJECT_DIR/deploy/env.production"
+      fi
+      if [ -n "${CI_REGISTRY:-}" ] && [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
+        docker logout "$CI_REGISTRY" >/dev/null 2>&1 || true
+      fi
+      if [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
+        rm -rf -- "$DOCKER_CONFIG"
       fi
   script:
     - |
@@ -147,7 +155,19 @@ deploy:
       fi
     - |
       set -eu
+      test -n "$CI_REGISTRY"
+      test -n "$CI_REGISTRY_IMAGE"
+      test -n "$CI_REGISTRY_USER"
+      test -n "$CI_REGISTRY_PASSWORD"
+      mkdir -p "$DOCKER_CONFIG"
+      printf '%s' "$CI_REGISTRY_PASSWORD" | docker login \
+        --username "$CI_REGISTRY_USER" \
+        --password-stdin "$CI_REGISTRY"
+    - |
+      set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
       docker compose \
         --project-directory "$CI_PROJECT_DIR" \
         -f "$CI_PROJECT_DIR/compose.yaml" \
@@ -156,6 +176,8 @@ deploy:
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
       compose() {
         docker compose \
           --project-directory "$CI_PROJECT_DIR" \
@@ -171,14 +193,31 @@ deploy:
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
+      compose() {
+        docker compose \
+          --project-directory "$CI_PROJECT_DIR" \
+          -f "$CI_PROJECT_DIR/compose.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          "$@"
+      }
+      compose push app admin-web
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
       docker compose \
         --project-directory "$CI_PROJECT_DIR" \
         -f "$CI_PROJECT_DIR/compose.yaml" \
         -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-        up -d --no-deps app admin-web
+        up -d --no-build --no-deps app admin-web
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
       compose() {
         docker compose \
           --project-directory "$CI_PROJECT_DIR" \
