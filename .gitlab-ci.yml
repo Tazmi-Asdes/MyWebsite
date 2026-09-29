@@ -1,10 +1,8 @@
-# Linux Shell Runner contract for deployment:
+# Linux Shell Runner contract:
 # - the runner is tagged with MYWEBSITE_RUNNER_TAG (default: server);
 # - the runner can execute Docker CLI commands and access the Docker daemon;
 # - deploy/env.production, the database password file, the uploads directory,
 #   and the 1Panel network are provisioned outside Git and outside artifacts.
-# Verification jobs use the Docker executor tagged with
-# MYWEBSITE_SECURITY_RUNNER_TAG (default: security).
 
 stages:
   - verify
@@ -19,7 +17,6 @@ workflow:
 
 variables:
   MYWEBSITE_RUNNER_TAG: "server"
-  MYWEBSITE_SECURITY_RUNNER_TAG: "security"
   COMPOSE_PROJECT_NAME: "mywebsite"
   MYSQL_NETWORK_NAME: "1panel-network"
   APP_PORT: "18080"
@@ -33,21 +30,17 @@ variables:
   COMPOSE_DOCKER_CLI_BUILD: "1"
   BUILDKIT_PROGRESS: "plain"
   PULL_BASE_IMAGES: "false"
+  MYWEBSITE_GO_MOD_CACHE: "mywebsite-go-mod-cache"
+  MYWEBSITE_GO_BUILD_CACHE: "mywebsite-go-build-cache"
+  MYWEBSITE_NPM_CACHE: "mywebsite-npm-cache"
+
+# The Shell Runner reuses Docker layers and these named dependency caches.
 # Set PULL_BASE_IMAGES=true in a manual pipeline when refreshing base images.
 
 verify_go:
   stage: verify
-  image: golang:1.27.1-alpine
   tags:
-    - "$MYWEBSITE_SECURITY_RUNNER_TAG"
-  cache:
-    key:
-      files:
-        - go.sum
-    paths:
-      - .cache/go-mod/
-      - .cache/go-build/
-    policy: pull-push
+    - "$MYWEBSITE_RUNNER_TAG"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -56,26 +49,30 @@ verify_go:
   script:
     - |
       set -eu
-      apk add --no-cache git >/dev/null
-      export GOMODCACHE="$CI_PROJECT_DIR/.cache/go-mod"
-      export GOCACHE="$CI_PROJECT_DIR/.cache/go-build"
-      export GOTMPDIR=/tmp/gotmp
-      mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR"
-      go test ./...
+      command -v docker >/dev/null
+      docker version
+      docker volume create "$MYWEBSITE_GO_MOD_CACHE" >/dev/null
+      docker volume create "$MYWEBSITE_GO_BUILD_CACHE" >/dev/null
+    - |
+      set -eu
+      docker run --rm \
+        -e "GOPROXY=$GOPROXY" \
+        -e "GOSUMDB=$GOSUMDB" \
+        -e GOMODCACHE=/tmp/gomod \
+        -e GOCACHE=/tmp/gocache \
+        -e GOTMPDIR=/tmp/gotmp \
+        -v "$CI_PROJECT_DIR:/src:ro" \
+        -v "$MYWEBSITE_GO_MOD_CACHE:/tmp/gomod" \
+        -v "$MYWEBSITE_GO_BUILD_CACHE:/tmp/gocache" \
+        -w /src \
+        golang:1.27.1-alpine \
+        sh -ec 'mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR" && go test ./...'
     - git diff --check
 
 verify_admin:
   stage: verify
-  image: node:24.16.0-alpine
   tags:
-    - "$MYWEBSITE_SECURITY_RUNNER_TAG"
-  cache:
-    key:
-      files:
-        - web/admin/package-lock.json
-    paths:
-      - .cache/npm/
-    policy: pull-push
+    - "$MYWEBSITE_RUNNER_TAG"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -84,16 +81,25 @@ verify_admin:
   script:
     - |
       set -eu
-      apk add --no-cache git >/dev/null
-      export NPM_CONFIG_CACHE="$CI_PROJECT_DIR/.cache/npm"
-      mkdir -p "$NPM_CONFIG_CACHE"
-      rm -rf /tmp/mywebsite-admin
-      cp -R "$CI_PROJECT_DIR/web/admin" /tmp/mywebsite-admin
-      cd /tmp/mywebsite-admin
-      npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
-      npm run typecheck
-      npm test
-      cd "$CI_PROJECT_DIR"
+      command -v docker >/dev/null
+      docker version
+      docker volume create "$MYWEBSITE_NPM_CACHE" >/dev/null
+    - |
+      set -eu
+      docker run --rm \
+        -e "NPM_CONFIG_REGISTRY=$NPM_CONFIG_REGISTRY" \
+        -e NPM_CONFIG_CACHE=/tmp/npm-cache \
+        -v "$CI_PROJECT_DIR/web/admin:/src:ro" \
+        -v "$MYWEBSITE_NPM_CACHE:/tmp/npm-cache" \
+        node:24.16.0-alpine \
+        sh -ec '
+          rm -rf /tmp/mywebsite-admin
+          cp -R /src /tmp/mywebsite-admin
+          cd /tmp/mywebsite-admin
+          npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm test
+        '
     - git diff --check
 
 deploy:
