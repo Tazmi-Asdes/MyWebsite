@@ -60,9 +60,18 @@ verify_go:
       export GOMODCACHE="$CI_PROJECT_DIR/.cache/go-mod"
       export GOCACHE="$CI_PROJECT_DIR/.cache/go-build"
       export GOTMPDIR=/tmp/gotmp
-      mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR"
-      go test ./...
+      export GOBIN=/tmp/bin
+      export PATH="$GOBIN:$PATH"
+      mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR" "$GOBIN" "$CI_PROJECT_DIR/test-results"
+      go install gotest.tools/gotestsum@v1.13.0
+      gotestsum --junitfile "$CI_PROJECT_DIR/test-results/go-junit.xml" -- ./...
     - git diff --check
+  artifacts:
+    when: always
+    reports:
+      junit: test-results/go-junit.xml
+    paths:
+      - test-results/go-junit.xml
 
 verify_admin:
   stage: verify
@@ -86,15 +95,21 @@ verify_admin:
       set -eu
       apk add --no-cache git >/dev/null
       export NPM_CONFIG_CACHE="$CI_PROJECT_DIR/.cache/npm"
-      mkdir -p "$NPM_CONFIG_CACHE"
+      mkdir -p "$NPM_CONFIG_CACHE" "$CI_PROJECT_DIR/test-results"
       rm -rf /tmp/mywebsite-admin
       cp -R "$CI_PROJECT_DIR/web/admin" /tmp/mywebsite-admin
       cd /tmp/mywebsite-admin
       npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
       npm run typecheck
-      npm test
+      npm test -- --reporter=junit --outputFile="$CI_PROJECT_DIR/test-results/admin-junit.xml"
       cd "$CI_PROJECT_DIR"
     - git diff --check
+  artifacts:
+    when: always
+    reports:
+      junit: test-results/admin-junit.xml
+    paths:
+      - test-results/admin-junit.xml
 
 deploy:
   stage: deploy
