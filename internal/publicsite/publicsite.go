@@ -291,7 +291,7 @@ func (h *Handler) about(w http.ResponseWriter, r *http.Request) {
 		Description: "关于我、我的耍起方式,以及这个耍起网站。",
 		Heading:     "关于我",
 		DisplayName: "Tazmi",
-		AvatarURL:   "/assets/default-avatar.svg",
+		AvatarURL:   "/assets/tazmi-avatar.jpg",
 	}
 	if h.articleReader != nil {
 		count, err := h.articleReader.CountPublished(r.Context())

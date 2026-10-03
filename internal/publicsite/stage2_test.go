@@ -167,7 +167,7 @@ func TestStage2AboutAlwaysRendersProfileStatsInterestsAndContact(t *testing.T) {
 			`<main id="main-content" class="container">`,
 			`<div class="about-layout">`,
 			`<header class="about-profile">`,
-			`<img class="avatar" src="/assets/default-avatar.svg" alt="Tazmi的默认头像">`,
+			`<img class="avatar" src="/assets/tazmi-avatar.jpg" alt="Tazmi的头像">`,
 			`<section class="about-block" aria-labelledby="stats-heading">`,
 			`<div class="stats">`,
 			`<section class="about-block" aria-labelledby="interests-heading">`,
