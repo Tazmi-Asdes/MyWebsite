@@ -439,7 +439,7 @@ h1 {
 .card {
   min-width: 0;
   border: 1px solid var(--border);
-  background: var(--surface-glass);
+  background: var(--surface-frosted);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
