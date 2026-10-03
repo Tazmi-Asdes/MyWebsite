@@ -16,8 +16,9 @@
   --site-background-image: url("/assets/site-background.jpg");
   --site-background-overlay: rgb(255 255 255 / 58%);
   --site-background-opacity: 0.40;
-  --surface-glass: rgb(255 255 255 / 72%);
-  --surface-frosted: rgb(255 255 255 / 40%);
+  --surface-public: rgb(255 255 255 / 40%);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -43,8 +44,7 @@
     --code-text: #f5f5ef;
     --site-background-overlay: rgb(21 21 19 / 58%);
     --site-background-opacity: 0.40;
-    --surface-glass: rgb(29 29 26 / 72%);
-    --surface-frosted: rgb(29 29 26 / 40%);
+    --surface-public: rgb(29 29 26 / 40%);
   }
 }
 
@@ -65,8 +65,7 @@ html[data-theme="light"] {
   --code-text: #f5f5f5;
   --site-background-overlay: rgb(255 255 255 / 58%);
   --site-background-opacity: 0.40;
-  --surface-glass: rgb(255 255 255 / 72%);
-  --surface-frosted: rgb(255 255 255 / 40%);
+  --surface-public: rgb(255 255 255 / 40%);
 }
 
 html[data-theme="dark"] {
@@ -86,8 +85,7 @@ html[data-theme="dark"] {
   --code-text: #f5f5ef;
   --site-background-overlay: rgb(21 21 19 / 58%);
   --site-background-opacity: 0.40;
-  --surface-glass: rgb(29 29 26 / 72%);
-  --surface-frosted: rgb(29 29 26 / 40%);
+  --surface-public: rgb(29 29 26 / 40%);
 }
 
 * {
@@ -149,6 +147,7 @@ summary:focus-visible,
   z-index: 1000;
   padding: 0.75rem 1rem;
   border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font-weight: 700;
@@ -169,7 +168,7 @@ a {
 
 .site-header {
   border-bottom: 1px solid var(--border);
-  background: var(--surface-glass);
+  background: var(--surface-public);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -206,7 +205,8 @@ a {
   min-height: 2.75rem;
   padding: 0.7rem 1rem;
   border: 1px solid var(--border);
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: var(--surface-public);
   color: var(--text);
   font: inherit;
   font-size: 0.9rem;
@@ -264,7 +264,7 @@ a {
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 50%;
-  background: var(--surface-glass);
+  background: var(--surface-public);
   color: var(--text);
   font: inherit;
   cursor: pointer;
@@ -380,6 +380,7 @@ h1 {
   justify-content: center;
   padding: 0.7rem 1rem;
   border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--text);
   color: var(--inverse);
   text-decoration: none;
@@ -439,9 +440,11 @@ h1 {
 .card {
   min-width: 0;
   border: 1px solid var(--border);
-  background: var(--surface-frosted);
+  border-radius: var(--radius-md);
+  background: var(--surface-public);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  overflow: hidden;
 }
 
 .card__body {
@@ -493,7 +496,8 @@ h1 {
   place-items: center;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-muted);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--surface-public);
 }
 
 .project-card__media img {
@@ -644,7 +648,7 @@ h1 {
 
 .site-footer {
   border-top: 1px solid var(--border);
-  background: var(--surface-frosted);
+  background: var(--surface-public);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -662,7 +666,7 @@ h1 {
 .page-heading {
   padding: clamp(3rem, 6vw, 5rem) 0 2.5rem;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-frosted);
+  background: var(--surface-public);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -747,6 +751,7 @@ h1 {
   display: grid;
   place-items: center;
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   text-decoration: none;
 }
 
@@ -765,7 +770,8 @@ h1 {
   max-width: none;
   margin-top: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: var(--surface-public);
   text-align: center;
   padding: 2rem;
 }
@@ -787,7 +793,8 @@ h1 {
   max-width: none;
   margin-top: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: var(--surface-public);
   text-align: center;
   padding: 2rem;
 }
@@ -922,6 +929,7 @@ h1 {
   overflow-x: auto;
   margin: 1.5rem 0;
   padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-sm);
   background: var(--code-bg);
   color: var(--code-text);
   font: 0.9rem/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -974,7 +982,8 @@ h1 {
   display: none;
   margin-bottom: 2rem;
   border: 1px solid var(--border);
-  background: var(--surface-glass);
+  border-radius: var(--radius-sm);
+  background: var(--surface-public);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
