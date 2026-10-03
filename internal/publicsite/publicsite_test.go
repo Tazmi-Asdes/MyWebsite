@@ -173,6 +173,12 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			if !strings.Contains(body, `data-theme-toggle`) {
 				t.Fatalf("public page theme toggle is missing: %s", body)
 			}
+			if strings.Count(body, `<button class="theme-toggle" type="button" data-theme-toggle hidden aria-pressed="false" aria-label="当前主题，点击切换到另一主题">`) != 1 || strings.Count(body, `class="theme-icon theme-icon--sun"`) != 1 || strings.Count(body, `class="theme-icon theme-icon--moon"`) != 1 {
+				t.Fatalf("public page theme toggle icon structure is incorrect: %s", body)
+			}
+			if strings.Contains(body, `>切换主题</button>`) || strings.Contains(body, `>切换到`) {
+				t.Fatalf("public page theme toggle exposes text instead of icons: %s", body)
+			}
 			if page.activeHref != "" && !strings.Contains(body, `<a class="active" href="`+page.activeHref+`" aria-current="page">`) {
 				t.Fatalf("active navigation link %q missing: %s", page.activeHref, body)
 			}
@@ -214,8 +220,17 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		`html[data-theme="dark"]`,
 		`--site-background-image: url("/assets/site-background.jpg")`,
 		"background-image: var(--site-background-image)",
+		"background-size: cover;",
+		"body::before,\nbody::after",
+		"z-index: 0;",
+		"body > :where(header, main, footer)",
+		"z-index: 1;",
 		".theme-toggle",
-		"border-radius: 999px",
+		"width: 2.5rem",
+		"height: 2.5rem",
+		"border-radius: 50%",
+		"theme-icon--sun",
+		"theme-icon--moon",
 		"backdrop-filter: blur(8px)",
 		"@media (prefers-contrast: more), (forced-colors: active)",
 	} {
@@ -232,6 +247,7 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		"prefers-color-scheme: dark",
 		"localStorage",
 		"data-theme",
+		`button.setAttribute("data-theme", theme)`,
 		"data-theme-toggle",
 		"aria-pressed",
 		"setItem",
@@ -239,6 +255,9 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		if !strings.Contains(string(script), token) {
 			t.Errorf("public theme script token %q missing", token)
 		}
+	}
+	if strings.Contains(string(script), "button.textContent") {
+		t.Fatal("public theme script should use icons instead of toggle text")
 	}
 	if info, err := fs.Stat(publicassets.Files, "assets/site-background.jpg"); err != nil || info.Size() == 0 {
 		t.Fatalf("embedded public background image is unavailable or empty: %v", err)

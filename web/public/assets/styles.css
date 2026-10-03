@@ -102,11 +102,11 @@ body::before,
 body::after {
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
 }
 
 body::before {
-  z-index: -2;
   content: "";
   background-image: var(--site-background-image);
   background-position: center;
@@ -118,9 +118,13 @@ body::before {
 }
 
 body::after {
-  z-index: -1;
   content: "";
   background: var(--site-background-overlay);
+}
+
+body > :where(header, main, footer) {
+  position: relative;
+  z-index: 1;
 }
 
 a:focus-visible,
@@ -246,17 +250,36 @@ a {
 
 .theme-toggle {
   display: inline-flex;
-  min-height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  flex: 0 0 2.5rem;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem 0.8rem;
+  padding: 0;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--surface-glass);
   color: var(--text);
   font: inherit;
-  font-size: 0.8rem;
   cursor: pointer;
+}
+
+.theme-toggle .theme-icon {
+  display: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.theme-toggle[data-theme="light"] .theme-icon--sun,
+.theme-toggle[data-theme="dark"] .theme-icon--moon {
+  display: block;
 }
 
 .theme-toggle:hover,

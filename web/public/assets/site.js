@@ -46,7 +46,7 @@
       var themeLabel = theme === "dark" ? "深色" : "浅色";
       var nextLabel = nextTheme === "dark" ? "深色" : "浅色";
       button.hidden = false;
-      button.textContent = "切换到" + nextLabel;
+      button.setAttribute("data-theme", theme);
       button.setAttribute("aria-label", "当前为" + themeLabel + "主题，点击切换到" + nextLabel + "主题");
       button.setAttribute("aria-pressed", String(theme === "dark"));
     }
