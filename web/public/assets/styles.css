@@ -13,6 +13,10 @@
   --focus: #111111;
   --code-bg: #111111;
   --code-text: #f5f5f5;
+  --site-background-image: url("/assets/site-background.jpg");
+  --site-background-overlay: rgb(255 255 255 / 76%);
+  --site-background-opacity: 0.22;
+  --surface-glass: rgb(255 255 255 / 86%);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -36,7 +40,50 @@
     --focus: #ffffff;
     --code-bg: #090908;
     --code-text: #f5f5ef;
+    --site-background-overlay: rgb(21 21 19 / 82%);
+    --site-background-opacity: 0.18;
+    --surface-glass: rgb(29 29 26 / 86%);
   }
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f7f7f7;
+  --text: #111111;
+  --text-muted: #666666;
+  --text-subtle: #777777;
+  --text-secondary: #555555;
+  --border: #e5e5e5;
+  --border-strong: #111111;
+  --inverse: #ffffff;
+  --focus: #111111;
+  --code-bg: #111111;
+  --code-text: #f5f5f5;
+  --site-background-overlay: rgb(255 255 255 / 76%);
+  --site-background-opacity: 0.22;
+  --surface-glass: rgb(255 255 255 / 86%);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151513;
+  --surface: #1d1d1a;
+  --surface-muted: #292925;
+  --text: #f1f1eb;
+  --text-muted: #aaa9a0;
+  --text-subtle: var(--text-muted);
+  --text-secondary: var(--text-muted);
+  --border: #42423c;
+  --border-strong: #f1f1eb;
+  --inverse: #151513;
+  --focus: #ffffff;
+  --code-bg: #090908;
+  --code-text: #f5f5ef;
+  --site-background-overlay: rgb(21 21 19 / 82%);
+  --site-background-opacity: 0.18;
+  --surface-glass: rgb(29 29 26 / 86%);
 }
 
 * {
@@ -44,9 +91,36 @@
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   margin: 0;
   background: var(--bg);
+}
+
+body::before,
+body::after {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body::before {
+  z-index: -2;
+  content: "";
+  background-image: var(--site-background-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(16px);
+  opacity: var(--site-background-opacity);
+  transform: scale(1.04);
+}
+
+body::after {
+  z-index: -1;
+  content: "";
+  background: var(--site-background-overlay);
 }
 
 a:focus-visible,
@@ -87,7 +161,9 @@ a {
 
 .site-header {
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .site-header__inner {
@@ -166,6 +242,28 @@ a {
 .site-nav a:focus-visible,
 .site-nav a.active {
   color: var(--text);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-glass);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--text);
+  color: var(--inverse);
 }
 
 .page-shell {
@@ -314,7 +412,9 @@ h1 {
 .card {
   min-width: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .card__body {
@@ -517,7 +617,9 @@ h1 {
 
 .site-footer {
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .site-footer__inner {
@@ -533,6 +635,9 @@ h1 {
 .page-heading {
   padding: clamp(3rem, 6vw, 5rem) 0 2.5rem;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .page-heading h1 {
@@ -842,7 +947,9 @@ h1 {
   display: none;
   margin-bottom: 2rem;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .toc-mobile summary {
@@ -927,6 +1034,10 @@ h1 {
     padding: 0.4rem 0;
   }
 
+  .theme-toggle {
+    align-self: flex-start;
+  }
+
   .container {
     width: min(100% - 2rem, 1120px);
   }
@@ -987,5 +1098,30 @@ h1 {
 
   .toc-mobile {
     display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  body::before {
+    filter: blur(12px);
+    opacity: 0.12;
+  }
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  body::before,
+  body::after {
+    display: none;
+  }
+
+  body,
+  .site-header,
+  .site-footer,
+  .card,
+  .page-heading,
+  .toc-mobile {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

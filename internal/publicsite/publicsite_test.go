@@ -167,8 +167,11 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			if strings.Count(body, `aria-current="page"`) != wantCurrent {
 				t.Fatalf("aria-current count = %d, want %d: %s", strings.Count(body, `aria-current="page"`), wantCurrent, body)
 			}
-			if strings.Contains(body, "<script") {
-				t.Fatalf("public page unexpectedly depends on a script: %s", body)
+			if strings.Count(body, `<script src="/assets/site.js"></script>`) != 1 {
+				t.Fatalf("public page theme script is missing or duplicated: %s", body)
+			}
+			if !strings.Contains(body, `data-theme-toggle`) {
+				t.Fatalf("public page theme toggle is missing: %s", body)
 			}
 			if page.activeHref != "" && !strings.Contains(body, `<a class="active" href="`+page.activeHref+`" aria-current="page">`) {
 				t.Fatalf("active navigation link %q missing: %s", page.activeHref, body)
@@ -177,7 +180,7 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 	}
 }
 
-func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
+func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 	content, err := fs.ReadFile(publicassets.Files, "assets/styles.css")
 	if err != nil {
 		t.Fatalf("read public styles: %v", err)
@@ -206,8 +209,39 @@ func TestPublicStylesUseSystemThemeTokens(t *testing.T) {
 			t.Errorf("dark theme token %q missing", token)
 		}
 	}
-	if strings.Contains(css, "data-theme") || strings.Contains(css, "localStorage") {
-		t.Fatal("public styles must not add manual theme switching")
+	for _, token := range []string{
+		`html[data-theme="light"]`,
+		`html[data-theme="dark"]`,
+		`--site-background-image: url("/assets/site-background.jpg")`,
+		"background-image: var(--site-background-image)",
+		".theme-toggle",
+		"border-radius: 999px",
+		"backdrop-filter: blur(8px)",
+		"@media (prefers-contrast: more), (forced-colors: active)",
+	} {
+		if !strings.Contains(css, token) {
+			t.Errorf("manual theme/background CSS token %q missing", token)
+		}
+	}
+	script, err := fs.ReadFile(publicassets.Files, "assets/site.js")
+	if err != nil {
+		t.Fatalf("read public theme script: %v", err)
+	}
+	for _, token := range []string{
+		`"mywebsite-theme"`,
+		"prefers-color-scheme: dark",
+		"localStorage",
+		"data-theme",
+		"data-theme-toggle",
+		"aria-pressed",
+		"setItem",
+	} {
+		if !strings.Contains(string(script), token) {
+			t.Errorf("public theme script token %q missing", token)
+		}
+	}
+	if info, err := fs.Stat(publicassets.Files, "assets/site-background.jpg"); err != nil || info.Size() == 0 {
+		t.Fatalf("embedded public background image is unavailable or empty: %v", err)
 	}
 	for _, rule := range []string{
 		".site-menu > .site-nav {\n  display: flex;",

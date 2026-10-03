@@ -7,7 +7,7 @@ import (
 
 // Files contains the server-rendered public templates and their static assets.
 //
-//go:embed templates/*.html assets/*.css assets/*.svg
+//go:embed templates/*.html assets/*.css assets/*.js assets/*.jpg assets/*.svg
 var Files embed.FS
 
 // Assets is the subset of Files exposed by the /assets/ route.
