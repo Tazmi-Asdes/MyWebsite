@@ -208,7 +208,7 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		"--border-strong: #f1f1eb;",
 		"--inverse: #151513;",
 		"--focus: #ffffff;",
-		"--code-bg: #090908;",
+		"--code-bg: rgb(34 34 30 / 90%);",
 		"--code-text: #f5f5ef;",
 	} {
 		if !strings.Contains(darkCSS, token) {
