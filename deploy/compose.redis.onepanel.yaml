@@ -1,0 +1,13 @@
+# Stable-release Redis overlay.  The Redis service is managed outside this
+# Compose project; this file only makes its password secret available to app.
+# REDIS_ADDR/REDIS_URL and REDIS_PASSWORD_FILE remain in the server-local
+# deploy/env.production so Redis stays opt-in and the deployment does not
+# guess the server's network address or set both address forms.
+services:
+  app:
+    secrets:
+      - redis_password
+
+secrets:
+  redis_password:
+    file: /opt/mywebsite/secrets/redis_password

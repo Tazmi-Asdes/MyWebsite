@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"mywebsite/internal/app"
 	"mywebsite/internal/article"
 	"mywebsite/internal/auth"
+	"mywebsite/internal/cache"
 	"mywebsite/internal/database"
 	"mywebsite/internal/markdown"
 	"mywebsite/internal/media"
@@ -61,6 +63,26 @@ func main() {
 	projectRepository := project.NewSQLRepository(databaseConnection.DB(), queries)
 	githubVerifier := project.NewGitHubHTTPVerifier(&http.Client{Timeout: config.GitHubTimeout}, config.GitHubAPIBaseURL)
 	projectService := project.NewService(projectRepository, githubVerifier, project.WithClock(clock.Now))
+	var publicCache *cache.RedisStore
+	if config.RedisEnabled {
+		redisConfig := config.Redis
+		redisReady := true
+		if config.RedisPasswordFile != "" {
+			password, readErr := os.ReadFile(config.RedisPasswordFile)
+			if readErr != nil {
+				logger.Warn("public_cache_password_file_unavailable", "error", readErr)
+				redisReady = false
+			} else {
+				redisConfig.Password = strings.TrimSuffix(strings.TrimSuffix(string(password), "\n"), "\r")
+			}
+		}
+		if redisReady {
+			publicCache = cache.NewRedisStore(redisConfig)
+		}
+	}
+	if publicCache != nil {
+		defer publicCache.Close()
+	}
 
 	handler, err := app.NewHandler(app.HandlerOptions{
 		Logger:         logger,
@@ -73,6 +95,7 @@ func main() {
 		MaxUploadBytes: config.MaxUploadBytes,
 		PublicBaseURL:  config.PublicBaseURL,
 		CookieSecure:   config.CookieSecure,
+		PageCache:      publicCache,
 	})
 	if err != nil {
 		logger.Error("handler_initialization_failed", "error", err)

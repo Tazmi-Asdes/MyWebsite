@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"mywebsite/internal/cache"
 	"mywebsite/internal/database"
 )
 
@@ -51,6 +52,9 @@ type Config struct {
 	GitHubAPIBaseURL        string
 	GitHubTimeout           time.Duration
 	Database                database.Config
+	Redis                   cache.RedisConfig
+	RedisPasswordFile       string
+	RedisEnabled            bool
 }
 
 // LoadConfig reads the process environment and validates all supported HTTP
@@ -168,6 +172,10 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	redisConfig, redisPasswordFile, redisEnabled, err := redisConfigValue(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		AppEnv:                  appEnv,
@@ -188,7 +196,69 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		GitHubAPIBaseURL:        githubAPIBaseURL,
 		GitHubTimeout:           githubTimeout,
 		Database:                databaseConfig,
+		Redis:                   redisConfig,
+		RedisPasswordFile:       redisPasswordFile,
+		RedisEnabled:            redisEnabled,
 	}, nil
+}
+
+func redisConfigValue(lookup func(string) (string, bool)) (cache.RedisConfig, string, bool, error) {
+	addr, addrSet := lookup("REDIS_ADDR")
+	urlValue, urlSet := lookup("REDIS_URL")
+	passwordFile, passwordFileSet := lookup("REDIS_PASSWORD_FILE")
+	dbValue, dbSet := lookup("REDIS_DB")
+	if !addrSet && !urlSet && !passwordFileSet && !dbSet {
+		return cache.RedisConfig{}, "", false, nil
+	}
+	if addrSet && urlSet {
+		return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_ADDR and REDIS_URL cannot both be set")
+	}
+	if urlSet {
+		parsed, err := url.Parse(urlValue)
+		if err != nil || parsed.Scheme != "redis" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_URL %q: must be a redis URL without credentials or query", urlValue)
+		}
+		addr = parsed.Host
+		if parsed.Path != "" && parsed.Path != "/" {
+			value := strings.TrimPrefix(parsed.Path, "/")
+			if dbSet {
+				return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_URL database conflicts with REDIS_DB")
+			}
+			dbValue = value
+			dbSet = true
+		}
+	}
+	if !addrSet && !urlSet {
+		addr = "127.0.0.1:6379"
+	} else if strings.TrimSpace(addr) == "" {
+		return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_ADDR must not be empty")
+	}
+	if strings.TrimSpace(addr) != addr {
+		return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_ADDR must not contain leading or trailing whitespace")
+	}
+	db := 0
+	if dbSet {
+		parsed, err := strconv.Atoi(dbValue)
+		if err != nil || parsed < 0 {
+			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_DB %q: must be a non-negative integer", dbValue)
+		}
+		db = parsed
+	}
+	if passwordFileSet {
+		if passwordFile == "" {
+			return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_PASSWORD_FILE must not be empty")
+		}
+		if strings.TrimSpace(passwordFile) != passwordFile {
+			return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_PASSWORD_FILE must not contain leading or trailing whitespace")
+		}
+	}
+	return cache.RedisConfig{
+		Addr:    addr,
+		DB:      db,
+		Prefix:  cache.DefaultPrefix,
+		TTL:     cache.DefaultTTL,
+		Timeout: cache.DefaultTimeout,
+	}, passwordFile, true, nil
 }
 
 func boolValue(lookup func(string) (string, bool), key string, fallback bool) (bool, error) {

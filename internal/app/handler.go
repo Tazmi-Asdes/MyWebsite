@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"mywebsite/internal/adminapi"
+	"mywebsite/internal/cache"
 	"mywebsite/internal/platform"
 	"mywebsite/internal/publicsite"
 	publicassets "mywebsite/web/public"
@@ -54,6 +55,7 @@ type HandlerOptions struct {
 	MaxUploadBytes int64
 	PublicBaseURL  string
 	CookieSecure   bool
+	PageCache      cache.PageCache
 }
 
 // NewHandler creates the Stage 0 HTTP handler and all of its routes.
@@ -102,6 +104,13 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 			PublicBaseURL:  options.PublicBaseURL,
 			CookieSecure:   options.CookieSecure,
 			Now:            clock.Now,
+			InvalidatePublic: func(ctx context.Context) {
+				if options.PageCache != nil {
+					if invalidateErr := options.PageCache.Invalidate(ctx); invalidateErr != nil {
+						logger.Warn("public_cache_invalidate_failed", "error", invalidateErr)
+					}
+				}
+			},
 		})
 		if adminErr != nil {
 			return nil, adminErr
@@ -117,7 +126,8 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 	mux.Handle("GET /-/ready", readyHandler(options.Readiness))
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(publicassets.Assets))))
 
-	return requestLoggingMiddleware(mux, logger), nil
+	var handler http.Handler = cache.Middleware(mux, options.PageCache, logger)
+	return requestLoggingMiddleware(handler, logger), nil
 }
 
 func liveHandler(w http.ResponseWriter, _ *http.Request) {

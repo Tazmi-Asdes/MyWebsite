@@ -105,6 +105,10 @@ type HandlerOptions struct {
 	CookieSecure   bool
 	SecureCookies  bool
 	Now            func() time.Time
+	// InvalidatePublic is called only after a successful mutation that changes
+	// anonymous public HTML. Cache failures are handled by the callback and
+	// must not change the API response.
+	InvalidatePublic func(context.Context)
 }
 
 // Config is a compatibility alias for HandlerOptions.
@@ -113,16 +117,17 @@ type Config = HandlerOptions
 // Handler implements the administrator routes. Stage 2 project and media
 // routes are enabled when their optional services are configured.
 type Handler struct {
-	auth           AuthService
-	articles       ArticleService
-	projects       ProjectService
-	media          MediaService
-	maxUploadBytes int64
-	publicOrigin   string
-	cookieSecure   bool
-	now            func() time.Time
-	limiter        *loginLimiter
-	routes         http.Handler
+	auth              AuthService
+	articles          ArticleService
+	projects          ProjectService
+	media             MediaService
+	maxUploadBytes    int64
+	publicOrigin      string
+	cookieSecure      bool
+	now               func() time.Time
+	limiter           *loginLimiter
+	publicInvalidator func(context.Context)
+	routes            http.Handler
 }
 
 // NewHandler constructs an administrator API handler. Routes are registered
@@ -157,14 +162,15 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 		now = time.Now
 	}
 	handler := &Handler{
-		auth:           authService,
-		articles:       articleService,
-		projects:       options.Projects,
-		media:          options.Media,
-		maxUploadBytes: options.MaxUploadBytes,
-		publicOrigin:   origin,
-		cookieSecure:   options.CookieSecure || options.SecureCookies,
-		now:            func() time.Time { return now().UTC() },
+		auth:              authService,
+		articles:          articleService,
+		projects:          options.Projects,
+		media:             options.Media,
+		maxUploadBytes:    options.MaxUploadBytes,
+		publicOrigin:      origin,
+		cookieSecure:      options.CookieSecure || options.SecureCookies,
+		now:               func() time.Time { return now().UTC() },
+		publicInvalidator: options.InvalidatePublic,
 	}
 	if handler.maxUploadBytes <= 0 {
 		handler.maxUploadBytes = defaultMediaUploadBytes
@@ -509,6 +515,9 @@ func (h *Handler) updateArticle(w http.ResponseWriter, r *http.Request) {
 		h.writeArticleError(w, r, err, id)
 		return
 	}
+	if result.Status == article.StatusPublished {
+		h.invalidatePublic(r.Context())
+	}
 	h.writeJSON(w, http.StatusOK, mapArticleEdit(result))
 }
 
@@ -529,6 +538,7 @@ func (h *Handler) publishArticle(w http.ResponseWriter, r *http.Request) {
 		h.writeArticleError(w, r, err, id)
 		return
 	}
+	h.invalidatePublic(r.Context())
 	h.writeJSON(w, http.StatusOK, mapArticleEdit(result))
 }
 
@@ -554,7 +564,14 @@ func (h *Handler) withdrawArticle(w http.ResponseWriter, r *http.Request) {
 		h.writeArticleError(w, r, err, id)
 		return
 	}
+	h.invalidatePublic(r.Context())
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) invalidatePublic(ctx context.Context) {
+	if h != nil && h.publicInvalidator != nil {
+		h.publicInvalidator(ctx)
+	}
 }
 
 func (h *Handler) decodeArticleWrite(w http.ResponseWriter, r *http.Request, versionRequired bool) (articleWriteRequest, bool) {

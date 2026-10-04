@@ -164,6 +164,9 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 		h.writeProjectError(w, err)
 		return
 	}
+	if result.Status == project.StatusPublic {
+		h.invalidatePublic(r.Context())
+	}
 	h.writeJSON(w, http.StatusOK, mapProject(result))
 }
 
@@ -190,6 +193,7 @@ func (h *Handler) publishProject(w http.ResponseWriter, r *http.Request) {
 		h.writeProjectError(w, err)
 		return
 	}
+	h.invalidatePublic(r.Context())
 	h.writeJSON(w, http.StatusOK, mapProject(result))
 }
 
@@ -212,6 +216,7 @@ func (h *Handler) hideProject(w http.ResponseWriter, r *http.Request) {
 		h.writeProjectError(w, err)
 		return
 	}
+	h.invalidatePublic(r.Context())
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -231,6 +236,7 @@ func (h *Handler) reorderProjects(w http.ResponseWriter, r *http.Request) {
 		h.writeProjectError(w, err)
 		return
 	}
+	h.invalidatePublic(r.Context())
 	h.writeJSON(w, http.StatusOK, orderResponse{OrderVersion: orderVersion})
 }
 

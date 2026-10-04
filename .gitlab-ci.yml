@@ -152,13 +152,43 @@ deploy:
       set -eu
       env_source="$DEPLOY_ROOT/deploy/env.production"
       env_target="$CI_PROJECT_DIR/deploy/env.production"
-      password_file="$DEPLOY_ROOT/secrets/db_password"
+      db_password_file="$DEPLOY_ROOT/secrets/db_password"
+      redis_password_file="$DEPLOY_ROOT/secrets/redis_password"
       test -r "$env_source"
-      test -r "$password_file"
-      test -s "$password_file"
-      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$password_file"
+      test -r "$db_password_file"
+      test -s "$db_password_file"
+      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$db_password_file"
+      test -r "$redis_password_file"
+      test -s "$redis_password_file"
+      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$redis_password_file"
       test -d "$DEPLOY_ROOT/data/uploads"
       docker network inspect "$MYSQL_NETWORK_NAME" >/dev/null
+      redis_config_error="$(awk '
+        /^[[:space:]]*(#|$)/ { next }
+        /^[[:space:]]*(export[[:space:]]+)?REDIS_(ADDR|URL|PASSWORD_FILE|DB)[[:space:]]*=/ {
+          line = $0
+          sub(/^[[:space:]]*(export[[:space:]]+)?/, "", line)
+          split(line, fields, "=")
+          key = fields[1]
+          gsub(/[[:space:]]/, "", key)
+          if (key == "REDIS_ADDR") addr = 1
+          if (key == "REDIS_URL") url = 1
+          if (key == "REDIS_PASSWORD_FILE") password_file = 1
+          if (key == "REDIS_DB") db = 1
+        }
+        END {
+          if ((password_file || db) && !addr && !url) {
+            print "env.production sets REDIS_PASSWORD_FILE or REDIS_DB without REDIS_ADDR or REDIS_URL"
+          }
+          if (addr && url) {
+            print "env.production sets both REDIS_ADDR and REDIS_URL"
+          }
+        }
+      ' "$env_source")"
+      if [ -n "$redis_config_error" ]; then
+        printf '%s\n' "$redis_config_error" >&2
+        exit 1
+      fi
       if [ "$env_source" != "$env_target" ]; then
         install -m 0600 "$env_source" "$env_target"
       fi
@@ -181,6 +211,7 @@ deploy:
         --project-directory "$CI_PROJECT_DIR" \
         -f "$CI_PROJECT_DIR/compose.yaml" \
         -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+        -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
         config --quiet
     - |
       set -eu
@@ -192,6 +223,7 @@ deploy:
           --project-directory "$CI_PROJECT_DIR" \
           -f "$CI_PROJECT_DIR/compose.yaml" \
           -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
           "$@"
       }
       if [ "$PULL_BASE_IMAGES" = "true" ]; then
@@ -209,6 +241,7 @@ deploy:
           --project-directory "$CI_PROJECT_DIR" \
           -f "$CI_PROJECT_DIR/compose.yaml" \
           -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
           "$@"
       }
       compose push app admin-web
@@ -221,6 +254,7 @@ deploy:
         --project-directory "$CI_PROJECT_DIR" \
         -f "$CI_PROJECT_DIR/compose.yaml" \
         -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+        -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
         up -d --no-build --no-deps app admin-web
     - |
       set -eu
@@ -232,6 +266,7 @@ deploy:
           --project-directory "$CI_PROJECT_DIR" \
           -f "$CI_PROJECT_DIR/compose.yaml" \
           -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
           "$@"
       }
 
