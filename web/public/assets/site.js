@@ -69,4 +69,16 @@
   } else {
     initThemeToggle();
   }
+
+  document.addEventListener("contextmenu", function (event) {
+    if (event.target instanceof Element && event.target.matches(".project-card__media img")) {
+      event.preventDefault();
+    }
+  });
+
+  document.addEventListener("dragstart", function (event) {
+    if (event.target instanceof Element && event.target.matches(".project-card__media img")) {
+      event.preventDefault();
+    }
+  });
 })();
