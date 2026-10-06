@@ -206,6 +206,7 @@ body > :where(header, main, footer) {
     animation-delay: calc(var(--motion-stagger) * 2);
   }
 
+  .card--link,
   .project-card {
     animation-fill-mode: backwards;
   }
