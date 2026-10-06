@@ -23,8 +23,8 @@
   --glass-button-sheen: rgb(255 255 255 / 36%);
   --glass-button-shadow: rgb(0 0 0 / 12%);
   --home-article-card-bg: rgb(255 255 255 / 32%);
-  --home-article-card-border: rgb(0 0 0 / 20%);
-  --home-article-card-border-hover: rgb(0 0 0 / 30%);
+  --home-article-card-border: var(--project-card-border);
+  --home-article-card-border-hover: var(--project-card-border-hover);
   --home-article-card-sheen: rgb(255 255 255 / 70%);
   --home-article-card-shadow: rgb(0 0 0 / 10%);
   --project-card-border: rgb(0 0 0 / 12%);
@@ -65,8 +65,8 @@
     --glass-button-sheen: rgb(255 255 255 / 12%);
     --glass-button-shadow: rgb(0 0 0 / 22%);
     --home-article-card-bg: rgb(21 21 19 / 28%);
-    --home-article-card-border: rgb(255 255 255 / 26%);
-    --home-article-card-border-hover: rgb(255 255 255 / 40%);
+    --home-article-card-border: var(--project-card-border);
+    --home-article-card-border-hover: var(--project-card-border-hover);
     --home-article-card-sheen: rgb(255 255 255 / 10%);
     --home-article-card-shadow: rgb(0 0 0 / 26%);
     --project-card-border: rgb(255 255 255 / 30%);
@@ -98,8 +98,8 @@ html[data-theme="light"] {
   --glass-button-sheen: rgb(255 255 255 / 36%);
   --glass-button-shadow: rgb(0 0 0 / 12%);
   --home-article-card-bg: rgb(255 255 255 / 32%);
-  --home-article-card-border: rgb(0 0 0 / 20%);
-  --home-article-card-border-hover: rgb(0 0 0 / 30%);
+  --home-article-card-border: var(--project-card-border);
+  --home-article-card-border-hover: var(--project-card-border-hover);
   --home-article-card-sheen: rgb(255 255 255 / 70%);
   --home-article-card-shadow: rgb(0 0 0 / 10%);
   --project-card-border: rgb(0 0 0 / 12%);
@@ -130,8 +130,8 @@ html[data-theme="dark"] {
   --glass-button-sheen: rgb(255 255 255 / 12%);
   --glass-button-shadow: rgb(0 0 0 / 22%);
   --home-article-card-bg: rgb(21 21 19 / 28%);
-  --home-article-card-border: rgb(255 255 255 / 26%);
-  --home-article-card-border-hover: rgb(255 255 255 / 40%);
+  --home-article-card-border: var(--project-card-border);
+  --home-article-card-border-hover: var(--project-card-border-hover);
   --home-article-card-sheen: rgb(255 255 255 / 10%);
   --home-article-card-shadow: rgb(0 0 0 / 26%);
   --project-card-border: rgb(255 255 255 / 30%);
