@@ -27,6 +27,8 @@
   --home-article-card-border-hover: rgb(0 0 0 / 30%);
   --home-article-card-sheen: rgb(255 255 255 / 70%);
   --home-article-card-shadow: rgb(0 0 0 / 10%);
+  --project-card-border: rgb(0 0 0 / 12%);
+  --project-card-border-hover: rgb(0 0 0 / 22%);
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --motion-duration: 220ms;
@@ -67,6 +69,8 @@
     --home-article-card-border-hover: rgb(255 255 255 / 40%);
     --home-article-card-sheen: rgb(255 255 255 / 10%);
     --home-article-card-shadow: rgb(0 0 0 / 26%);
+    --project-card-border: rgb(255 255 255 / 30%);
+    --project-card-border-hover: rgb(255 255 255 / 46%);
   }
 }
 
@@ -98,6 +102,8 @@ html[data-theme="light"] {
   --home-article-card-border-hover: rgb(0 0 0 / 30%);
   --home-article-card-sheen: rgb(255 255 255 / 70%);
   --home-article-card-shadow: rgb(0 0 0 / 10%);
+  --project-card-border: rgb(0 0 0 / 12%);
+  --project-card-border-hover: rgb(0 0 0 / 22%);
 }
 
 html[data-theme="dark"] {
@@ -128,6 +134,8 @@ html[data-theme="dark"] {
   --home-article-card-border-hover: rgb(255 255 255 / 40%);
   --home-article-card-sheen: rgb(255 255 255 / 10%);
   --home-article-card-shadow: rgb(0 0 0 / 26%);
+  --project-card-border: rgb(255 255 255 / 30%);
+  --project-card-border-hover: rgb(255 255 255 / 46%);
 }
 
 * {
@@ -196,6 +204,10 @@ body > :where(header, main, footer) {
   .project-card {
     animation: public-reveal var(--motion-duration) ease-out both;
     animation-delay: calc(var(--motion-stagger) * 2);
+  }
+
+  .project-card {
+    animation-fill-mode: backwards;
   }
 
   .hero__content,
@@ -735,6 +747,14 @@ h1 {
 .project-card {
   display: flex;
   flex-direction: column;
+  border-color: var(--project-card-border);
+  transition: transform var(--motion-duration) ease,
+    box-shadow var(--motion-duration) ease,
+    border-color var(--motion-duration) ease;
+}
+
+.project-card:focus-within {
+  border-color: var(--project-card-border-hover);
 }
 
 .project-card__media {
@@ -840,6 +860,10 @@ h1 {
     box-shadow: inset 0 1px 0 var(--home-article-card-sheen), 0 10px 28px var(--home-article-card-shadow);
   }
 
+  .project-card:hover {
+    border-color: var(--project-card-border-hover);
+  }
+
   :where(.button,
     .menu-button,
     .pagination a):is(:hover, :focus-visible) {
@@ -891,6 +915,10 @@ h1 {
   .section[aria-labelledby="latest-heading"] .card--link:active {
     border-color: var(--home-article-card-border-hover);
     box-shadow: inset 0 1px 0 var(--home-article-card-sheen), 0 3px 10px var(--home-article-card-shadow);
+  }
+
+  .project-card:active {
+    border-color: var(--project-card-border-hover);
   }
 
   :where(.button,

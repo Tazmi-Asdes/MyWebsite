@@ -244,7 +244,53 @@ deploy:
           -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
           "$@"
       }
-      compose push app admin-web
+      push_with_retry() {
+        service=$1
+        attempt=1
+        while [ "$attempt" -le 3 ]; do
+          printf 'Pushing service %s (attempt %s/3)\n' "$service" "$attempt"
+          if compose push "$service"; then
+            return 0
+          else
+            push_status=$?
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            printf 'Push failed for service %s after %s attempts (exit code %s)\n' \
+              "$service" "$attempt" "$push_status" >&2
+            return "$push_status"
+          fi
+          delay=$((attempt * 5))
+          printf 'Retrying service %s in %s seconds\n' "$service" "$delay"
+          sleep "$delay"
+          attempt=$((attempt + 1))
+        done
+      }
+      push_with_retry app
+      push_with_retry admin-web
+    - |
+      set -eu
+      export IMAGE_TAG="$CI_COMMIT_SHA"
+      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
+      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
+      compose() {
+        docker compose \
+          --project-directory "$CI_PROJECT_DIR" \
+          -f "$CI_PROJECT_DIR/compose.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
+          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
+          "$@"
+      }
+      cleanup_script="$CI_PROJECT_DIR/deploy/scripts/cleanup-images.sh"
+      IMAGE_HISTORY_FILE="${CI_BUILDS_DIR}/.mywebsite-images-${CI_PROJECT_ID}"
+      if [ ! -e "$IMAGE_HISTORY_FILE" ]; then
+        app_container_id="$(compose ps -q app 2>/dev/null)" || app_container_id=
+        admin_container_id="$(compose ps -q admin-web 2>/dev/null)" || admin_container_id=
+        bash "$cleanup_script" bootstrap "$CI_REGISTRY_IMAGE" "$IMAGE_HISTORY_FILE" \
+          "$app_container_id" "$admin_container_id" \
+          "http://127.0.0.1:${APP_PORT}/-/live" \
+          "http://127.0.0.1:${APP_PORT}/-/ready" \
+          "http://127.0.0.1:${ADMIN_WEB_PORT}/admin/" || true
+      fi
     - |
       set -eu
       export IMAGE_TAG="$CI_COMMIT_SHA"
@@ -289,3 +335,6 @@ deploy:
         compose logs --tail=100 app admin-web || true
         exit 1
       fi
+      bash "$CI_PROJECT_DIR/deploy/scripts/cleanup-images.sh" cleanup \
+        "$CI_REGISTRY_IMAGE" "$CI_COMMIT_SHA" \
+        "${CI_BUILDS_DIR}/.mywebsite-images-${CI_PROJECT_ID}" || true
