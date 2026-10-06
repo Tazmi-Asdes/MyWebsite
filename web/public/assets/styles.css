@@ -17,6 +17,11 @@
   --site-background-overlay: rgb(255 255 255 / 58%);
   --site-background-opacity: 0.40;
   --surface-public: rgb(255 255 255 / 0%);
+  --glass-button-bg: rgb(255 255 255 / 48%);
+  --glass-button-hover-bg: rgb(255 255 255 / 64%);
+  --glass-button-border: rgb(0 0 0 / 12%);
+  --glass-button-sheen: rgb(255 255 255 / 36%);
+  --glass-button-shadow: rgb(0 0 0 / 12%);
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --motion-duration: 220ms;
@@ -47,6 +52,11 @@
     --site-background-overlay: rgb(21 21 19 / 58%);
     --site-background-opacity: 0.40;
     --surface-public: rgb(29 29 26 / 0%);
+    --glass-button-bg: rgb(255 255 255 / 10%);
+    --glass-button-hover-bg: rgb(255 255 255 / 17%);
+    --glass-button-border: rgb(255 255 255 / 22%);
+    --glass-button-sheen: rgb(255 255 255 / 12%);
+    --glass-button-shadow: rgb(0 0 0 / 22%);
   }
 }
 
@@ -68,6 +78,11 @@ html[data-theme="light"] {
   --site-background-overlay: rgb(255 255 255 / 58%);
   --site-background-opacity: 0.40;
   --surface-public: rgb(255 255 255 / 0%);
+  --glass-button-bg: rgb(255 255 255 / 48%);
+  --glass-button-hover-bg: rgb(255 255 255 / 64%);
+  --glass-button-border: rgb(0 0 0 / 12%);
+  --glass-button-sheen: rgb(255 255 255 / 36%);
+  --glass-button-shadow: rgb(0 0 0 / 12%);
 }
 
 html[data-theme="dark"] {
@@ -88,6 +103,11 @@ html[data-theme="dark"] {
   --site-background-overlay: rgb(21 21 19 / 58%);
   --site-background-opacity: 0.40;
   --surface-public: rgb(29 29 26 / 0%);
+  --glass-button-bg: rgb(255 255 255 / 10%);
+  --glass-button-hover-bg: rgb(255 255 255 / 17%);
+  --glass-button-border: rgb(255 255 255 / 22%);
+  --glass-button-sheen: rgb(255 255 255 / 12%);
+  --glass-button-shadow: rgb(0 0 0 / 22%);
 }
 
 * {
@@ -407,6 +427,7 @@ a {
   min-width: 2.5rem;
   min-height: 2.5rem;
   flex: 0 0 2.5rem;
+  aspect-ratio: 1;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -418,6 +439,7 @@ a {
   cursor: pointer;
   position: relative;
   transition: background-color var(--motion-duration) ease, border-color var(--motion-duration) ease, color var(--motion-duration) ease, transform var(--motion-duration) ease, box-shadow var(--motion-duration) ease;
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 12%), inset 0 -1px 2px rgb(0 0 0 / 8%);
 }
 
 .theme-toggle .theme-icon {
@@ -447,6 +469,12 @@ a {
   border-color: var(--border-strong);
   background: var(--text);
   color: var(--inverse);
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 20%), inset 0 -1px 3px rgb(0 0 0 / 12%);
+}
+
+.theme-toggle:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 22%);
 }
 
 .page-shell {
@@ -560,9 +588,34 @@ h1 {
   color: var(--inverse);
 }
 
+.hero .button--glass {
+  min-height: 3rem;
+  padding: 0.75rem 1.35rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--text);
+  border-color: var(--glass-button-border);
+  background: linear-gradient(145deg, var(--glass-button-sheen), transparent 60%), var(--glass-button-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 0 var(--glass-button-sheen), 0 6px 18px var(--glass-button-shadow);
+  transform: none;
+}
+
+.hero .button--glass:hover:not(:active),
+.hero .button--glass:focus-visible {
+  color: var(--text);
+  border-color: var(--glass-button-border);
+  background: linear-gradient(145deg, var(--glass-button-sheen), transparent 60%), var(--glass-button-hover-bg);
+}
+
+.hero .button--glass:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 1px 0 var(--glass-button-sheen), 0 2px 8px var(--glass-button-shadow);
+}
+
 .button:active,
-.menu-button:active,
-.theme-toggle:active {
+.menu-button:active {
   transform: translateY(1px);
 }
 
@@ -754,7 +807,6 @@ h1 {
 
   :where(.button,
     .menu-button,
-    .theme-toggle,
     .pagination a):is(:hover, :focus-visible) {
     transform: translateY(-0.25rem);
     box-shadow: 0 0.5rem 1.25rem rgb(0 0 0 / 10%);
@@ -773,6 +825,14 @@ h1 {
 
   .site-nav a:hover:not(:active) {
     transform: translateY(-2px);
+  }
+
+  .hero .button--glass:hover:not(:active) {
+    transform: translateY(-2px);
+  }
+
+  .theme-toggle:hover:not(:active) {
+    transform: translateY(-2px) scale(1.04);
   }
 
   .contact-list a:hover:not(:active),
@@ -795,7 +855,6 @@ h1 {
 
   :where(.button,
     .menu-button,
-    .theme-toggle,
     .pagination a):active {
     transform: translateY(-0.125rem);
     box-shadow: 0 0.35rem 0.9rem rgb(0 0 0 / 8%);
