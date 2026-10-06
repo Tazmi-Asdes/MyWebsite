@@ -147,8 +147,8 @@ func (h *Handler) homeOrNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 	data := homePageData{
 		Title:       "首页 — MyWebsite",
-		Description: "在网站耍起嘛,好舒服啊。",
-		Heading:     "个人网站首页",
+		Description: "Welcome here",
+		Heading:     "Tazmi-Website",
 		Eyebrow:     "PERSONAL SITE",
 	}
 	if h.articleReader != nil {

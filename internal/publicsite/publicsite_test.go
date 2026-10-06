@@ -151,7 +151,7 @@ func TestPublicTemplatesExposeSkipNavigation(t *testing.T) {
 			if detailsCount != 1 || strings.Count(body, `<summary class="menu-button">菜单</summary>`) != 1 || strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`) != 1 {
 				t.Fatalf("menu structure counts = details:%d summary:%d nav:%d, body = %s", detailsCount, strings.Count(body, `<summary class="menu-button">菜单</summary>`), strings.Count(body, `<nav class="site-nav" aria-label="主要导航">`), body)
 			}
-			if strings.Count(body, `<header class="site-header">`) != 1 || strings.Count(body, `<div class="container site-header__inner">`) != 1 || strings.Count(body, `<a class="site-brand" href="/">MyWebsite</a>`) != 1 {
+			if strings.Count(body, `<header class="site-header">`) != 1 || strings.Count(body, `<div class="container site-header__inner">`) != 1 || strings.Count(body, `<a class="site-brand" href="/">Tazmi-Website</a>`) != 1 {
 				t.Fatalf("header shell structure missing: %s", body)
 			}
 			if strings.Count(body, `<footer class="site-footer">`) != 1 || strings.Count(body, `<div class="container site-footer__inner">`) != 1 || !strings.Contains(body, `<span>© 2026 MyWebsite</span>`) {
@@ -355,7 +355,7 @@ func TestPublicPagesExposeMetadataAndErrorSemantics(t *testing.T) {
 			target:      "/",
 			status:      http.StatusOK,
 			title:       "首页 — MyWebsite",
-			description: "在网站耍起嘛,好舒服啊。",
+			description: "Welcome here",
 		},
 		{
 			name:        "articles",

@@ -275,6 +275,9 @@ a {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
   text-decoration: none;
 }
 
@@ -327,13 +330,18 @@ a {
 
 .site-nav {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: 1.25rem;
   color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  line-height: 1.2;
   text-decoration: none;
 }
 
@@ -1231,6 +1239,7 @@ h1 {
 
   .site-menu > .site-nav {
     display: flex;
+    align-items: stretch;
     width: 100%;
     flex-direction: column;
     gap: 0.5rem;
