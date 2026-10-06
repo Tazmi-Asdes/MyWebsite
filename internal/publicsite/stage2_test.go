@@ -149,7 +149,7 @@ func TestStage2HomeProjectsAndAboutUseIndependentProjections(t *testing.T) {
 	if !strings.Contains(allBody, `src="/media/custom" alt="项目一"`) || !strings.Contains(allBody, `src="/assets/default-project.svg" alt=""`) {
 		t.Fatalf("project image semantics missing: %s", allBody)
 	}
-	if strings.Count(allBody, `target="_blank" rel="noopener noreferrer">GitHub`) != 1 || !strings.Contains(allBody, `href="https://github.com/example/one"`) {
+	if strings.Count(allBody, `href="https://github.com/example/one" target="_blank" rel="noopener noreferrer">`) != 1 || strings.Count(allBody, `<span class="project-card__github">GitHub</span>`) != 1 {
 		t.Fatalf("github attributes missing: %s", allBody)
 	}
 

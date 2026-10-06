@@ -42,11 +42,13 @@
         <div class="grid grid--three project-grid">
           {{range .Projects}}
           <article class="card project-card">
-            <div class="project-card__media"><img draggable="false" src="{{.ImageURL}}" alt="{{.ImageAlt}}"></div>
-            <div class="project-card__footer">
-              <h2>{{.Name}}</h2>
-              {{if .HasGitHub}}<a href="{{.GitHubURL}}" target="_blank" rel="noopener noreferrer">GitHub</a>{{end}}
-            </div>
+            <a class="home-card-link" draggable="false" href="{{if .HasGitHub}}{{.GitHubURL}}{{else}}/projects{{end}}"{{if .HasGitHub}} target="_blank" rel="noopener noreferrer"{{end}}>
+              <div class="project-card__media"><img draggable="false" src="{{.ImageURL}}" alt="{{.ImageAlt}}"></div>
+              <div class="project-card__footer">
+                <h2>{{.Name}}</h2>
+                {{if .HasGitHub}}<span class="project-card__github">GitHub</span>{{end}}
+              </div>
+            </a>
           </article>
           {{end}}
         </div>

@@ -239,20 +239,54 @@ a {
   color: inherit;
 }
 
-:where(.section-head a,
-  .card a,
-  .article-list__item h2 a,
-  .project-card__footer a,
-  .text-link,
-  .pagination a,
-  .article-back a,
-  .contact-list a,
-  .toc a) {
+:where(.pagination a) {
   display: inline-block;
   transition: color var(--motion-duration) ease,
     text-decoration-color var(--motion-duration) ease,
     transform var(--motion-duration) ease,
     box-shadow var(--motion-duration) ease;
+}
+
+:where(.section-head a,
+  .card a:not(.home-card-link),
+  .article-list__item h2 a,
+  .project-card__footer a,
+  .text-link:not(.article-content a),
+  .article-back a,
+  .toc a,
+  .toc-mobile a) {
+  display: inline-block;
+  transition: color var(--motion-duration) ease,
+    text-decoration-color var(--motion-duration) ease,
+    transform var(--motion-duration) ease;
+  transform-origin: left center;
+  background: transparent;
+  box-shadow: none;
+}
+
+:is(.section-head a,
+  .card a:not(.home-card-link),
+  .article-list__item h2 a,
+  .project-card__footer a,
+  .text-link:not(.article-content a),
+  .article-back a,
+  .toc a,
+  .toc-mobile a):focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+:is(.section-head a,
+  .card a:not(.home-card-link),
+  .article-list__item h2 a,
+  .project-card__footer a,
+  .text-link:not(.article-content a),
+  .article-back a,
+  .toc a,
+  .toc-mobile a):active {
+  transform: translateY(1px) scale(0.96);
 }
 
 .site-header {
@@ -665,6 +699,26 @@ h1 {
   text-underline-offset: 0.2em;
 }
 
+.project-card__github {
+  transition: color var(--motion-duration) ease,
+    transform var(--motion-duration) ease,
+    text-decoration-color var(--motion-duration) ease;
+  transform-origin: left center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.home-card-link:focus-visible .project-card__github {
+  color: var(--text);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+.project-card__github:active {
+  color: var(--text);
+  transform: translateY(1px) scale(0.96);
+}
+
 .card > .home-card-link {
   display: block;
   width: 100%;
@@ -701,20 +755,29 @@ h1 {
   :where(.button,
     .menu-button,
     .theme-toggle,
-    .section-head a,
-    .card a,
-    .article-list__item h2 a,
-    .project-card__footer a,
-    .text-link,
-    .pagination a,
-    .article-back a,
-    .contact-list a,
-    .toc a):is(:hover, :focus-visible) {
+    .pagination a):is(:hover, :focus-visible) {
     transform: translateY(-0.25rem);
     box-shadow: 0 0.5rem 1.25rem rgb(0 0 0 / 10%);
   }
 
+  :is(.section-head a,
+    .card a:not(.home-card-link),
+    .article-list__item h2 a,
+    .project-card__footer a,
+    .text-link:not(.article-content a),
+    .article-back a,
+    .toc a,
+    .toc-mobile a):hover:not(:active) {
+    transform: translateY(-2px);
+  }
+
   .site-nav a:hover:not(:active) {
+    transform: translateY(-2px);
+  }
+
+  .contact-list a:hover:not(:active),
+  .project-card__github:hover:not(:active) {
+    color: var(--text);
     transform: translateY(-2px);
   }
 
@@ -733,15 +796,7 @@ h1 {
   :where(.button,
     .menu-button,
     .theme-toggle,
-    .section-head a,
-    .card a,
-    .article-list__item h2 a,
-    .project-card__footer a,
-    .text-link,
-    .pagination a,
-    .article-back a,
-    .contact-list a,
-    .toc a):active {
+    .pagination a):active {
     transform: translateY(-0.125rem);
     box-shadow: 0 0.35rem 0.9rem rgb(0 0 0 / 8%);
   }
@@ -848,7 +903,33 @@ h1 {
 }
 
 .contact-list a {
+  display: inline-block;
+  justify-self: start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   text-underline-offset: 0.2em;
+  transition: color var(--motion-duration) ease,
+    transform var(--motion-duration) ease,
+    text-decoration-color var(--motion-duration) ease;
+  transform-origin: left center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.contact-list a:focus-visible,
+.contact-list a:active {
+  color: var(--text);
+}
+
+.contact-list a:active {
+  transform: translateY(1px) scale(0.96);
+}
+
+.contact-list a:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
 }
 
 .error-page {
@@ -1422,7 +1503,9 @@ h1 {
     .pagination a,
     .article-back a,
     .contact-list a,
-    .toc a):is(:hover, :focus-visible, :active),
+    .toc a,
+    .toc-mobile a):is(:hover, :focus-visible, :active),
+  .project-card__github:is(:hover, :active),
   .button:active,
   .menu-button:active,
   .theme-toggle:active {
