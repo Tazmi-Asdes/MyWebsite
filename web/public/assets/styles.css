@@ -22,13 +22,31 @@
   --glass-button-border: rgb(0 0 0 / 12%);
   --glass-button-sheen: rgb(255 255 255 / 36%);
   --glass-button-shadow: rgb(0 0 0 / 12%);
-  --home-article-card-bg: rgb(255 255 255 / 32%);
-  --home-article-card-border: var(--project-card-border);
-  --home-article-card-border-hover: var(--project-card-border-hover);
-  --home-article-card-sheen: rgb(255 255 255 / 70%);
-  --home-article-card-shadow: rgb(0 0 0 / 10%);
-  --project-card-border: rgb(0 0 0 / 12%);
-  --project-card-border-hover: rgb(0 0 0 / 22%);
+  --glass-panel-bg: rgb(255 255 255 / 18%);
+  --glass-panel-bg-hover: rgb(255 255 255 / 24%);
+  --glass-panel-border: rgb(255 255 255 / 24%);
+  --glass-panel-highlight: rgb(255 255 255 / 34%);
+  --glass-panel-inner-shadow: rgb(0 0 0 / 5%);
+  --glass-panel-shadow: rgb(0 0 0 / 6%);
+  --liquid-card-bg: rgb(255 255 255 / 32%);
+  --liquid-card-bg-hover: rgb(255 255 255 / 42%);
+  --liquid-card-border: rgb(255 255 255 / 28%);
+  --liquid-card-border-hover: rgb(255 255 255 / 40%);
+  --liquid-card-glow: rgb(255 255 255 / 18%);
+  --liquid-card-glow-cool: rgb(218 229 241 / 10%);
+  --liquid-card-glow-warm: rgb(232 224 215 / 7%);
+  --liquid-card-highlight: rgb(255 255 255 / 52%);
+  --liquid-card-inner-shadow: rgb(255 255 255 / 24%);
+  --liquid-card-shadow: rgb(0 0 0 / 8%);
+  --liquid-card-shadow-hover: rgb(0 0 0 / 12%);
+  --liquid-card-divider: rgb(0 0 0 / 7%);
+  --home-article-card-bg: var(--liquid-card-bg);
+  --home-article-card-border: var(--liquid-card-border);
+  --home-article-card-border-hover: var(--liquid-card-border-hover);
+  --home-article-card-sheen: var(--liquid-card-highlight);
+  --home-article-card-shadow: var(--liquid-card-shadow);
+  --project-card-border: var(--liquid-card-border);
+  --project-card-border-hover: var(--liquid-card-border-hover);
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --motion-duration: 220ms;
@@ -64,13 +82,31 @@
     --glass-button-border: rgb(255 255 255 / 22%);
     --glass-button-sheen: rgb(255 255 255 / 12%);
     --glass-button-shadow: rgb(0 0 0 / 22%);
-    --home-article-card-bg: rgb(21 21 19 / 28%);
-    --home-article-card-border: var(--project-card-border);
-    --home-article-card-border-hover: var(--project-card-border-hover);
-    --home-article-card-sheen: rgb(255 255 255 / 10%);
-    --home-article-card-shadow: rgb(0 0 0 / 26%);
-    --project-card-border: rgb(255 255 255 / 30%);
-    --project-card-border-hover: rgb(255 255 255 / 46%);
+    --glass-panel-bg: rgb(25 25 23 / 38%);
+    --glass-panel-bg-hover: rgb(35 35 31 / 46%);
+    --glass-panel-border: rgb(255 255 255 / 11%);
+    --glass-panel-highlight: rgb(255 255 255 / 14%);
+    --glass-panel-inner-shadow: rgb(0 0 0 / 14%);
+    --glass-panel-shadow: rgb(0 0 0 / 20%);
+    --liquid-card-bg: rgb(24 24 22 / 38%);
+    --liquid-card-bg-hover: rgb(35 35 31 / 48%);
+    --liquid-card-border: rgb(255 255 255 / 12%);
+    --liquid-card-border-hover: rgb(255 255 255 / 24%);
+    --liquid-card-glow: rgb(255 255 255 / 9%);
+    --liquid-card-glow-cool: rgb(196 207 220 / 7%);
+    --liquid-card-glow-warm: rgb(213 205 194 / 5%);
+    --liquid-card-highlight: rgb(255 255 255 / 18%);
+    --liquid-card-inner-shadow: rgb(0 0 0 / 16%);
+    --liquid-card-shadow: rgb(0 0 0 / 22%);
+    --liquid-card-shadow-hover: rgb(0 0 0 / 30%);
+    --liquid-card-divider: rgb(255 255 255 / 9%);
+    --home-article-card-bg: var(--liquid-card-bg);
+    --home-article-card-border: var(--liquid-card-border);
+    --home-article-card-border-hover: var(--liquid-card-border-hover);
+    --home-article-card-sheen: var(--liquid-card-highlight);
+    --home-article-card-shadow: var(--liquid-card-shadow);
+    --project-card-border: var(--liquid-card-border);
+    --project-card-border-hover: var(--liquid-card-border-hover);
   }
 }
 
@@ -97,13 +133,31 @@ html[data-theme="light"] {
   --glass-button-border: rgb(0 0 0 / 12%);
   --glass-button-sheen: rgb(255 255 255 / 36%);
   --glass-button-shadow: rgb(0 0 0 / 12%);
-  --home-article-card-bg: rgb(255 255 255 / 32%);
-  --home-article-card-border: var(--project-card-border);
-  --home-article-card-border-hover: var(--project-card-border-hover);
-  --home-article-card-sheen: rgb(255 255 255 / 70%);
-  --home-article-card-shadow: rgb(0 0 0 / 10%);
-  --project-card-border: rgb(0 0 0 / 12%);
-  --project-card-border-hover: rgb(0 0 0 / 22%);
+  --glass-panel-bg: rgb(255 255 255 / 18%);
+  --glass-panel-bg-hover: rgb(255 255 255 / 24%);
+  --glass-panel-border: rgb(255 255 255 / 24%);
+  --glass-panel-highlight: rgb(255 255 255 / 34%);
+  --glass-panel-inner-shadow: rgb(0 0 0 / 5%);
+  --glass-panel-shadow: rgb(0 0 0 / 6%);
+  --liquid-card-bg: rgb(255 255 255 / 32%);
+  --liquid-card-bg-hover: rgb(255 255 255 / 42%);
+  --liquid-card-border: rgb(255 255 255 / 28%);
+  --liquid-card-border-hover: rgb(255 255 255 / 40%);
+  --liquid-card-glow: rgb(255 255 255 / 18%);
+  --liquid-card-glow-cool: rgb(218 229 241 / 10%);
+  --liquid-card-glow-warm: rgb(232 224 215 / 7%);
+  --liquid-card-highlight: rgb(255 255 255 / 52%);
+  --liquid-card-inner-shadow: rgb(255 255 255 / 24%);
+  --liquid-card-shadow: rgb(0 0 0 / 8%);
+  --liquid-card-shadow-hover: rgb(0 0 0 / 12%);
+  --liquid-card-divider: rgb(0 0 0 / 7%);
+  --home-article-card-bg: var(--liquid-card-bg);
+  --home-article-card-border: var(--liquid-card-border);
+  --home-article-card-border-hover: var(--liquid-card-border-hover);
+  --home-article-card-sheen: var(--liquid-card-highlight);
+  --home-article-card-shadow: var(--liquid-card-shadow);
+  --project-card-border: var(--liquid-card-border);
+  --project-card-border-hover: var(--liquid-card-border-hover);
 }
 
 html[data-theme="dark"] {
@@ -129,13 +183,31 @@ html[data-theme="dark"] {
   --glass-button-border: rgb(255 255 255 / 22%);
   --glass-button-sheen: rgb(255 255 255 / 12%);
   --glass-button-shadow: rgb(0 0 0 / 22%);
-  --home-article-card-bg: rgb(21 21 19 / 28%);
-  --home-article-card-border: var(--project-card-border);
-  --home-article-card-border-hover: var(--project-card-border-hover);
-  --home-article-card-sheen: rgb(255 255 255 / 10%);
-  --home-article-card-shadow: rgb(0 0 0 / 26%);
-  --project-card-border: rgb(255 255 255 / 30%);
-  --project-card-border-hover: rgb(255 255 255 / 46%);
+  --glass-panel-bg: rgb(25 25 23 / 38%);
+  --glass-panel-bg-hover: rgb(35 35 31 / 46%);
+  --glass-panel-border: rgb(255 255 255 / 11%);
+  --glass-panel-highlight: rgb(255 255 255 / 14%);
+  --glass-panel-inner-shadow: rgb(0 0 0 / 14%);
+  --glass-panel-shadow: rgb(0 0 0 / 20%);
+  --liquid-card-bg: rgb(24 24 22 / 38%);
+  --liquid-card-bg-hover: rgb(35 35 31 / 48%);
+  --liquid-card-border: rgb(255 255 255 / 12%);
+  --liquid-card-border-hover: rgb(255 255 255 / 24%);
+  --liquid-card-glow: rgb(255 255 255 / 9%);
+  --liquid-card-glow-cool: rgb(196 207 220 / 7%);
+  --liquid-card-glow-warm: rgb(213 205 194 / 5%);
+  --liquid-card-highlight: rgb(255 255 255 / 18%);
+  --liquid-card-inner-shadow: rgb(0 0 0 / 16%);
+  --liquid-card-shadow: rgb(0 0 0 / 22%);
+  --liquid-card-shadow-hover: rgb(0 0 0 / 30%);
+  --liquid-card-divider: rgb(255 255 255 / 9%);
+  --home-article-card-bg: var(--liquid-card-bg);
+  --home-article-card-border: var(--liquid-card-border);
+  --home-article-card-border-hover: var(--liquid-card-border-hover);
+  --home-article-card-sheen: var(--liquid-card-highlight);
+  --home-article-card-shadow: var(--liquid-card-shadow);
+  --project-card-border: var(--liquid-card-border);
+  --project-card-border-hover: var(--liquid-card-border-hover);
 }
 
 * {
@@ -207,6 +279,7 @@ body > :where(header, main, footer) {
   }
 
   .card--link,
+  .article-list__item,
   .project-card {
     animation-fill-mode: backwards;
   }
@@ -343,10 +416,11 @@ a {
 }
 
 .site-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-public);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--glass-panel-border);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 4px 18px var(--glass-panel-shadow);
 }
 
 .site-header__inner {
@@ -549,8 +623,13 @@ h1 {
 .empty-state {
   max-width: 640px;
   margin-top: 5rem;
-  padding: 1.5rem 0;
-  border-top: 1px solid var(--border-strong);
+  padding: 1.5rem;
+  border: 1px solid var(--glass-panel-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 6px 18px var(--glass-panel-shadow);
 }
 
 .empty-state h2 {
@@ -688,23 +767,37 @@ h1 {
 
 .card {
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--liquid-card-border);
   border-radius: var(--radius-md);
-  background: var(--surface-public);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+    linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+    linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+    var(--liquid-card-bg);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
   overflow: hidden;
-  transition: transform var(--motion-duration) ease, box-shadow var(--motion-duration) ease;
-}
-
-.section[aria-labelledby="latest-heading"] .card--link {
-  border-color: var(--home-article-card-border);
-  background: var(--home-article-card-bg);
-  box-shadow: inset 0 1px 0 var(--home-article-card-sheen), 0 6px 18px var(--home-article-card-shadow);
+  box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+    inset 0 -1px 0 var(--liquid-card-inner-shadow),
+    0 6px 20px var(--liquid-card-shadow);
   transition: transform var(--motion-duration) ease,
     box-shadow var(--motion-duration) ease,
     border-color var(--motion-duration) ease,
-    background-color var(--motion-duration) ease;
+    background var(--motion-duration) ease;
+}
+
+.section[aria-labelledby="latest-heading"] .card--link {
+  border-color: var(--liquid-card-border);
+  background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+    linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+    linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+    var(--liquid-card-bg);
+  box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+    inset 0 -1px 0 var(--liquid-card-inner-shadow),
+    0 6px 20px var(--liquid-card-shadow);
+  transition: transform var(--motion-duration) ease,
+    box-shadow var(--motion-duration) ease,
+    border-color var(--motion-duration) ease,
+    background var(--motion-duration) ease;
 }
 
 .card__body {
@@ -748,7 +841,7 @@ h1 {
 .project-card {
   display: flex;
   flex-direction: column;
-  border-color: var(--project-card-border);
+  border-color: var(--liquid-card-border);
   transition: transform var(--motion-duration) ease,
     box-shadow var(--motion-duration) ease,
     border-color var(--motion-duration) ease;
@@ -763,7 +856,7 @@ h1 {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--liquid-card-divider);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--surface-public);
 }
@@ -852,17 +945,38 @@ h1 {
 @media (hover: hover) and (pointer: fine) {
   .card:hover,
   .card:focus-within {
-    transform: translateY(-0.25rem);
-    box-shadow: 0 0.75rem 1.75rem rgb(0 0 0 / 12%);
+    transform: translateY(-0.2rem);
+    border-color: var(--liquid-card-border-hover);
+    background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+      linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+      linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+      var(--liquid-card-bg-hover);
+    box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+      inset 0 -1px 0 var(--liquid-card-inner-shadow),
+      0 10px 26px var(--liquid-card-shadow-hover);
   }
 
   .section[aria-labelledby="latest-heading"] .card--link:is(:hover, :focus-within) {
-    border-color: var(--home-article-card-border-hover);
-    box-shadow: inset 0 1px 0 var(--home-article-card-sheen), 0 10px 28px var(--home-article-card-shadow);
+    border-color: var(--liquid-card-border-hover);
+    background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+      linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+      linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+      var(--liquid-card-bg-hover);
+    box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+      inset 0 -1px 0 var(--liquid-card-inner-shadow),
+      0 10px 26px var(--liquid-card-shadow-hover);
   }
 
   .project-card:hover {
-    border-color: var(--project-card-border-hover);
+    border-color: var(--liquid-card-border-hover);
+  }
+
+  .article-list__item:hover,
+  .article-list__item:focus-within {
+    transform: translateY(-0.1rem);
+    border-color: var(--glass-panel-highlight);
+    background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg-hover);
+    box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 6px 16px var(--glass-panel-shadow);
   }
 
   :where(.button,
@@ -910,16 +1024,29 @@ h1 {
 @media (hover: none), (pointer: coarse) {
   .card:active {
     transform: translateY(-0.125rem);
-    box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 10%);
+    border-color: var(--liquid-card-border-hover);
+    background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+      linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+      linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+      var(--liquid-card-bg-hover);
+    box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+      inset 0 -1px 0 var(--liquid-card-inner-shadow),
+      0 4px 12px var(--liquid-card-shadow-hover);
   }
 
   .section[aria-labelledby="latest-heading"] .card--link:active {
-    border-color: var(--home-article-card-border-hover);
-    box-shadow: inset 0 1px 0 var(--home-article-card-sheen), 0 3px 10px var(--home-article-card-shadow);
+    border-color: var(--liquid-card-border-hover);
+    background: linear-gradient(140deg, var(--liquid-card-glow), transparent 52%),
+      linear-gradient(320deg, var(--liquid-card-glow-cool), transparent 62%),
+      linear-gradient(205deg, var(--liquid-card-glow-warm), transparent 72%),
+      var(--liquid-card-bg-hover);
+    box-shadow: inset 0 1px 0 var(--liquid-card-highlight),
+      inset 0 -1px 0 var(--liquid-card-inner-shadow),
+      0 4px 12px var(--liquid-card-shadow-hover);
   }
 
   .project-card:active {
-    border-color: var(--project-card-border-hover);
+    border-color: var(--liquid-card-border-hover);
   }
 
   :where(.button,
@@ -1093,10 +1220,11 @@ h1 {
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
-  background: var(--surface-public);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--glass-panel-border);
+  background: linear-gradient(320deg, var(--glass-panel-highlight), transparent 62%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), 0 -4px 18px var(--glass-panel-shadow);
 }
 
 .site-footer__inner {
@@ -1111,10 +1239,11 @@ h1 {
 
 .page-heading {
   padding: clamp(3rem, 6vw, 5rem) 0 2.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-public);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--glass-panel-border);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 6px 20px var(--glass-panel-shadow);
 }
 
 .page-heading h1 {
@@ -1140,15 +1269,22 @@ h1 {
 }
 
 .article-list {
-  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.75rem;
 }
 
 .article-list__item {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);
   gap: 2rem;
-  padding: 2rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: 1.75rem 1.5rem;
+  border: 1px solid var(--glass-panel-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 5px 16px var(--glass-panel-shadow);
+  transition: transform var(--motion-duration) ease, box-shadow var(--motion-duration) ease, border-color var(--motion-duration) ease, background var(--motion-duration) ease;
 }
 
 .article-list__item time,
@@ -1215,9 +1351,12 @@ h1 {
   place-items: center;
   max-width: none;
   margin-top: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-md);
-  background: var(--surface-public);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 6px 18px var(--glass-panel-shadow);
   text-align: center;
   padding: 2rem;
 }
@@ -1238,9 +1377,12 @@ h1 {
   place-items: center;
   max-width: none;
   margin-top: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-md);
-  background: var(--surface-public);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 6px 18px var(--glass-panel-shadow);
   text-align: center;
   padding: 2rem;
 }
@@ -1427,11 +1569,12 @@ h1 {
 .toc-mobile {
   display: none;
   margin-bottom: 2rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-public);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-panel-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 4px 14px var(--glass-panel-shadow);
 }
 
 .toc-mobile summary {

@@ -83,7 +83,7 @@
           {{range .Projects}}
           <article class="card project-card">
             <a class="home-card-link" draggable="false" href="{{if .HasGitHub}}{{.GitHubURL}}{{else}}/projects{{end}}"{{if .HasGitHub}} target="_blank" rel="noopener noreferrer"{{end}}>
-              <div class="project-card__media"><img draggable="false" src="{{.ImageURL}}" alt="{{.ImageAlt}}"></div>
+              <div class="project-card__media"><img draggable="false" src="{{.ImageURL}}" alt="{{.ImageAlt}}" loading="lazy" decoding="async" width="1280" height="720"></div>
               <div class="project-card__footer">
                 <h3>{{.Name}}</h3>
                 {{if .HasGitHub}}<span class="project-card__github">GitHub</span>{{end}}
