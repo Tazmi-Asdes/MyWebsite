@@ -212,6 +212,7 @@ html[data-theme="dark"] {
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -339,6 +340,10 @@ summary:focus-visible,
   outline-offset: 3px;
 }
 
+:where(a, button, input, textarea, select, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
 .skip-link {
   position: fixed;
   top: 0;
@@ -375,7 +380,6 @@ a {
 
 :where(.section-head a,
   .card a:not(.home-card-link),
-  .article-list__item h2 a,
   .project-card__footer a,
   .text-link:not(.article-content a),
   .article-back a,
@@ -392,7 +396,6 @@ a {
 
 :is(.section-head a,
   .card a:not(.home-card-link),
-  .article-list__item h2 a,
   .project-card__footer a,
   .text-link:not(.article-content a),
   .article-back a,
@@ -406,7 +409,6 @@ a {
 
 :is(.section-head a,
   .card a:not(.home-card-link),
-  .article-list__item h2 a,
   .project-card__footer a,
   .text-link:not(.article-content a),
   .article-back a,
@@ -988,7 +990,6 @@ h1 {
 
   :is(.section-head a,
     .card a:not(.home-card-link),
-    .article-list__item h2 a,
     .project-card__footer a,
     .text-link:not(.article-content a),
     .article-back a,
@@ -1047,6 +1048,13 @@ h1 {
 
   .project-card:active {
     border-color: var(--liquid-card-border-hover);
+  }
+
+  .article-list__item:active {
+    transform: translateY(-0.125rem);
+    border-color: var(--glass-panel-highlight);
+    background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg-hover);
+    box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 4px 12px var(--glass-panel-shadow);
   }
 
   :where(.button,
@@ -1274,10 +1282,7 @@ h1 {
 }
 
 .article-list__item {
-  display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr);
-  gap: 2rem;
-  padding: 1.75rem 1.5rem;
+  min-width: 0;
   border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-md);
   background: linear-gradient(140deg, var(--glass-panel-highlight), transparent 58%), var(--glass-panel-bg);
@@ -1285,6 +1290,33 @@ h1 {
   -webkit-backdrop-filter: blur(12px) saturate(120%);
   box-shadow: inset 0 1px 0 var(--glass-panel-highlight), inset 0 -1px 0 var(--glass-panel-inner-shadow), 0 5px 16px var(--glass-panel-shadow);
   transition: transform var(--motion-duration) ease, box-shadow var(--motion-duration) ease, border-color var(--motion-duration) ease, background var(--motion-duration) ease;
+}
+
+.article-list__item:not(:has(> .article-list__link)) {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 2rem;
+  padding: 1.75rem 1.5rem;
+}
+
+.article-list__link {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 2rem;
+  width: 100%;
+  min-width: 0;
+  padding: 1.75rem 1.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.article-list__link:focus-visible {
+  outline: none;
+}
+
+.article-list__item:has(> .article-list__link:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .article-list__item time,
@@ -1299,16 +1331,6 @@ h1 {
   font-weight: 550;
   line-height: 1.3;
   letter-spacing: -0.02em;
-}
-
-.article-list__item h2 a {
-  text-decoration: none;
-}
-
-.article-list__item h2 a:hover,
-.article-list__item h2 a:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
 }
 
 .article-list__item p {
@@ -1687,7 +1709,8 @@ h1 {
     min-height: calc(100vh - 12rem);
   }
 
-  .article-list__item {
+  .article-list__item,
+  .article-list__link {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
@@ -1768,7 +1791,7 @@ h1 {
     .site-nav a,
     .section-head a,
     .card a,
-    .article-list__item h2 a,
+    .article-list__link,
     .project-card__footer a,
     .text-link,
     .pagination a,

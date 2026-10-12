@@ -293,6 +293,8 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		".page-heading p {",
 		".article-list {",
 		".article-list__item {",
+		".article-list__link {",
+		".article-list__item:has(> .article-list__link:focus-visible)",
 		".pagination [aria-current=\"page\"]",
 		".section[aria-label=\"文章列表\"] .empty-state {",
 	} {
@@ -528,6 +530,9 @@ func TestArticlesPaginationAndStrictPageQuery(t *testing.T) {
 	if strings.Count(body, `<section class="section" aria-label="文章列表">`) != 1 || strings.Count(body, `<div class="article-list">`) != 1 || strings.Count(body, `class="article-list__item"`) != 1 {
 		t.Fatalf("article list structure is incorrect: %s", body)
 	}
+	if strings.Count(body, `<a class="article-list__link" href="/articles/`+testArticleULID+`">`) != 1 || strings.Contains(body, `<h2><a`) {
+		t.Fatalf("article card link structure is incorrect: %s", body)
+	}
 	if strings.Count(body, `<nav class="pagination" aria-label="文章分页">`) != 1 || !strings.Contains(body, `href="/articles?page=1" aria-label="上一页"`) || !strings.Contains(body, `<span aria-current="page">第 2 / 2 页</span>`) || strings.Contains(body, `aria-label="下一页"`) {
 		t.Fatalf("pagination semantics are incorrect: %s", body)
 	}
@@ -549,6 +554,22 @@ func TestArticlesPaginationAndStrictPageQuery(t *testing.T) {
 	}
 	if response := request(t, handler, "/articles?page=3"); response.Code != http.StatusNotFound {
 		t.Errorf("out of range status = %d, want 404", response.Code)
+	}
+}
+
+func TestArticlesWithoutPublicURLRemainUnlinked(t *testing.T) {
+	reader := &fakeArticleReader{total: 1, items: []article.PublishedArticle{{
+		Title:            "没有详情地址的文章",
+		PreviewText:      stringPointer("仍然显示摘要"),
+		FirstPublishedAt: timePointer(time.Date(2026, 9, 18, 16, 0, 0, 0, time.UTC)),
+	}}}
+	response := request(t, newPublicHandler(t, reader), "/articles")
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "没有详情地址的文章") {
+		t.Fatalf("unlinked article response = %d %s", response.Code, body)
+	}
+	if strings.Count(body, `<article class="article-list__item">`) != 1 || strings.Contains(body, `<a class="article-list__link"`) || strings.Contains(body, `<h2><a`) {
+		t.Fatalf("article without public URL became clickable: %s", body)
 	}
 }
 

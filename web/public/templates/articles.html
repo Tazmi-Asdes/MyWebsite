@@ -42,11 +42,13 @@
         <div class="article-list">
           {{range .Articles}}
           <article class="article-list__item">
+            {{if .HasURL}}<a class="article-list__link" href="{{.URL}}">{{end}}
             <time datetime="{{.DateTime}}">{{.Published}}</time>
             <div>
-              <h2>{{if .HasURL}}<a href="{{.URL}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h2>
+              <h2>{{.Title}}</h2>
               <p>{{.Preview}}</p>
             </div>
+            {{if .HasURL}}</a>{{end}}
           </article>
           {{end}}
         </div>
