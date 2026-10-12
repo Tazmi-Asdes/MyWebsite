@@ -218,6 +218,13 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 	for _, token := range []string{
 		`html[data-theme="light"]`,
 		`html[data-theme="dark"]`,
+		"@view-transition {\n    navigation: auto;\n  }",
+		"@keyframes public-page-out",
+		"@keyframes public-page-in",
+		"::view-transition-old(root)",
+		"::view-transition-new(root)",
+		"transform: translateY(-0.35rem);",
+		"transform: translateY(0.35rem);",
 		`--site-background-image: url("/assets/site-background.jpg")`,
 		"background-image: var(--site-background-image)",
 		"background-size: cover;",
@@ -285,6 +292,14 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 	} {
 		if !strings.Contains(css, rule) {
 			t.Errorf("public shell CSS rule %q missing", rule)
+		}
+	}
+	for _, rule := range []string{
+		"@view-transition {\n    navigation: none;\n  }",
+		"::view-transition-old(root),\n  ::view-transition-new(root) {\n    animation: none !important;",
+	} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("reduced motion view transition CSS rule %q missing", rule)
 		}
 	}
 	for _, rule := range []string{

@@ -265,6 +265,42 @@ body > :where(header, main, footer) {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  @keyframes public-page-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(-0.35rem);
+    }
+  }
+
+  @keyframes public-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.35rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  ::view-transition-old(root) {
+    animation: public-page-out var(--motion-duration) ease-in both;
+  }
+
+  ::view-transition-new(root) {
+    animation: public-page-in var(--motion-duration) ease-out both;
+  }
+
   .hero__content,
   .page-heading,
   .section,
@@ -1774,6 +1810,15 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {
