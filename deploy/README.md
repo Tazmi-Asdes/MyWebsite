@@ -14,6 +14,8 @@
 
 构建和部署分开。部署使用 `--no-build --pull never`，先显式拉取待部署 digest；不会在 deploy 作业重新构建。`release.env` 不含生产配置或密码，作为作业产物保留 14 天。扫描报告、JUnit 与脱敏部署诊断也保留 14 天；扫描报告可下载，当前没有接入付费安全面板。
 
+`scan_images` 在生成 JSON 报告前先预热 Trivy 漏洞库，默认依次使用 `registry.gitlab.com/gitlab-org/security-products/dependencies/trivy-db:2` 和 `ghcr.io/aquasecurity/trivy-db:2`。可用 GitLab CI/CD 变量 `MYWEBSITE_TRIVY_DB_REPOSITORIES` 覆盖空格分隔的源列表，或用 `MYWEBSITE_TRIVY_DB_DOWNLOAD_TIMEOUT` 覆盖单源下载超时（默认 `3m`）。成功下载的数据库保存在 Trivy 缓存中，报告扫描和漏洞门禁共用该缓存；门禁失败时 GitLab 仍会回传已更新的缓存。所有源都失败时扫描作业失败并阻止部署。
+
 分支推送已有打开的 MR 时仅运行 MR 流水线。新提交可以取消旧的校验作业；构建、扫描和生产操作不自动中断。生产发布与回退共用 `production` 资源锁，脚本在更新前核对远程默认分支 HEAD，阻止过时流水线覆盖新版本。
 
 ## 首次使用前

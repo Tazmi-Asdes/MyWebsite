@@ -70,11 +70,19 @@ fi
 args=("$@")
 report=''
 gate=false
+download_db=false
+db_repository=''
 image_ref=${args[${#args[@]}-1]}
 for ((i = 0; i < ${#args[@]}; i++)); do
   case ${args[$i]} in
     --output)
       report=${args[$((i + 1))]}
+      ;;
+    --db-repository)
+      db_repository=${args[$((i + 1))]}
+      ;;
+    --download-db-only)
+      download_db=true
       ;;
     --exit-code)
       gate=true
@@ -82,8 +90,18 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   esac
 done
 
+if [ "$download_db" = true ]; then
+  [ -n "$db_repository" ] || exit 52
+  if [ "${TRIVY_FAIL_DB_ALL:-false}" = true ] || [ "${TRIVY_FAIL_DB_REPOSITORY:-}" = "$db_repository" ]; then
+    printf 'mock Trivy database download failed for %s\n' "$db_repository" >&2
+    exit 9
+  fi
+  exit 0
+fi
+
 if [ "$gate" = false ]; then
   [ -n "$report" ] || exit 51
+  [[ " ${args[*]} " == *' --skip-db-update '* ]] || exit 53
   printf '{"image":"%s","results":[]}\n' "$image_ref" >"$report"
   if [ "${TRIVY_FAIL_SCAN_FOR:-}" = "$image_ref" ]; then
     exit 8
@@ -128,16 +146,62 @@ fi
 export APP_IMAGE_REF=registry.example/group/project/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export ADMIN_WEB_IMAGE_REF=registry.example/group/project/admin-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 export TRIVY_CACHE_DIR="$CI_PROJECT_DIR/.cache/trivy"
+export MYWEBSITE_TRIVY_DB_REPOSITORIES='mock.registry/first:2 mock.registry/second:2'
+export MYWEBSITE_TRIVY_DB_DOWNLOAD_TIMEOUT=17s
 export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-success"
 sh "$project_root/deploy/scripts/scan-images.sh"
 
 [[ -s "$DEPLOY_DIAGNOSTICS_DIR/app-vulnerabilities.json" ]]
 [[ -s "$DEPLOY_DIAGNOSTICS_DIR/admin-web-vulnerabilities.json" ]]
-[[ $(grep -c '^trivy image ' "$MOCK_TRIVY_LOG") -eq 4 ]]
+[[ $(grep -c '^trivy image ' "$MOCK_TRIVY_LOG") -eq 5 ]]
+[[ $(grep -c -- '--download-db-only' "$MOCK_TRIVY_LOG") -eq 1 ]]
+[[ $(grep -c -- '--db-repository mock.registry/first:2' "$MOCK_TRIVY_LOG") -eq 1 ]]
+[[ $(grep -c -- '--timeout 17s' "$MOCK_TRIVY_LOG") -eq 1 ]]
+[[ $(grep -c -- '--skip-db-update' "$MOCK_TRIVY_LOG") -eq 4 ]]
 grep -Fq -- '--image-src remote' "$MOCK_TRIVY_LOG"
 grep -Fq -- '--severity HIGH,CRITICAL' "$MOCK_TRIVY_LOG"
 grep -Fq -- '--ignore-unfixed' "$MOCK_TRIVY_LOG"
 grep -Fq -- '--exit-code 1' "$MOCK_TRIVY_LOG"
+
+export MOCK_TRIVY_LOG="$temp_root/trivy-db-failover.log"
+export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-db-failover"
+export TRIVY_FAIL_DB_REPOSITORY='mock.registry/first:2'
+sh "$project_root/deploy/scripts/scan-images.sh"
+unset TRIVY_FAIL_DB_REPOSITORY
+[[ $(grep -c '^trivy image ' "$MOCK_TRIVY_LOG") -eq 6 ]]
+[[ $(grep -c -- '--download-db-only' "$MOCK_TRIVY_LOG") -eq 2 ]]
+[[ $(grep -c -- '--skip-db-update' "$MOCK_TRIVY_LOG") -eq 4 ]]
+[[ $(grep -c -- '--db-repository mock.registry/first:2' "$MOCK_TRIVY_LOG") -eq 1 ]]
+[[ $(grep -c -- '--db-repository mock.registry/second:2' "$MOCK_TRIVY_LOG") -eq 1 ]]
+first_db_attempt=$(grep -nF -- '--db-repository mock.registry/first:2' "$MOCK_TRIVY_LOG" | cut -d: -f1)
+second_db_attempt=$(grep -nF -- '--db-repository mock.registry/second:2' "$MOCK_TRIVY_LOG" | cut -d: -f1)
+[[ $first_db_attempt -lt $second_db_attempt ]]
+[[ -s "$DEPLOY_DIAGNOSTICS_DIR/app-vulnerabilities.json" ]]
+[[ -s "$DEPLOY_DIAGNOSTICS_DIR/admin-web-vulnerabilities.json" ]]
+
+export MOCK_TRIVY_LOG="$temp_root/trivy-db-failure.log"
+export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-db-failure"
+export TRIVY_FAIL_DB_ALL=true
+if sh "$project_root/deploy/scripts/scan-images.sh"; then
+  printf '%s\n' 'scan script must fail when every Trivy database source fails' >&2
+  exit 1
+fi
+unset TRIVY_FAIL_DB_ALL
+[[ $(grep -c -- '--download-db-only' "$MOCK_TRIVY_LOG") -eq 2 ]]
+! grep -Fq -- '--format json' "$MOCK_TRIVY_LOG"
+! grep -Fq -- '--exit-code 1' "$MOCK_TRIVY_LOG"
+[[ ! -e "$DEPLOY_DIAGNOSTICS_DIR/app-vulnerabilities.json" ]]
+[[ ! -e "$DEPLOY_DIAGNOSTICS_DIR/admin-web-vulnerabilities.json" ]]
+
+export MOCK_TRIVY_LOG="$temp_root/trivy-db-empty.log"
+export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-db-empty"
+export MYWEBSITE_TRIVY_DB_REPOSITORIES='   '
+if sh "$project_root/deploy/scripts/scan-images.sh"; then
+  printf '%s\n' 'scan script must reject an empty Trivy database source list' >&2
+  exit 1
+fi
+[[ ! -s "$MOCK_TRIVY_LOG" ]]
+unset MYWEBSITE_TRIVY_DB_REPOSITORIES
 
 export MOCK_TRIVY_LOG="$temp_root/trivy-gate-failure.log"
 export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-gate-failure"
@@ -150,5 +214,9 @@ fi
 [[ -s "$DEPLOY_DIAGNOSTICS_DIR/admin-web-vulnerabilities.json" ]]
 json_scan_count=$(grep -c -- '--format json' "$MOCK_TRIVY_LOG")
 [[ $json_scan_count -eq 2 ]]
+[[ $(grep -c -- '--download-db-only' "$MOCK_TRIVY_LOG") -eq 1 ]]
+[[ $(grep -c -- '--skip-db-update' "$MOCK_TRIVY_LOG") -eq 3 ]]
+grep -Fq -- '--ignore-unfixed' "$MOCK_TRIVY_LOG"
+grep -Fq -- '--severity HIGH,CRITICAL' "$MOCK_TRIVY_LOG"
 
 printf '%s\n' 'build and scan mock checks passed'
