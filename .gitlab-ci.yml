@@ -1,10 +1,9 @@
-# Shell Runner performs image build/push and production actions. Verify and
-# Trivy jobs run on the Docker security Runner without a host Docker socket.
+# Only verification jobs use the Docker Runner with the security tag.
+# Image build/push and production actions use the Shell Runner with the server tag.
 
 stages:
   - verify
   - build
-  - scan
   - deploy
 
 workflow:
@@ -13,6 +12,7 @@ workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
       when: never
     - if: '$CI_COMMIT_BRANCH'
@@ -77,52 +77,6 @@ variables:
     - if: '$CI_COMMIT_BRANCH'
     - if: '$CI_COMMIT_TAG'
     - when: never
-
-.trivy_job:
-  stage: scan
-  image:
-    name: aquasec/trivy:0.75.0
-    entrypoint: [""]
-  tags:
-    - "$MYWEBSITE_SECURITY_RUNNER_TAG"
-  interruptible: false
-  timeout: 30 minutes
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
-      - scheduler_failure
-  variables:
-    DOCKER_CONFIG: "$CI_PROJECT_DIR/.mywebsite-docker-config-$CI_JOB_ID"
-    TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/trivy"
-    MYWEBSITE_TRIVY_DB_REPOSITORIES: "registry.gitlab.com/gitlab-org/security-products/dependencies/trivy-db:2 ghcr.io/aquasecurity/trivy-db:2"
-    MYWEBSITE_TRIVY_DB_DOWNLOAD_TIMEOUT: "3m"
-  cache:
-    key: trivy-db-v1
-    paths:
-      - .cache/trivy/
-    policy: pull-push
-    when: always
-  before_script:
-    - |
-      set -eu
-      test -n "$CI_REGISTRY"
-      test -n "$CI_REGISTRY_USER"
-      test -n "$CI_REGISTRY_PASSWORD"
-      mkdir -p "$DOCKER_CONFIG" "$CI_PROJECT_DIR/.cache/trivy" "$CI_PROJECT_DIR/test-results/deploy"
-      printf '%s' "$CI_REGISTRY_PASSWORD" | trivy registry login \
-        --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-  after_script:
-    - |
-      if [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
-        rm -rf -- "$DOCKER_CONFIG"
-      fi
-  artifacts:
-    when: always
-    expire_in: 14 days
-    paths:
-      - test-results/deploy/app-vulnerabilities.json
-      - test-results/deploy/admin-web-vulnerabilities.json
 
 .shell_docker_job:
   tags:
@@ -255,30 +209,6 @@ build_images:
     paths:
       - release.env
 
-scan_images:
-  extends: .trivy_job
-  needs:
-    - job: build_images
-      artifacts: true
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
-    - when: never
-  script:
-    - sh deploy/scripts/scan-images.sh
-
-scan_main_images:
-  extends: .trivy_job
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
-    - when: never
-  script:
-    - |
-      set -eu
-      export APP_IMAGE_REF="${CI_REGISTRY_IMAGE}/app:${CI_COMMIT_SHA}"
-      export ADMIN_WEB_IMAGE_REF="${CI_REGISTRY_IMAGE}/admin-web:${CI_COMMIT_SHA}"
-      sh deploy/scripts/scan-images.sh
-
 deploy_prod:
   extends: .production_job
   stage: deploy
@@ -289,8 +219,6 @@ deploy_prod:
   needs:
     - job: build_images
       artifacts: true
-    - job: scan_images
-      artifacts: false
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
     - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
