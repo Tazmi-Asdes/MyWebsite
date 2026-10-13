@@ -1,18 +1,20 @@
-# Linux Shell Runner contract for deployment:
-# - the runner is tagged with MYWEBSITE_RUNNER_TAG (default: server);
-# - the runner can execute Docker CLI commands and access the Docker daemon;
-# - deploy/env.production, the database password file, the uploads directory,
-#   and the 1Panel network are provisioned outside Git and outside artifacts.
-# Verification jobs use the Docker executor tagged with
-# MYWEBSITE_SECURITY_RUNNER_TAG (default: security).
+# Shell Runner performs image build/push and production actions. Verify and
+# Trivy jobs run on the Docker security Runner without a host Docker socket.
 
 stages:
   - verify
+  - build
+  - scan
   - deploy
 
 workflow:
+  auto_cancel:
+    on_new_commit: interruptible
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
     - if: '$CI_COMMIT_BRANCH'
     - if: '$CI_COMMIT_TAG'
     - when: never
@@ -27,19 +29,135 @@ variables:
   GOPROXY: "https://goproxy.cn,direct"
   GOSUMDB: "sum.golang.org"
   NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
+  GO_VERSION: "1.27.1"
+  NODE_VERSION: "24.16.0"
   DEPLOY_ROOT: "/opt/mywebsite"
   PRODUCTION_URL: "https://tazmi.online"
   DOCKER_BUILDKIT: "1"
-  COMPOSE_DOCKER_CLI_BUILD: "1"
   BUILDKIT_PROGRESS: "plain"
-  PULL_BASE_IMAGES: "false"
-# Set PULL_BASE_IMAGES=true in a manual pipeline when refreshing base images.
+  PULL_BASE_IMAGES:
+    value: "false"
+    options:
+      - "false"
+      - "true"
+    description: "Set true in a manual default-branch pipeline to refresh Docker base images."
+  PIPELINE_ACTION:
+    value: "deploy"
+    options:
+      - "deploy"
+      - "rollback"
+    description: "Choose deploy or rollback for a protected default-branch web pipeline."
+  ALLOW_DEPLOY_CONFIG_CHANGE:
+    value: "false"
+    options:
+      - "false"
+      - "true"
+    description: "Set true only after backup and compatibility review for a config change."
+  CONFIG_CHANGE_CONFIRMATION:
+    value: ""
+    description: "For an authorized config change, enter I_HAVE_BACKUP_AND_CONFIRMED_COMPATIBILITY."
 
-verify_go:
+.verify_job:
   stage: verify
-  image: golang:1.27.1-alpine
   tags:
     - "$MYWEBSITE_SECURITY_RUNNER_TAG"
+  interruptible: true
+  timeout: 20 minutes
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - scheduler_failure
+  rules:
+    - if: '$PIPELINE_ACTION == "rollback"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - when: never
+
+.trivy_job:
+  stage: scan
+  image:
+    name: aquasec/trivy:0.75.0
+    entrypoint: [""]
+  tags:
+    - "$MYWEBSITE_SECURITY_RUNNER_TAG"
+  interruptible: false
+  timeout: 30 minutes
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - scheduler_failure
+  variables:
+    DOCKER_CONFIG: "$CI_PROJECT_DIR/.mywebsite-docker-config-$CI_JOB_ID"
+    TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/trivy"
+  cache:
+    key: trivy-db-v1
+    paths:
+      - .cache/trivy/
+    policy: pull-push
+  before_script:
+    - |
+      set -eu
+      test -n "$CI_REGISTRY"
+      test -n "$CI_REGISTRY_USER"
+      test -n "$CI_REGISTRY_PASSWORD"
+      mkdir -p "$DOCKER_CONFIG" "$CI_PROJECT_DIR/.cache/trivy" "$CI_PROJECT_DIR/test-results/deploy"
+      printf '%s' "$CI_REGISTRY_PASSWORD" | trivy registry login \
+        --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  after_script:
+    - |
+      if [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
+        rm -rf -- "$DOCKER_CONFIG"
+      fi
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - test-results/deploy/app-vulnerabilities.json
+      - test-results/deploy/admin-web-vulnerabilities.json
+
+.shell_docker_job:
+  tags:
+    - "$MYWEBSITE_RUNNER_TAG"
+  interruptible: false
+  variables:
+    DOCKER_CONFIG: "$CI_BUILDS_DIR/.mywebsite-docker-config-$CI_JOB_ID"
+  after_script:
+    - |
+      if [ -n "${CI_REGISTRY:-}" ] && [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
+        docker logout "$CI_REGISTRY" >/dev/null 2>&1 || true
+      fi
+      if [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
+        rm -rf -- "$DOCKER_CONFIG"
+      fi
+      if [ -n "${DEPLOY_ROOT:-}" ] && [ -n "${CI_PROJECT_DIR:-}" ] && [ "$DEPLOY_ROOT/deploy/env.production" != "$CI_PROJECT_DIR/deploy/env.production" ]; then
+        rm -f -- "$CI_PROJECT_DIR/deploy/env.production"
+      fi
+
+.production_job:
+  extends: .shell_docker_job
+  timeout: 30 minutes
+  retry: 0
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    - |
+      set -eu
+      test -n "$CI_REGISTRY"
+      test -n "$CI_REGISTRY_USER"
+      test -n "$CI_REGISTRY_PASSWORD"
+      mkdir -p "$DOCKER_CONFIG" "$CI_PROJECT_DIR/test-results/deploy"
+      printf '%s' "$CI_REGISTRY_PASSWORD" | docker login \
+        --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+verify_go:
+  extends: .verify_job
+  image: golang:1.27.1-alpine
   cache:
     key:
       files:
@@ -48,15 +166,10 @@ verify_go:
       - .cache/go-mod/
       - .cache/go-build/
     policy: pull-push
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH'
-    - if: '$CI_COMMIT_TAG'
-    - when: never
   script:
     - |
       set -eu
-      apk add --no-cache git >/dev/null
+      apk add --no-cache bash git >/dev/null
       export GOMODCACHE="$CI_PROJECT_DIR/.cache/go-mod"
       export GOCACHE="$CI_PROJECT_DIR/.cache/go-build"
       export GOTMPDIR=/tmp/gotmp
@@ -64,20 +177,28 @@ verify_go:
       export PATH="$GOBIN:$PATH"
       mkdir -p "$GOMODCACHE" "$GOCACHE" "$GOTMPDIR" "$GOBIN" "$CI_PROJECT_DIR/test-results"
       go install gotest.tools/gotestsum@v1.13.0
+      unformatted="$(git ls-files -z -- '*.go' | xargs -0 gofmt -l)"
+      if [ -n "$unformatted" ]; then
+        printf 'gofmt check failed; run gofmt on these files:\n%s\n' "$unformatted" >&2
+        exit 1
+      fi
+      go vet ./...
       gotestsum --junitfile "$CI_PROJECT_DIR/test-results/go-junit.xml" -- ./...
+      for script in deploy/scripts/*.sh; do bash -n "$script"; done
+      bash deploy/tests/build-scan-test.sh
+      bash deploy/tests/deploy-production-test.sh
     - git diff --check
   artifacts:
     when: always
+    expire_in: 14 days
     reports:
       junit: test-results/go-junit.xml
     paths:
       - test-results/go-junit.xml
 
 verify_admin:
-  stage: verify
+  extends: .verify_job
   image: node:24.16.0-alpine
-  tags:
-    - "$MYWEBSITE_SECURITY_RUNNER_TAG"
   cache:
     key:
       files:
@@ -85,11 +206,6 @@ verify_admin:
     paths:
       - .cache/npm/
     policy: pull-push
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH'
-    - if: '$CI_COMMIT_TAG'
-    - when: never
   script:
     - |
       set -eu
@@ -102,239 +218,103 @@ verify_admin:
       npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
       npm run typecheck
       npm test -- --reporter=junit --outputFile="$CI_PROJECT_DIR/test-results/admin-junit.xml"
+      npm run build
       cd "$CI_PROJECT_DIR"
     - git diff --check
   artifacts:
     when: always
+    expire_in: 14 days
     reports:
       junit: test-results/admin-junit.xml
     paths:
       - test-results/admin-junit.xml
 
-deploy:
+build_images:
+  extends: .shell_docker_job
+  stage: build
+  timeout: 45 minutes
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - scheduler_failure
+  resource_group: image-build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - bash deploy/scripts/build-images.sh
+  artifacts:
+    expire_in: 14 days
+    reports:
+      dotenv: release.env
+    paths:
+      - release.env
+
+scan_images:
+  extends: .trivy_job
+  needs:
+    - job: build_images
+      artifacts: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - sh deploy/scripts/scan-images.sh
+
+scan_main_images:
+  extends: .trivy_job
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - |
+      set -eu
+      export APP_IMAGE_REF="${CI_REGISTRY_IMAGE}/app:${CI_COMMIT_SHA}"
+      export ADMIN_WEB_IMAGE_REF="${CI_REGISTRY_IMAGE}/admin-web:${CI_COMMIT_SHA}"
+      sh deploy/scripts/scan-images.sh
+
+deploy_prod:
+  extends: .production_job
   stage: deploy
-  tags:
-    - "$MYWEBSITE_RUNNER_TAG"
-  variables:
-    DOCKER_CONFIG: "$CI_BUILDS_DIR/.mywebsite-docker-config-$CI_PIPELINE_ID"
   resource_group: production
   environment:
     name: production
     url: "$PRODUCTION_URL"
   needs:
-    - job: verify_go
-    - job: verify_admin
+    - job: build_images
+      artifacts: true
+    - job: scan_images
+      artifacts: false
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
     - when: never
-  after_script:
-    - |
-      if [ "$DEPLOY_ROOT/deploy/env.production" != "$CI_PROJECT_DIR/deploy/env.production" ]; then
-        rm -f -- "$CI_PROJECT_DIR/deploy/env.production"
-      fi
-      if [ -n "${CI_REGISTRY:-}" ] && [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
-        docker logout "$CI_REGISTRY" >/dev/null 2>&1 || true
-      fi
-      if [ -n "${DOCKER_CONFIG:-}" ] && [ -d "$DOCKER_CONFIG" ]; then
-        rm -rf -- "$DOCKER_CONFIG"
-      fi
   script:
-    - |
-      set -eu
-      command -v docker >/dev/null
-      command -v curl >/dev/null
-      command -v install >/dev/null
-      docker version
-      docker compose version
-      curl --version
-      install --version
-    - |
-      set -eu
-      env_source="$DEPLOY_ROOT/deploy/env.production"
-      env_target="$CI_PROJECT_DIR/deploy/env.production"
-      db_password_file="$DEPLOY_ROOT/secrets/db_password"
-      redis_password_file="$DEPLOY_ROOT/secrets/redis_password"
-      test -r "$env_source"
-      test -r "$db_password_file"
-      test -s "$db_password_file"
-      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$db_password_file"
-      test -r "$redis_password_file"
-      test -s "$redis_password_file"
-      awk 'NR > 1 { multiple=1 } END { exit multiple ? 1 : 0 }' "$redis_password_file"
-      test -d "$DEPLOY_ROOT/data/uploads"
-      docker network inspect "$MYSQL_NETWORK_NAME" >/dev/null
-      redis_config_error="$(awk '
-        /^[[:space:]]*(#|$)/ { next }
-        /^[[:space:]]*(export[[:space:]]+)?REDIS_(ADDR|URL|PASSWORD_FILE|DB)[[:space:]]*=/ {
-          line = $0
-          sub(/^[[:space:]]*(export[[:space:]]+)?/, "", line)
-          split(line, fields, "=")
-          key = fields[1]
-          gsub(/[[:space:]]/, "", key)
-          if (key == "REDIS_ADDR") addr = 1
-          if (key == "REDIS_URL") url = 1
-          if (key == "REDIS_PASSWORD_FILE") password_file = 1
-          if (key == "REDIS_DB") db = 1
-        }
-        END {
-          if ((password_file || db) && !addr && !url) {
-            print "env.production sets REDIS_PASSWORD_FILE or REDIS_DB without REDIS_ADDR or REDIS_URL"
-          }
-          if (addr && url) {
-            print "env.production sets both REDIS_ADDR and REDIS_URL"
-          }
-        }
-      ' "$env_source")"
-      if [ -n "$redis_config_error" ]; then
-        printf '%s\n' "$redis_config_error" >&2
-        exit 1
-      fi
-      if [ "$env_source" != "$env_target" ]; then
-        install -m 0600 "$env_source" "$env_target"
-      fi
-    - |
-      set -eu
-      test -n "$CI_REGISTRY"
-      test -n "$CI_REGISTRY_IMAGE"
-      test -n "$CI_REGISTRY_USER"
-      test -n "$CI_REGISTRY_PASSWORD"
-      mkdir -p "$DOCKER_CONFIG"
-      printf '%s' "$CI_REGISTRY_PASSWORD" | docker login \
-        --username "$CI_REGISTRY_USER" \
-        --password-stdin "$CI_REGISTRY"
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      docker compose \
-        --project-directory "$CI_PROJECT_DIR" \
-        -f "$CI_PROJECT_DIR/compose.yaml" \
-        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-        -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-        config --quiet
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      compose() {
-        docker compose \
-          --project-directory "$CI_PROJECT_DIR" \
-          -f "$CI_PROJECT_DIR/compose.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-          "$@"
-      }
-      if [ "$PULL_BASE_IMAGES" = "true" ]; then
-        compose build --pull app admin-web
-      else
-        compose build app admin-web
-      fi
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      compose() {
-        docker compose \
-          --project-directory "$CI_PROJECT_DIR" \
-          -f "$CI_PROJECT_DIR/compose.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-          "$@"
-      }
-      push_with_retry() {
-        service=$1
-        attempt=1
-        while [ "$attempt" -le 3 ]; do
-          printf 'Pushing service %s (attempt %s/3)\n' "$service" "$attempt"
-          if compose push "$service"; then
-            return 0
-          else
-            push_status=$?
-          fi
-          if [ "$attempt" -eq 3 ]; then
-            printf 'Push failed for service %s after %s attempts (exit code %s)\n' \
-              "$service" "$attempt" "$push_status" >&2
-            return "$push_status"
-          fi
-          delay=$((attempt * 5))
-          printf 'Retrying service %s in %s seconds\n' "$service" "$delay"
-          sleep "$delay"
-          attempt=$((attempt + 1))
-        done
-      }
-      push_with_retry app
-      push_with_retry admin-web
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      compose() {
-        docker compose \
-          --project-directory "$CI_PROJECT_DIR" \
-          -f "$CI_PROJECT_DIR/compose.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-          "$@"
-      }
-      cleanup_script="$CI_PROJECT_DIR/deploy/scripts/cleanup-images.sh"
-      IMAGE_HISTORY_FILE="${CI_BUILDS_DIR}/.mywebsite-images-${CI_PROJECT_ID}"
-      if [ ! -e "$IMAGE_HISTORY_FILE" ]; then
-        app_container_id="$(compose ps -q app 2>/dev/null)" || app_container_id=
-        admin_container_id="$(compose ps -q admin-web 2>/dev/null)" || admin_container_id=
-        bash "$cleanup_script" bootstrap "$CI_REGISTRY_IMAGE" "$IMAGE_HISTORY_FILE" \
-          "$app_container_id" "$admin_container_id" \
-          "http://127.0.0.1:${APP_PORT}/-/live" \
-          "http://127.0.0.1:${APP_PORT}/-/ready" \
-          "http://127.0.0.1:${ADMIN_WEB_PORT}/admin/" || true
-      fi
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      docker compose \
-        --project-directory "$CI_PROJECT_DIR" \
-        -f "$CI_PROJECT_DIR/compose.yaml" \
-        -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-        -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-        up -d --no-build --no-deps app admin-web
-    - |
-      set -eu
-      export IMAGE_TAG="$CI_COMMIT_SHA"
-      export APP_IMAGE="${CI_REGISTRY_IMAGE}/app"
-      export ADMIN_WEB_IMAGE="${CI_REGISTRY_IMAGE}/admin-web"
-      compose() {
-        docker compose \
-          --project-directory "$CI_PROJECT_DIR" \
-          -f "$CI_PROJECT_DIR/compose.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.onepanel.example.yaml" \
-          -f "$CI_PROJECT_DIR/deploy/compose.redis.onepanel.yaml" \
-          "$@"
-      }
+    - bash deploy/scripts/deploy-production.sh deploy
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - test-results/deploy/
 
-      healthy=0
-      for attempt in $(seq 1 30); do
-        if curl --fail --silent --show-error --max-time 5 -o /dev/null \
-            "http://127.0.0.1:${APP_PORT}/-/live" && \
-           curl --fail --silent --show-error --max-time 5 -o /dev/null \
-            "http://127.0.0.1:${APP_PORT}/-/ready" && \
-           curl --fail --silent --show-error --max-time 5 -o /dev/null \
-            "http://127.0.0.1:${ADMIN_WEB_PORT}/admin/"; then
-          healthy=1
-          break
-        fi
-        sleep 2
-      done
-
-      if [ "$healthy" -ne 1 ]; then
-        compose ps || true
-        compose logs --tail=100 app admin-web || true
-        exit 1
-      fi
-      bash "$CI_PROJECT_DIR/deploy/scripts/cleanup-images.sh" cleanup \
-        "$CI_REGISTRY_IMAGE" "$CI_COMMIT_SHA" \
-        "${CI_BUILDS_DIR}/.mywebsite-images-${CI_PROJECT_ID}" || true
+rollback_prod:
+  extends: .production_job
+  stage: deploy
+  resource_group: production
+  environment:
+    name: production
+    url: "$PRODUCTION_URL"
+  needs: []
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "rollback" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - bash deploy/scripts/deploy-production.sh rollback
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - test-results/deploy/

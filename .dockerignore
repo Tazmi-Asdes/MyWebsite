@@ -11,6 +11,12 @@ runtime/
 .tmp/
 tmp/
 temp/
+.cache/
+test-results/
+.codex-remote-attachments/
+.codex/
+release.env
+*.tmp
 web/admin/node_modules/
 web/admin/dist/
 *.sqlite

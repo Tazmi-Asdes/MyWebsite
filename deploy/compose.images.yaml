@@ -1,0 +1,8 @@
+# CI-only immutable image references. Keep all service and runtime settings in
+# compose.yaml and the reviewed production overlays.
+services:
+  app:
+    image: ${APP_IMAGE_REF:?APP_IMAGE_REF must be a complete digest reference}
+
+  admin-web:
+    image: ${ADMIN_WEB_IMAGE_REF:?ADMIN_WEB_IMAGE_REF must be a complete digest reference}
