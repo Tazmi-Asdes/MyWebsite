@@ -194,18 +194,6 @@ type GitHubVerifier interface {
 	Verify(context.Context, string) error
 }
 
-// RepositoryVerifier is an alternate readable method name accepted by
-// NewService when an adapter already exposes VerifyRepository.
-type RepositoryVerifier interface {
-	VerifyRepository(context.Context, string) error
-}
-
-type repositoryVerifierAdapter struct{ verifier RepositoryVerifier }
-
-func (adapter repositoryVerifierAdapter) Verify(ctx context.Context, value string) error {
-	return adapter.verifier.VerifyRepository(ctx, value)
-}
-
 // GitHubVerifyFunc adapts a function to GitHubVerifier.
 type GitHubVerifyFunc func(context.Context, string) error
 
@@ -225,24 +213,14 @@ type Service struct {
 
 type Option func(*Service)
 
-// WithClock injects a deterministic time source. It accepts either a
-// func() time.Time or a small clock interface with a Now method.
-func WithClock(value any) Option {
+// WithClock injects a deterministic time source.
+func WithClock(now func() time.Time) Option {
 	return func(service *Service) {
-		switch clock := value.(type) {
-		case func() time.Time:
-			if clock != nil {
-				service.now = clock
-			}
-		case interface{ Now() time.Time }:
-			if clock != nil {
-				service.now = clock.Now
-			}
+		if now != nil {
+			service.now = now
 		}
 	}
 }
-
-func WithNow(value func() time.Time) Option { return WithClock(value) }
 
 func WithGitHubVerifier(verifier GitHubVerifier) Option {
 	return func(service *Service) {
@@ -252,31 +230,18 @@ func WithGitHubVerifier(verifier GitHubVerifier) Option {
 	}
 }
 
-// NewService creates a project service. Dependencies may be supplied in any
-// order as a verifier and/or Option; accepting both forms keeps construction
-// convenient for small adapters while the domain boundary remains typed.
-func NewService(repository Repository, dependencies ...any) *Service {
+// NewService creates a project service with dependency options.
+func NewService(repository Repository, options ...Option) *Service {
 	service := &Service{
 		repository: repository,
 		now:        func() time.Time { return time.Now().UTC() },
 	}
-	for _, dependency := range dependencies {
-		switch value := dependency.(type) {
-		case GitHubVerifier:
-			service.verifier = value
-		case RepositoryVerifier:
-			service.verifier = repositoryVerifierAdapter{verifier: value}
-		case Option:
-			if value != nil {
-				value(service)
-			}
+	for _, option := range options {
+		if option != nil {
+			option(service)
 		}
 	}
 	return service
-}
-
-func New(repository Repository, dependencies ...any) *Service {
-	return NewService(repository, dependencies...)
 }
 
 func (service *Service) Create(ctx context.Context, request CreateRequest) (Project, error) {

@@ -2,9 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import type { components } from '../api/schema'
-import { ApiError, request, uploadMedia } from '../api/client'
+import { ApiError, request } from '../api/client'
 import { handleApiError } from '../composables/useSession'
 import { useDialogFocus } from '../composables/useDialogFocus'
+import { useMediaUpload } from '../composables/useMediaUpload'
 import {
   consumePreparedLeave,
   confirmLeave,
@@ -43,11 +44,21 @@ const showHide = ref(false)
 const hideDialogRef = ref<HTMLElement | null>(null)
 const hideCancelRef = ref<HTMLButtonElement | null>(null)
 
-const selectedFile = ref<File | null>(null)
-const imageUploading = ref(false)
-const imageUploadProgress = ref(0)
-const imageUploadError = ref('')
 const imageInput = ref<HTMLInputElement | null>(null)
+const mediaUpload = useMediaUpload({
+  onSuccess: (asset) => {
+    imageAssetId.value = asset.id
+    imagePreviewUrl.value = asset.preview_url
+  },
+  onError: handleApiError,
+  formatError,
+})
+const {
+  file: selectedFile,
+  uploading: imageUploading,
+  progress: imageUploadProgress,
+  error: imageUploadError,
+} = mediaUpload
 
 const dirty = computed(() => (
   name.value !== baselineName.value
@@ -233,43 +244,19 @@ function selectImage(event: Event): void {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  selectedFile.value = file
-  imageUploadError.value = ''
+  mediaUpload.selectFile(file)
   void uploadSelectedImage()
 }
 
 async function uploadSelectedImage(): Promise<void> {
-  const file = selectedFile.value
-  if (!file || imageUploading.value) return
-  const accepted = new Set(['image/jpeg', 'image/png', 'image/webp'])
-  if (!accepted.has(file.type)) {
-    imageUploadError.value = '仅支持 JPEG、PNG 或 WebP 图片。'
-    return
-  }
-  imageUploading.value = true
-  imageUploadProgress.value = 0
-  imageUploadError.value = ''
-  try {
-    const asset = await uploadMedia(file, (progress) => {
-      imageUploadProgress.value = progress
-    })
-    imageAssetId.value = asset.id
-    imagePreviewUrl.value = asset.preview_url
-    imageUploadProgress.value = 100
-  } catch (error) {
-    handleApiError(error)
-    imageUploadError.value = formatError(error)
-  } finally {
-    imageUploading.value = false
-  }
+  await mediaUpload.upload()
 }
 
 function removeImage(): void {
   if (imageUploading.value) return
   imageAssetId.value = null
   imagePreviewUrl.value = null
-  selectedFile.value = null
-  imageUploadError.value = ''
+  mediaUpload.reset()
   if (imageInput.value) imageInput.value.value = ''
 }
 

@@ -83,7 +83,7 @@ func newMediaTestService(t *testing.T, store Store, root string) *Service {
 		MaxUploadBytes: 1 << 20,
 		MaxImagePixels: 100,
 		MaxImageEdge:   20,
-		Clock:          mediaFixedClock(time.Date(2026, 9, 20, 3, 4, 5, 0, time.FixedZone("test", 8*60*60))),
+		Clock:          mediaFixedClock(time.Date(2026, 9, 20, 3, 4, 5, 0, time.FixedZone("test", 8*60*60))).Now,
 		ULIDEntropy:    bytes.NewReader(bytes.Repeat([]byte{0x22}, 10)),
 	})
 	if err != nil {

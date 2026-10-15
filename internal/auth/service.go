@@ -92,20 +92,6 @@ type Session struct {
 // AuthenticatedSession is a descriptive alias for Session.
 type AuthenticatedSession = Session
 
-// ServiceConfig configures authentication dependencies and session lifetime.
-type ServiceConfig struct {
-	Store           Store
-	Random          io.Reader
-	Now             func() time.Time
-	IdleTimeout     time.Duration
-	AbsoluteTimeout time.Duration
-}
-
-// Clock is the optional clock shape accepted by NewService.
-type Clock interface {
-	Now() time.Time
-}
-
 // Option customizes a Service. Options are intentionally small to keep fake
 // stores and deterministic clocks straightforward in unit tests.
 type Option func(*Service)
@@ -118,9 +104,6 @@ func WithRandom(randomReader io.Reader) Option {
 	}
 }
 
-// WithRandomReader is an explicit alias for WithRandom.
-func WithRandomReader(randomReader io.Reader) Option { return WithRandom(randomReader) }
-
 func WithClock(now func() time.Time) Option {
 	return func(service *Service) {
 		if now != nil {
@@ -128,9 +111,6 @@ func WithClock(now func() time.Time) Option {
 		}
 	}
 }
-
-// WithNow is an alias for WithClock.
-func WithNow(now func() time.Time) Option { return WithClock(now) }
 
 func WithSessionTimeouts(idleTimeout, absoluteTimeout time.Duration) Option {
 	return func(service *Service) {
@@ -141,11 +121,6 @@ func WithSessionTimeouts(idleTimeout, absoluteTimeout time.Duration) Option {
 			service.absoluteTimeout = absoluteTimeout
 		}
 	}
-}
-
-// WithTimeouts is an alias for WithSessionTimeouts.
-func WithTimeouts(idleTimeout, absoluteTimeout time.Duration) Option {
-	return WithSessionTimeouts(idleTimeout, absoluteTimeout)
 }
 
 // Service implements administrator creation, credential verification, and
@@ -161,11 +136,9 @@ type Service struct {
 // AuthService is a descriptive alias for Service.
 type AuthService = Service
 
-// NewService constructs an authentication service. It accepts either Option
-// values, time.Duration values (idle then absolute), or a ServiceConfig. The
-// flexible form keeps the domain easy to use from small command and HTTP
-// adapters while retaining the fixed default lifetimes.
-func NewService(store Store, arguments ...any) *Service {
+// NewService constructs an authentication service with the default session
+// lifetimes. Options override those defaults.
+func NewService(store Store, options ...Option) *Service {
 	service := &Service{
 		store:           store,
 		random:          rand.Reader,
@@ -173,94 +146,12 @@ func NewService(store Store, arguments ...any) *Service {
 		idleTimeout:     DefaultIdleTimeout,
 		absoluteTimeout: DefaultAbsoluteTimeout,
 	}
-	service.applyArguments(arguments...)
-	return service
-}
-
-// New is a concise constructor alias.
-func New(store Store, arguments ...any) *Service { return NewService(store, arguments...) }
-
-// NewAuthService is an explicit constructor alias.
-func NewAuthService(store Store, arguments ...any) *Service {
-	return NewService(store, arguments...)
-}
-
-// NewServiceWithTimeouts is the explicit constructor form for callers that
-// want to document the two session lifetimes at the call site.
-func NewServiceWithTimeouts(store Store, idleTimeout, absoluteTimeout time.Duration) *Service {
-	return NewService(store, idleTimeout, absoluteTimeout)
-}
-
-// NewServiceWithConfig returns an error when the required store is absent.
-func NewServiceWithConfig(config ServiceConfig) (*Service, error) {
-	if config.Store == nil {
-		return nil, ErrStore
-	}
-	service := NewService(config.Store)
-	if config.Random != nil {
-		service.random = config.Random
-	}
-	if config.Now != nil {
-		service.now = config.Now
-	}
-	if config.IdleTimeout > 0 {
-		service.idleTimeout = config.IdleTimeout
-	}
-	if config.AbsoluteTimeout > 0 {
-		service.absoluteTimeout = config.AbsoluteTimeout
-	}
-	return service, nil
-}
-
-func (service *Service) applyArguments(arguments ...any) {
-	var durations []time.Duration
-	for _, argument := range arguments {
-		switch value := argument.(type) {
-		case Option:
-			if value != nil {
-				value(service)
-			}
-		case time.Duration:
-			durations = append(durations, value)
-		case io.Reader:
-			if value != nil {
-				service.random = value
-			}
-		case func() time.Time:
-			if value != nil {
-				service.now = value
-			}
-		case time.Time:
-			fixed := value
-			service.now = func() time.Time { return fixed }
-		case Clock:
-			if value != nil {
-				service.now = value.Now
-			}
-		case ServiceConfig:
-			if value.Store != nil {
-				service.store = value.Store
-			}
-			if value.Random != nil {
-				service.random = value.Random
-			}
-			if value.Now != nil {
-				service.now = value.Now
-			}
-			if value.IdleTimeout > 0 {
-				service.idleTimeout = value.IdleTimeout
-			}
-			if value.AbsoluteTimeout > 0 {
-				service.absoluteTimeout = value.AbsoluteTimeout
-			}
+	for _, option := range options {
+		if option != nil {
+			option(service)
 		}
 	}
-	if len(durations) > 0 && durations[0] > 0 {
-		service.idleTimeout = durations[0]
-	}
-	if len(durations) > 1 && durations[1] > 0 {
-		service.absoluteTimeout = durations[1]
-	}
+	return service
 }
 
 // CreateAdmin creates the first administrator only. CountAdmins is always the

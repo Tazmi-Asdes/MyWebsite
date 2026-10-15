@@ -89,21 +89,15 @@ type MediaService interface {
 	Open(context.Context, string, bool) (media.OpenResult, error)
 }
 
-// HandlerOptions configures the HTTP adapter. Auth and Articles are required;
-// AuthService and ArticleService are aliases kept to make wiring explicit at
-// call sites that prefer interface-named fields.
+// HandlerOptions configures the HTTP adapter. Auth and Articles are required.
 type HandlerOptions struct {
 	Auth           AuthService
 	Articles       ArticleService
 	Projects       ProjectService
 	Media          MediaService
 	MaxUploadBytes int64
-	AuthService    AuthService
-	ArticleService ArticleService
 	PublicBaseURL  string
-	PublicOrigin   string
 	CookieSecure   bool
-	SecureCookies  bool
 	Now            func() time.Time
 	// InvalidatePublic is called only after a successful mutation that changes
 	// anonymous public HTML. Cache failures are handled by the callback and
@@ -111,11 +105,8 @@ type HandlerOptions struct {
 	InvalidatePublic func(context.Context)
 }
 
-// Config is a compatibility alias for HandlerOptions.
-type Config = HandlerOptions
-
-// Handler implements the administrator routes. Stage 2 project and media
-// routes are enabled when their optional services are configured.
+// Handler implements the administrator routes. Project and media routes are
+// enabled when their optional services are configured.
 type Handler struct {
 	auth              AuthService
 	articles          ArticleService
@@ -134,26 +125,14 @@ type Handler struct {
 // separately with RegisterRoutes so the caller can compose them into the
 // application's existing ServeMux.
 func NewHandler(options HandlerOptions) (*Handler, error) {
-	authService := options.Auth
-	if authService == nil {
-		authService = options.AuthService
-	}
-	articleService := options.Articles
-	if articleService == nil {
-		articleService = options.ArticleService
-	}
-	if authService == nil {
+	if options.Auth == nil {
 		return nil, errors.New("adminapi: auth service is required")
 	}
-	if articleService == nil {
+	if options.Articles == nil {
 		return nil, errors.New("adminapi: article service is required")
 	}
 
-	originValue := options.PublicBaseURL
-	if originValue == "" {
-		originValue = options.PublicOrigin
-	}
-	origin, err := configuredOrigin(originValue)
+	origin, err := configuredOrigin(options.PublicBaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -162,13 +141,13 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 		now = time.Now
 	}
 	handler := &Handler{
-		auth:              authService,
-		articles:          articleService,
+		auth:              options.Auth,
+		articles:          options.Articles,
 		projects:          options.Projects,
 		media:             options.Media,
 		maxUploadBytes:    options.MaxUploadBytes,
 		publicOrigin:      origin,
-		cookieSecure:      options.CookieSecure || options.SecureCookies,
+		cookieSecure:      options.CookieSecure,
 		now:               func() time.Time { return now().UTC() },
 		publicInvalidator: options.InvalidatePublic,
 	}
@@ -181,9 +160,6 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 	handler.routes = mux
 	return handler, nil
 }
-
-// New is a concise constructor alias for NewHandler.
-func New(options HandlerOptions) (*Handler, error) { return NewHandler(options) }
 
 // RegisterRoutes registers the complete /api/v1 administrator route set on a
 // Go 1.22+ ServeMux.

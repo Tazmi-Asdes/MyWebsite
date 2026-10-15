@@ -119,7 +119,7 @@ func TestCreateAdminIsUniqueAndStoresUTCArgon2id(t *testing.T) {
 	now := time.Date(2026, 9, 19, 10, 11, 12, 123456000, time.FixedZone("test", 8*60*60))
 	service := NewService(store,
 		WithClock(func() time.Time { return now }),
-		WithRandomReader(bytes.NewReader(bytes.Repeat([]byte{0x10}, argon2SaltLength))),
+		WithRandom(bytes.NewReader(bytes.Repeat([]byte{0x10}, argon2SaltLength))),
 	)
 	if err := service.CreateAdmin(context.Background(), "admin user", "a sufficiently long password"); err != nil {
 		t.Fatalf("CreateAdmin() error = %v", err)
@@ -157,7 +157,7 @@ func TestLoginStoresOnlyTokenAndCSRFHashesAndAuthenticates(t *testing.T) {
 	service := NewService(store,
 		WithClock(func() time.Time { return now }),
 		WithSessionTimeouts(8*time.Hour, 24*time.Hour),
-		WithRandomReader(bytes.NewReader(append(bytes.Repeat([]byte{0x22}, 32), bytes.Repeat([]byte{0x23}, 32)...))),
+		WithRandom(bytes.NewReader(append(bytes.Repeat([]byte{0x22}, 32), bytes.Repeat([]byte{0x23}, 32)...))),
 	)
 	login, err := service.Login(context.Background(), "admin user", password)
 	if err != nil {
@@ -295,7 +295,7 @@ func TestReauthenticateCreatesThenRevokesAndDoesNotRetryOnRevokeFailure(t *testi
 		t.Fatal(err)
 	}
 	store := &fakeStore{admin: dbgen.Admin{ID: 4, Username: "admin user", PasswordHash: hash}, nextID: 8, revokeErr: errors.New("revoke failed")}
-	service := NewService(store, WithRandomReader(bytes.NewReader(bytes.Repeat([]byte{4}, 64))))
+	service := NewService(store, WithRandom(bytes.NewReader(bytes.Repeat([]byte{4}, 64))))
 	_, err = service.Reauthenticate(context.Background(), Session{ID: 7, Username: "admin user"}, password)
 	if !errors.Is(err, ErrStore) {
 		t.Fatalf("Reauthenticate() error = %v, want ErrStore", err)
@@ -408,7 +408,7 @@ func TestReauthenticateRevokeZeroRowsReturnsInvalidSessionAfterCreatingNewSessio
 		nextID:       8,
 		revokeResult: fakeResult{rows: 0},
 	}
-	service := NewService(store, WithRandomReader(bytes.NewReader(bytes.Repeat([]byte{6}, 64))))
+	service := NewService(store, WithRandom(bytes.NewReader(bytes.Repeat([]byte{6}, 64))))
 	_, err = service.Reauthenticate(context.Background(), Session{ID: 7, Username: "admin user"}, password)
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatalf("Reauthenticate() error = %v, want ErrInvalidSession", err)
@@ -429,7 +429,7 @@ func TestLoginLastInsertIDFailureReturnsStoreError(t *testing.T) {
 		nextID:        8,
 		sessionResult: fakeResult{id: 8, rows: 1, lastInsertErr: errors.New("insert id unavailable")},
 	}
-	service := NewService(store, WithRandomReader(bytes.NewReader(bytes.Repeat([]byte{8}, 64))))
+	service := NewService(store, WithRandom(bytes.NewReader(bytes.Repeat([]byte{8}, 64))))
 	if _, err := service.Login(context.Background(), "admin user", password); !errors.Is(err, ErrStore) {
 		t.Fatalf("Login() error = %v, want ErrStore", err)
 	}

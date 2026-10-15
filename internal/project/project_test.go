@@ -197,7 +197,7 @@ func TestServicePublishNormalizesAndPublishes(t *testing.T) {
 		}
 		return nil
 	})
-	service := NewService(repository, verifier, WithClock(fixedProjectClock))
+	service := NewService(repository, WithGitHubVerifier(verifier), WithClock(fixedProjectClock))
 	urlValue := " https://github.com/acme/demo.git/ "
 	imageID := "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 	published, orderVersion, err := service.Publish(context.Background(), created.ID, PublishRequest{

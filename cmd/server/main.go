@@ -62,7 +62,7 @@ func main() {
 	}
 	projectRepository := project.NewSQLRepository(databaseConnection.DB(), queries)
 	githubVerifier := project.NewGitHubHTTPVerifier(&http.Client{Timeout: config.GitHubTimeout}, config.GitHubAPIBaseURL)
-	projectService := project.NewService(projectRepository, githubVerifier, project.WithClock(clock.Now))
+	projectService := project.NewService(projectRepository, project.WithGitHubVerifier(githubVerifier), project.WithClock(clock.Now))
 	var publicCache *cache.RedisStore
 	if config.RedisEnabled {
 		redisConfig := config.Redis

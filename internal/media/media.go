@@ -116,9 +116,8 @@ type Config struct {
 	MaxUploadBytes int64
 	MaxImagePixels int64
 	MaxImageEdge   int64
-	// Clock accepts a Clock implementation or func() time.Time. A nil value
-	// uses UTC wall-clock time.
-	Clock       any
+	// Clock is the injectable time source. A nil value uses UTC wall-clock time.
+	Clock       func() time.Time
 	ULIDEntropy io.Reader
 }
 
@@ -136,29 +135,14 @@ func DefaultConfig(uploadDir string) Config {
 // Option customizes dependencies without expanding the public operation API.
 type Option func(*Service)
 
-// WithClock accepts either a Clock or a func() time.Time. The function form is
-// convenient in small unit tests and mirrors the other domain packages.
-func WithClock(value any) Option {
+// WithClock injects a deterministic time source.
+func WithClock(now func() time.Time) Option {
 	return func(service *Service) {
-		switch clock := value.(type) {
-		case Clock:
-			if clock != nil {
-				service.clock = clock
-			}
-		case func() time.Time:
-			if clock != nil {
-				service.clock = ClockFunc(clock)
-			}
-		case ClockFunc:
-			if clock != nil {
-				service.clock = clock
-			}
+		if now != nil {
+			service.clock = ClockFunc(now)
 		}
 	}
 }
-
-// WithNow is an alias for WithClock.
-func WithNow(value any) Option { return WithClock(value) }
 
 // WithULIDEntropy replaces the entropy source used for generated IDs.
 func WithULIDEntropy(entropy io.Reader) Option {
@@ -169,9 +153,6 @@ func WithULIDEntropy(entropy io.Reader) Option {
 	}
 }
 
-// WithEntropy is an alias for WithULIDEntropy.
-func WithEntropy(entropy io.Reader) Option { return WithULIDEntropy(entropy) }
-
 // Service implements upload normalization and publication-aware file access.
 type Service struct {
 	store       Store
@@ -181,13 +162,6 @@ type Service struct {
 	maxEdge     int64
 	clock       Clock
 	ulidEntropy io.Reader
-}
-
-// ServiceConfig is an explicit constructor form for callers that prefer one
-// configuration object containing the Store dependency.
-type ServiceConfig struct {
-	Store Store
-	Config
 }
 
 // NewService validates the limits and upload root before returning a service.
@@ -206,10 +180,7 @@ func NewService(store Store, config Config, options ...Option) (*Service, error)
 	if err != nil {
 		return nil, fmt.Errorf("%w: resolve upload directory: %v", ErrStorage, err)
 	}
-	clock, err := clockValue(config.Clock)
-	if err != nil {
-		return nil, fmt.Errorf("%w: invalid clock: %v", ErrStorage, err)
-	}
+	clock := clockValue(config.Clock)
 	service := &Service{
 		store:       store,
 		uploadDir:   filepath.Clean(uploadDir),
@@ -239,39 +210,11 @@ func NewService(store Store, config Config, options ...Option) (*Service, error)
 	return service, nil
 }
 
-func clockValue(value any) (Clock, error) {
-	if value == nil {
-		return realClock{}, nil
+func clockValue(now func() time.Time) Clock {
+	if now == nil {
+		return realClock{}
 	}
-	switch clock := value.(type) {
-	case Clock:
-		if clock == nil {
-			return realClock{}, nil
-		}
-		return clock, nil
-	case func() time.Time:
-		if clock == nil {
-			return realClock{}, nil
-		}
-		return ClockFunc(clock), nil
-	case ClockFunc:
-		if clock == nil {
-			return realClock{}, nil
-		}
-		return clock, nil
-	default:
-		return nil, fmt.Errorf("unsupported clock type %T", value)
-	}
-}
-
-// New is a concise constructor alias.
-func New(store Store, config Config, options ...Option) (*Service, error) {
-	return NewService(store, config, options...)
-}
-
-// NewServiceWithConfig constructs a service from the explicit config wrapper.
-func NewServiceWithConfig(config ServiceConfig, options ...Option) (*Service, error) {
-	return NewService(config.Store, config.Config, options...)
+	return ClockFunc(now)
 }
 
 type realClock struct{}

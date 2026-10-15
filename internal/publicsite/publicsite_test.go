@@ -238,7 +238,9 @@ func TestPublicStylesSupportSystemAndManualThemes(t *testing.T) {
 		"border-radius: 50%",
 		"theme-icon--sun",
 		"theme-icon--moon",
-		"backdrop-filter: blur(12px) saturate(120%)",
+		"--glass-blur-panel: 16px;",
+		"backdrop-filter: blur(var(--glass-blur-panel)) saturate(120%)",
+		"--reading-glass-bg:",
 		"@media (prefers-contrast: more), (forced-colors: active)",
 	} {
 		if !strings.Contains(css, token) {

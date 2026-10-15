@@ -819,4 +819,58 @@ describe('管理端路由页面', () => {
     await flushPromises()
     expect(wrapper.get('#article-body').element).toHaveProperty('value', '正文\n![请填写图片说明](/media/01JMEDIA)')
   })
+
+  it('项目图片上传期间禁用编辑操作，失败后保留文件并可重试预览', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/session')) return Promise.resolve(jsonResponse(200, session))
+      if (url.endsWith('/projects/3')) return Promise.resolve(jsonResponse(200, hiddenProject))
+      if (url.endsWith('/projects')) return Promise.resolve(jsonResponse(200, projectGroups()))
+      return Promise.resolve(jsonResponse(404, { status: 404, code: 'not_found' }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const uploads: DeferredUploadXHR[] = []
+    class DeferredUploadXHR {
+      upload = { addEventListener: (_type: string, callback: (event: { lengthComputable: boolean; loaded: number; total: number }) => void) => callback({ lengthComputable: true, loaded: 1, total: 2 }) }
+      status = 0
+      responseText = ''
+      private listeners = new Map<string, (event: Event) => void>()
+      open(): void {}
+      setRequestHeader(): void {}
+      addEventListener(type: string, callback: (event: Event) => void): void { this.listeners.set(type, callback) }
+      send(): void { uploads.push(this) }
+      complete(status: number, body: unknown): void {
+        this.status = status
+        this.responseText = JSON.stringify(body)
+        this.listeners.get('load')?.(new Event('load'))
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', DeferredUploadXHR)
+    await initSession(true)
+    const { wrapper } = await renderAt('/projects/3')
+    await flushPromises()
+
+    const projectFile = new File(['image'], 'project.png', { type: 'image/png' })
+    const imageInput = wrapper.get('#project-image').element as HTMLInputElement
+    Object.defineProperty(imageInput, 'files', { configurable: true, value: [projectFile] })
+    await wrapper.get('#project-image').trigger('change')
+    expect(uploads).toHaveLength(1)
+    expect(wrapper.get('#project-image').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.editor-actions button.button--primary').attributes('disabled')).toBeDefined()
+
+    uploads[0].complete(500, {
+      type: 'about:blank', title: '上传失败', status: 500, code: 'save_failed', request_id: 'project-upload-failed', errors: {},
+    })
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('上传失败')
+    await wrapper.findAll('button').find((button) => button.text() === '重试上传')!.trigger('click')
+    expect(uploads).toHaveLength(2)
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+
+    uploads[1].complete(201, { id: '01JPROJECTMEDIA', preview_url: '/api/v1/media/01JPROJECTMEDIA', markdown_reference: '![项目图](/media/01JPROJECTMEDIA)' })
+    await flushPromises()
+    expect(wrapper.get('.image-upload-preview img.upload__preview').attributes('src')).toBe('/api/v1/media/01JPROJECTMEDIA')
+    expect(wrapper.findAll('button').some((button) => button.text() === '重试上传')).toBe(false)
+  })
 })

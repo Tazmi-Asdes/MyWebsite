@@ -1,33 +1,11 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="{{.Description}}">
-  <title>{{.Title}}</title>
-  <script src="/assets/site.js"></script>
-  <link rel="stylesheet" href="/assets/styles.css">
+{{template "public-head-meta" .}}
+{{template "public-head-assets" .}}
 </head>
 <body>
-  <a class="skip-link" href="#main-content">跳到主要内容</a>
-  <header class="site-header">
-    <div class="container site-header__inner">
-      <a class="site-brand" href="/">Tazmi-Website</a>
-      <details class="site-menu" open>
-        <summary class="menu-button">菜单</summary>
-        <nav class="site-nav" aria-label="主要导航">
-          <a class="active" href="/" aria-current="page">首页</a>
-          <a href="/articles">文章</a>
-          <a href="/projects">项目</a>
-          <a href="/about">关于</a>
-          <button class="theme-toggle" type="button" data-theme-toggle hidden aria-pressed="false" aria-label="当前主题，点击切换到另一主题">
-            <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
-            <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
-          </button>
-        </nav>
-      </details>
-    </div>
-  </header>
+{{template "public-site-header" "home"}}
   <main id="main-content">
     <section class="hero">
       <div class="container hero__content">
@@ -114,10 +92,6 @@
       </div>
     </section>
   </main>
-  <footer class="site-footer">
-    <div class="container site-footer__inner">
-      <span>© {{.Year}} MyWebsite</span>
-    </div>
-  </footer>
+{{template "public-site-footer" .}}
 </body>
 </html>

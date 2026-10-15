@@ -2,9 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import type { components } from '../api/schema'
-import { ApiError, request, uploadMedia } from '../api/client'
+import { ApiError, request } from '../api/client'
 import { handleApiError } from '../composables/useSession'
 import { useDialogFocus } from '../composables/useDialogFocus'
+import { useMediaUpload } from '../composables/useMediaUpload'
 import {
   consumePreparedLeave,
   confirmLeave,
@@ -39,10 +40,17 @@ const withdrawDialogRef = ref<HTMLElement | null>(null)
 const withdrawCancelRef = ref<HTMLButtonElement | null>(null)
 const articleBodyRef = ref<HTMLTextAreaElement | null>(null)
 const imageInput = ref<HTMLInputElement | null>(null)
-const selectedImageFile = ref<File | null>(null)
-const imageUploading = ref(false)
-const imageUploadProgress = ref(0)
-const imageUploadError = ref('')
+const mediaUpload = useMediaUpload({
+  onSuccess: (asset) => insertMarkdownReference(asset.markdown_reference),
+  onError: handleApiError,
+  formatError,
+})
+const {
+  file: selectedImageFile,
+  uploading: imageUploading,
+  progress: imageUploadProgress,
+  error: imageUploadError,
+} = mediaUpload
 
 const dirty = computed(() => title.value !== baselineTitle.value || body.value !== baselineBody.value || version.value !== baselineVersion.value)
 
@@ -132,36 +140,15 @@ function selectArticleImage(event: Event): void {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  selectedImageFile.value = file
-  imageUploadError.value = ''
+  mediaUpload.selectFile(file)
   void uploadArticleImage()
 }
 
 async function uploadArticleImage(): Promise<void> {
-  const file = selectedImageFile.value
-  if (!file || imageUploading.value) return
-  const accepted = new Set(['image/jpeg', 'image/png', 'image/webp'])
-  if (!accepted.has(file.type)) {
-    imageUploadError.value = '仅支持 JPEG、PNG 或 WebP 图片。'
-    return
-  }
-  imageUploading.value = true
-  imageUploadProgress.value = 0
-  imageUploadError.value = ''
-  try {
-    const asset = await uploadMedia(file, (progress) => {
-      imageUploadProgress.value = progress
-    })
-    insertMarkdownReference(asset.markdown_reference)
-    imageUploadProgress.value = 100
-    selectedImageFile.value = null
-    if (imageInput.value) imageInput.value.value = ''
-  } catch (error) {
-    handleApiError(error)
-    imageUploadError.value = formatError(error)
-  } finally {
-    imageUploading.value = false
-  }
+  const asset = await mediaUpload.upload()
+  if (!asset) return
+  mediaUpload.reset()
+  if (imageInput.value) imageInput.value.value = ''
 }
 
 function insertMarkdownReference(reference: string): void {
