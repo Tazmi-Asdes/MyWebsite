@@ -428,16 +428,50 @@ wait_for_local_health() {
 }
 
 smoke_request() {
-    local path=$1 mime=$2 marker=$3 result status content_type body="$RUNTIME_TMP/smoke-body"
-    result=$(curl --fail --silent --connect-timeout 1 --max-time 2 -L -o "$body" -w '%{http_code}\t%{content_type}' "${PRODUCTION_URL%/}$path" 2>/dev/null) || return 1
-    status=${result%%$'\t'*}
-    content_type=${result#*$'\t'}
-    [[ "$status" == 200 ]] || return 1
+    local path=$1 mime=$2 marker=$3 result status content_type elapsed remainder curl_status=0 category
+    local body="$RUNTIME_TMP/smoke-body" url="${PRODUCTION_URL%/}$path"
+    if result=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 -L \
+        -o "$body" -w '%{http_code}|%{content_type}|%{time_total}' "$url"); then
+        curl_status=0
+    else
+        curl_status=$?
+    fi
+    status=${result%%|*}
+    remainder=${result#*|}
+    if [[ "$remainder" == "$result" ]]; then
+        content_type=
+        elapsed=
+    else
+        content_type=${remainder%%|*}
+        elapsed=${remainder##*|}
+    fi
+    [[ -n "$status" ]] || status=unknown
+    [[ -n "$elapsed" ]] || elapsed=unknown
+    if ((curl_status != 0)); then
+        if [[ "$curl_status" == 22 && "$status" =~ ^[45][0-9][0-9]$ ]]; then category=http_status; else category=curl_error; fi
+        report_smoke_failure "$path" "$category" "$curl_status" "$status" "$content_type" "$elapsed"
+        return 1
+    fi
+    if [[ "$status" != 200 ]]; then
+        report_smoke_failure "$path" http_status "$curl_status" "$status" "$content_type" "$elapsed"
+        return 1
+    fi
     case "${content_type,,}" in
         "$mime"* ) ;;
-        *) return 1 ;;
+        *) report_smoke_failure "$path" mime "$curl_status" "$status" "$content_type" "$elapsed"; return 1 ;;
     esac
-    grep -Fq -- "$marker" "$body"
+    if ! grep -Fq -- "$marker" "$body"; then
+        report_smoke_failure "$path" marker "$curl_status" "$status" "$content_type" "$elapsed"
+        return 1
+    fi
+}
+
+report_smoke_failure() {
+    local path=$1 category=$2 curl_status=$3 status=$4 content_type=$5 elapsed=$6
+    local safe_content_type=${content_type// /_}
+    diagnostic "smoke_failure path=$path category=$category curl_exit=$curl_status http_status=$status content_type=${safe_content_type:-unknown} elapsed_seconds=$elapsed"
+    printf 'deployment: public smoke failed path=%s category=%s curl_exit=%s http_status=%s content_type=%s elapsed_seconds=%s\n' \
+        "$path" "$category" "$curl_status" "$status" "${content_type:-unknown}" "$elapsed" >&2
 }
 
 smoke_once() {
@@ -507,7 +541,8 @@ restore_current_release() {
         return 1
     fi
     if ! verify_release "$app_ref" "$admin_ref"; then
-        printf 'deployment: recorded image pair was reapplied, but its health check failed; inspect the services manually.\n' >&2
+        printf 'deployment: recorded image pair was reapplied, but release verification failed (%s); inspect the services manually.\n' \
+            "${LAST_FAILURE:-release_verification_failed}" >&2
         diagnostic "recovery=${LAST_FAILURE:-health_failed}"
         return 1
     fi

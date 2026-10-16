@@ -158,21 +158,32 @@ cat >"$temp_root/bin/curl" <<'CURL'
 #!/usr/bin/env bash
 set -eu
 body= output=false
+connect_timeout= max_time= show_error=false
 url=${*: -1}
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -o) body=$2; shift 2 ;;
         -w) output=true; shift 2 ;;
-        --connect-timeout|--max-time) shift 2 ;;
+        --connect-timeout) connect_timeout=$2; shift 2 ;;
+        --max-time) max_time=$2; shift 2 ;;
+        --show-error) show_error=true; shift ;;
         *) shift ;;
     esac
 done
+printf 'url=%s connect=%s max=%s show_error=%s\n' "$url" "$connect_timeout" "$max_time" "$show_error" >>"$MOCK_FIXTURE/curl.log"
 ref=$(cat "$MOCK_FIXTURE/running-app")
 if [[ $url == http://* && $ref == "${MOCK_HEALTH_FAIL_REF:-unmatched}" ]]; then exit 22; fi
-if [[ $url == https://* && $ref == "${MOCK_SMOKE_FAIL_REF:-unmatched}" ]]; then exit 22; fi
+if [[ $url == https://* && ( $ref == "${MOCK_SMOKE_FAIL_REF:-unmatched}" || ${MOCK_SMOKE_FAIL_ALL:-false} == true ) && ( -z ${MOCK_SMOKE_FAIL_PATH:-} || $url == *"$MOCK_SMOKE_FAIL_PATH" ) ]]; then
+    fail_exit=${MOCK_SMOKE_FAIL_EXIT:-22}
+    fail_status=${MOCK_SMOKE_FAIL_STATUS:-503}
+    printf '%s\n' 'MOCK_PRIVATE_RESPONSE_SECRET' >"$body"
+    if [[ $show_error == true ]]; then printf 'curl: (%s) simulated public request failure\n' "$fail_exit" >&2; fi
+    printf '%s|text/html; charset=utf-8|0.123456' "$fail_status"
+    exit "$fail_exit"
+fi
 if [[ $output == true ]]; then
     case "$url" in
-        */assets/styles.css) printf '%s\n' '--bg: black;' >"$body"; printf '200\ttext/css' ;;
+        */assets/styles.css) printf '%s\n' '--bg: black;' >"$body"; printf '200|text/css|0.025000' ;;
         *)
             cat >"$body" <<'HTML'
 <a href="/" aria-current="page">首页</a>
@@ -181,7 +192,7 @@ if [[ $output == true ]]; then
 <a href="/about" aria-current="page">关于</a>
 <div id="app"></div>
 HTML
-            printf '200\ttext/html; charset=utf-8' ;;
+            printf '200|text/html; charset=utf-8|0.025000' ;;
     esac
 fi
 CURL
@@ -225,6 +236,7 @@ new_fixture() {
     printf 'test-redis-password\n' >"$DEPLOY_ROOT/secrets/redis_password"
     : >"$MOCK_FIXTURE/images"
     : >"$MOCK_FIXTURE/docker.log"
+    : >"$MOCK_FIXTURE/curl.log"
     : >"$MOCK_FIXTURE/up.log"
     : >"$MOCK_FIXTURE/removed"
     : >"$MOCK_FIXTURE/running-app"
@@ -233,7 +245,7 @@ new_fixture() {
     export CI_REGISTRY_IMAGE=$registry CI_PIPELINE_ID=$case_number
     export COMPOSE_PROJECT_NAME=mywebsite MYSQL_NETWORK_NAME=1panel-network APP_PORT=18080 ADMIN_WEB_PORT=18081 PRODUCTION_URL=https://site.example
     export ALLOW_DEPLOY_CONFIG_CHANGE=false CONFIG_CHANGE_CONFIRMATION=
-    unset MOCK_REMOTE_HEAD MOCK_UP_FAIL_REF MOCK_HEALTH_FAIL_REF MOCK_SMOKE_FAIL_REF MOCK_PULL_FAIL_REF MOCK_CONFIG_FAIL_REF MOCK_FAIL_STATE_WRITE
+    unset MOCK_REMOTE_HEAD MOCK_UP_FAIL_REF MOCK_HEALTH_FAIL_REF MOCK_SMOKE_FAIL_REF MOCK_SMOKE_FAIL_ALL MOCK_SMOKE_FAIL_PATH MOCK_SMOKE_FAIL_EXIT MOCK_SMOKE_FAIL_STATUS MOCK_PULL_FAIL_REF MOCK_CONFIG_FAIL_REF MOCK_FAIL_STATE_WRITE
 }
 
 tag_release() {
@@ -279,6 +291,8 @@ run_release success
 assert_record current "$a"
 [[ ! -e $DEPLOY_STATE_DIR/previous ]] || fail 'first deployment invented a previous release'
 assert_pair "$a"
+grep -Fq 'url=https://site.example/ connect=5 max=15 show_error=true' "$MOCK_FIXTURE/curl.log" || fail 'public smoke did not use the configured timeout and show-error options'
+grep -Fq 'url=http://127.0.0.1:18080/-/live connect=1 max=2 show_error=false' "$MOCK_FIXTURE/curl.log" || fail 'local health probe timeout changed unexpectedly'
 pass 'first deployment writes a valid current record'
 
 set_target "$b"
@@ -352,6 +366,10 @@ for failure in pull config up health smoke state; do
         pull|config) [[ ! -s $MOCK_FIXTURE/up.log ]] || fail 'pre-update failure changed services' ;;
         *) [[ $(wc -l <"$MOCK_FIXTURE/up.log") -eq 2 ]] || fail 'failed update did not reapply the successful pair' ;;
     esac
+    if [[ "$failure" == smoke ]]; then
+        grep -Fq 'smoke_failure path=/ category=http_status curl_exit=22 http_status=503' \
+            "$CI_PROJECT_DIR/test-results/deploy/deploy-$CI_PIPELINE_ID.txt" || fail 'HTTP response failure was not classified as HTTP status'
+    fi
     pass "$failure failure leaves successful state intact and preserves/restores the running pair"
 done
 
@@ -400,5 +418,21 @@ grep -Fxq "$registry/app:$c" "$MOCK_FIXTURE/removed" || fail 'digest-only retent
 [[ -n $(image_row "$unrelated") ]] || fail 'cleanup removed an unrelated repository image'
 assert_pair "$b"
 pass 'cleanup handles digest-only retained images and leaves unrelated repositories intact'
+
+new_fixture
+set_target "$a"
+run_release success
+snapshot_records
+set_target "$b"
+export MOCK_SMOKE_FAIL_ALL=true MOCK_SMOKE_FAIL_PATH=/articles MOCK_SMOKE_FAIL_EXIT=28 MOCK_SMOKE_FAIL_STATUS=200
+: >"$MOCK_FIXTURE/curl.log"
+run_release failure
+grep -Fq 'smoke_failure path=/articles category=curl_error curl_exit=28 http_status=200 content_type=text/html;_charset=utf-8 elapsed_seconds=0.123456' \
+    "$CI_PROJECT_DIR/test-results/deploy/deploy-$CI_PIPELINE_ID.txt" || fail 'HTTP 200 followed by a curl timeout was not classified as a curl error'
+grep -Fq 'public smoke failed path=/articles category=curl_error curl_exit=28 http_status=200' "$MOCK_FIXTURE/result.log" || fail 'curl timeout details were not reported in the job log'
+grep -Fq 'release verification failed (production_smoke_failed)' "$MOCK_FIXTURE/result.log" || fail 'recovery failure was mislabeled as a health failure'
+if grep -Rq 'MOCK_PRIVATE_RESPONSE_SECRET' "$CI_PROJECT_DIR/test-results/deploy" "$MOCK_FIXTURE/result.log"; then fail 'public smoke response body leaked into logs or diagnostics'; fi
+[[ $(grep -Fc 'url=https://site.example/articles connect=5 max=15 show_error=true' "$MOCK_FIXTURE/curl.log") -eq 4 ]] || fail 'public smoke retry or recovery did not retain the configured request options'
+pass 'public smoke timeout after HTTP 200 is recorded without response bodies and recovery names release verification failure'
 
 printf 'deployment and rollback mock checks passed\n'
