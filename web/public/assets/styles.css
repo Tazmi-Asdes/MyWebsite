@@ -274,6 +274,13 @@ body::before {
   transform: scale(1.04);
 }
 
+@media (max-width: 1024px) and (orientation: portrait) {
+  /* 手机和平板竖屏使用竖版背景。 */
+  :root {
+    --site-background-image: url("/assets/site-background-mobile.jpg");
+  }
+}
+
 body::after {
   content: "";
   background: var(--site-background-overlay);
