@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"mywebsite/internal/article"
+	"mywebsite/internal/auth"
 	"mywebsite/internal/markdown"
 	"mywebsite/internal/media"
 	"mywebsite/internal/project"
@@ -292,11 +293,159 @@ func TestStage2AdminMediaPreviewSetsBinaryHeaders(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "image/png" || response.Header().Get("Content-Length") != "8" || response.Header().Get("ETag") != `"`+hex.EncodeToString(digest[:])+`"` || response.Header().Get("Cache-Control") != "private, no-cache" || response.Body.String() != string(content) {
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "image/png" || response.Header().Get("Content-Length") != "8" || response.Header().Get("ETag") != `"`+hex.EncodeToString(digest[:])+`"` || response.Header().Get("Cache-Control") != "no-store" || response.Body.String() != string(content) {
 		t.Fatalf("preview = %d, headers=%v, body=%q", response.Code, response.Header(), response.Body.String())
 	}
 	if service.openID != "01ARZ3NDEKTSV4RRFFQ69G5FAV" || !service.openAdmin {
 		t.Fatalf("Open() = id %q admin %v", service.openID, service.openAdmin)
+	}
+}
+
+func TestAdminAPIResponsesAlwaysSetNoStore(t *testing.T) {
+	mediaContent := []byte("conditional preview")
+	mediaDigest := sha256.Sum256(mediaContent)
+	mediaPath := t.TempDir() + "/conditional.png"
+	if err := os.WriteFile(mediaPath, mediaContent, 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	mediaHandler := stage2Handler(t, nil, &stage2MediaFake{open: media.OpenResult{
+		Path: mediaPath, StoredMediaType: "image/png", SHA256: mediaDigest[:],
+		CreatedAt: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
+	}})
+	conditional := httptest.NewRequest(http.MethodGet, "/api/v1/media/01ARZ3NDEKTSV4RRFFQ69G5FAV", nil)
+	conditional.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+	conditional.Header.Set("If-None-Match", `"`+hex.EncodeToString(mediaDigest[:])+`"`)
+
+	limitedAuth := &fakeAuthService{loginErr: auth.ErrInvalidCredentials}
+	limitedHandler := testHandler(t, limitedAuth, &fakeArticleService{})
+	for attempt := 1; attempt <= loginFailureLimit+1; attempt++ {
+		failedLoginResponse(t, limitedHandler, "admin", "192.0.2.31:1234")
+	}
+
+	cases := []struct {
+		name    string
+		handler http.Handler
+		request *http.Request
+		status  int
+		etag    string
+	}{
+		{
+			name:    "JSON success",
+			handler: stage2Handler(t, nil, nil),
+			request: stage2Request(http.MethodGet, "/api/v1/session", "", false),
+			status:  http.StatusOK,
+		},
+		{
+			name:    "problem response",
+			handler: stage2Handler(t, nil, nil),
+			request: stage2Request(http.MethodGet, "/api/v1/articles?status=invalid", "", false),
+			status:  http.StatusUnprocessableEntity,
+		},
+		{
+			name:    "unauthorized",
+			handler: stage2Handler(t, nil, nil),
+			request: httptest.NewRequest(http.MethodGet, "/api/v1/session", nil),
+			status:  http.StatusUnauthorized,
+		},
+		{
+			name:    "forbidden",
+			handler: stage2Handler(t, nil, nil),
+			request: stage2Request(http.MethodPost, "/api/v1/articles", `{"title":"Draft","body_markdown":"x"}`, false),
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "rate limited",
+			handler: limitedHandler,
+			request: newLoginHTTPRequest("admin", "wrong password", "192.0.2.31:1234"),
+			status:  http.StatusTooManyRequests,
+		},
+		{
+			name:    "not found",
+			handler: stage2Handler(t, nil, nil),
+			request: httptest.NewRequest(http.MethodGet, "/api/v1/not-found", nil),
+			status:  http.StatusNotFound,
+		},
+		{
+			name:    "API root not found",
+			handler: stage2Handler(t, nil, nil),
+			request: httptest.NewRequest(http.MethodGet, "/api/v1", nil),
+			status:  http.StatusNotFound,
+		},
+		{
+			name:    "method not allowed",
+			handler: stage2Handler(t, nil, nil),
+			request: httptest.NewRequest(http.MethodPut, "/api/v1/session", nil),
+			status:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "no content",
+			handler: stage2Handler(t, nil, nil),
+			request: stage2Request(http.MethodDelete, "/api/v1/session", "", true),
+			status:  http.StatusNoContent,
+		},
+		{
+			name:    "not modified",
+			handler: mediaHandler,
+			request: conditional,
+			status:  http.StatusNotModified,
+			etag:    `"` + hex.EncodeToString(mediaDigest[:]) + `"`,
+		},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			test.handler.ServeHTTP(response, test.request)
+			if response.Code != test.status {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, test.status, response.Body.String())
+			}
+			if got := response.Header().Get("Cache-Control"); got != "no-store" {
+				t.Fatalf("Cache-Control = %q, want no-store", got)
+			}
+			if test.etag != "" && response.Header().Get("ETag") != test.etag {
+				t.Fatalf("ETag = %q, want %q", response.Header().Get("ETag"), test.etag)
+			}
+		})
+	}
+}
+
+func TestAdminAPINoStoreWhenRoutesRegisterDirectly(t *testing.T) {
+	content := []byte("direct registered preview")
+	digest := sha256.Sum256(content)
+	path := t.TempDir() + "/direct.png"
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	handler := stage2Handler(t, nil, &stage2MediaFake{open: media.OpenResult{
+		Path: path, StoredMediaType: "image/png", SHA256: digest[:],
+		CreatedAt: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
+	}})
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+	conditional := httptest.NewRequest(http.MethodGet, "/api/v1/media/01ARZ3NDEKTSV4RRFFQ69G5FAV", nil)
+	conditional.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+	conditional.Header.Set("If-None-Match", `"`+hex.EncodeToString(digest[:])+`"`)
+	for _, test := range []struct {
+		name    string
+		request *http.Request
+		status  int
+	}{
+		{name: "success", request: httptest.NewRequest(http.MethodGet, "/api/v1/session", nil), status: http.StatusOK},
+		{name: "404", request: httptest.NewRequest(http.MethodGet, "/api/v1/missing", nil), status: http.StatusNotFound},
+		{name: "API root 404", request: httptest.NewRequest(http.MethodGet, "/api/v1", nil), status: http.StatusNotFound},
+		{name: "405", request: httptest.NewRequest(http.MethodPut, "/api/v1/session", nil), status: http.StatusMethodNotAllowed},
+		{name: "media 304", request: conditional, status: http.StatusNotModified},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := test.request
+			if test.name == "success" {
+				request.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+			}
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			if response.Code != test.status || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("response = %d, Cache-Control=%q, want status %d and no-store", response.Code, response.Header().Get("Cache-Control"), test.status)
+			}
+		})
 	}
 }
 

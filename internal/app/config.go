@@ -55,6 +55,7 @@ type Config struct {
 	Redis                   cache.RedisConfig
 	RedisPasswordFile       string
 	RedisEnabled            bool
+	TrustedProxyCIDRs       []string
 }
 
 // LoadConfig reads the process environment and validates all supported HTTP
@@ -176,6 +177,10 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	trustedProxyCIDRs, err := trustedProxyCIDRsValue(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		AppEnv:                  appEnv,
@@ -199,6 +204,7 @@ func ParseConfig(lookup func(string) (string, bool)) (Config, error) {
 		Redis:                   redisConfig,
 		RedisPasswordFile:       redisPasswordFile,
 		RedisEnabled:            redisEnabled,
+		TrustedProxyCIDRs:       trustedProxyCIDRs,
 	}, nil
 }
 
@@ -215,14 +221,17 @@ func redisConfigValue(lookup func(string) (string, bool)) (cache.RedisConfig, st
 	}
 	if urlSet {
 		parsed, err := url.Parse(urlValue)
-		if err != nil || parsed.Scheme != "redis" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_URL %q: must be a redis URL without credentials or query", urlValue)
+		if err != nil || parsed.Scheme != "redis" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || strings.Contains(urlValue, "#") || parsed.Opaque != "" {
+			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_URL: must be a redis URL without credentials, query, or fragment")
 		}
 		addr = parsed.Host
 		if parsed.Path != "" && parsed.Path != "/" {
 			value := strings.TrimPrefix(parsed.Path, "/")
 			if dbSet {
 				return cache.RedisConfig{}, "", false, fmt.Errorf("REDIS_URL database conflicts with REDIS_DB")
+			}
+			if !isNonNegativeInteger(value) {
+				return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_URL database path: must be a non-negative integer")
 			}
 			dbValue = value
 			dbSet = true
@@ -240,7 +249,7 @@ func redisConfigValue(lookup func(string) (string, bool)) (cache.RedisConfig, st
 	if dbSet {
 		parsed, err := strconv.Atoi(dbValue)
 		if err != nil || parsed < 0 {
-			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_DB %q: must be a non-negative integer", dbValue)
+			return cache.RedisConfig{}, "", false, fmt.Errorf("invalid REDIS_DB: must be a non-negative integer")
 		}
 		db = parsed
 	}
@@ -259,6 +268,46 @@ func redisConfigValue(lookup func(string) (string, bool)) (cache.RedisConfig, st
 		TTL:     cache.DefaultTTL,
 		Timeout: cache.DefaultTimeout,
 	}, passwordFile, true, nil
+}
+
+func trustedProxyCIDRsValue(lookup func(string) (string, bool)) ([]string, error) {
+	value, ok := lookup("TRUSTED_PROXY_CIDRS")
+	if !ok || value == "" {
+		return nil, nil
+	}
+
+	entries := strings.Split(value, ",")
+	cidrs := make([]string, 0, len(entries))
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			return nil, fmt.Errorf("invalid TRUSTED_PROXY_CIDRS: entries must be non-empty CIDRs")
+		}
+		_, network, err := net.ParseCIDR(entry)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TRUSTED_PROXY_CIDRS entry %q: must be a CIDR", entry)
+		}
+		canonical := network.String()
+		if _, exists := seen[canonical]; exists {
+			continue
+		}
+		seen[canonical] = struct{}{}
+		cidrs = append(cidrs, canonical)
+	}
+	return cidrs, nil
+}
+
+func isNonNegativeInteger(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func boolValue(lookup func(string) (string, bool), key string, fallback bool) (bool, error) {

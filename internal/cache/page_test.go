@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -67,6 +68,13 @@ func TestEligibleRequest(t *testing.T) {
 		{name: "home", method: http.MethodGet, target: "/", want: true},
 		{name: "article page query", method: http.MethodGet, target: "/articles?page=2", want: true},
 		{name: "invalid public path", method: http.MethodGet, target: "/articles/01ARZ3NDEKTSV4RRFFQ69G5FAV", want: false},
+		{name: "home API", method: http.MethodGet, target: "/api/public/v1/home", want: true},
+		{name: "article API query", method: http.MethodGet, target: "/api/public/v1/articles?page=2", want: true},
+		{name: "article detail API", method: http.MethodGet, target: "/api/public/v1/articles/01ARZ3NDEKTSV4RRFFQ69G5FAV", want: true},
+		{name: "invalid article detail API", method: http.MethodGet, target: "/api/public/v1/articles/not-a-ulid", want: false},
+		{name: "projects API", method: http.MethodGet, target: "/api/public/v1/projects", want: true},
+		{name: "about API", method: http.MethodGet, target: "/api/public/v1/about", want: true},
+		{name: "unlisted API", method: http.MethodGet, target: "/api/public/v1/admin", want: false},
 		{name: "asset", method: http.MethodGet, target: "/assets/site.css", want: false},
 		{name: "post", method: http.MethodPost, target: "/", want: false},
 		{name: "cookie", method: http.MethodGet, target: "/about", cookie: "session=secret", want: false},
@@ -132,6 +140,118 @@ func TestMiddlewareCachesAndRevalidatesHTML(t *testing.T) {
 	}
 }
 
+func TestMiddlewareCachesJSONAndPreservesQueryKeysAcrossInvalidation(t *testing.T) {
+	store := newFakePageCache()
+	calls := 0
+	handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"count":` + strconv.Itoa(calls) + `}`))
+	}), store, nil)
+	requestPage := func(target string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
+		return response
+	}
+
+	first := requestPage("/api/public/v1/articles?page=1")
+	if first.Code != http.StatusOK || first.Body.String() != `{"count":1}` || first.Header().Get("Cache-Control") != publicCacheControl || first.Header().Get("ETag") == "" {
+		t.Fatalf("first JSON response = %d %q %#v", first.Code, first.Body.String(), first.Header())
+	}
+	secondPage := requestPage("/api/public/v1/articles?page=2")
+	if secondPage.Code != http.StatusOK || secondPage.Body.String() != `{"count":2}` || calls != 2 {
+		t.Fatalf("distinct query response = %d %q, calls %d", secondPage.Code, secondPage.Body.String(), calls)
+	}
+	cacheHit := requestPage("/api/public/v1/articles?page=1")
+	if cacheHit.Code != http.StatusOK || cacheHit.Body.String() != `{"count":1}` || calls != 2 {
+		t.Fatalf("JSON cache hit = %d %q, calls %d", cacheHit.Code, cacheHit.Body.String(), calls)
+	}
+	store.Invalidate(context.Background())
+	afterInvalidation := requestPage("/api/public/v1/articles?page=1")
+	if afterInvalidation.Code != http.StatusOK || afterInvalidation.Body.String() != `{"count":3}` || calls != 3 {
+		t.Fatalf("after invalidation = %d %q, calls %d", afterInvalidation.Code, afterInvalidation.Body.String(), calls)
+	}
+}
+
+func TestMiddlewareDoesNotCacheJSONErrorsOrSetCookieResponses(t *testing.T) {
+	t.Run("error", func(t *testing.T) {
+		store := newFakePageCache()
+		calls := 0
+		handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			calls++
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"code":"service_unavailable"}`))
+		}), store, nil)
+		for range 2 {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/public/v1/home", nil))
+			if response.Code != http.StatusServiceUnavailable || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("error response = %d %#v", response.Code, response.Header())
+			}
+		}
+		if calls != 2 || len(store.pages) != 0 {
+			t.Fatalf("error calls/cache entries = %d/%d", calls, len(store.pages))
+		}
+	})
+
+	t.Run("set-cookie", func(t *testing.T) {
+		store := newFakePageCache()
+		calls := 0
+		handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			calls++
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Add("Set-Cookie", "fixture=private; HttpOnly")
+			_, _ = w.Write([]byte(`{"count":1}`))
+		}), store, nil)
+		for range 2 {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/public/v1/home", nil))
+			if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || len(response.Header().Values("Set-Cookie")) != 1 {
+				t.Fatalf("Set-Cookie response = %d %#v", response.Code, response.Header())
+			}
+		}
+		if calls != 2 || len(store.pages) != 0 {
+			t.Fatalf("Set-Cookie calls/cache entries = %d/%d", calls, len(store.pages))
+		}
+	})
+}
+
+func TestMiddlewareRequiresTheExpectedContentTypeForEachAllowlistedPath(t *testing.T) {
+	tests := []struct {
+		path        string
+		contentType string
+	}{
+		{path: "/about", contentType: "application/json"},
+		{path: "/api/public/v1/home", contentType: "text/html"},
+	}
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			store := newFakePageCache()
+			calls := 0
+			handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				calls++
+				w.Header().Set("Cache-Control", "no-store")
+				w.Header().Set("Content-Type", test.contentType)
+				_, _ = w.Write([]byte("body"))
+			}), store, nil)
+			for range 2 {
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+				if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
+					t.Fatalf("mismatched content type response = %d %#v", response.Code, response.Header())
+				}
+			}
+			if calls != 2 || len(store.pages) != 0 {
+				t.Fatalf("mismatched content type calls/cache entries = %d/%d", calls, len(store.pages))
+			}
+		})
+	}
+}
+
 func TestMiddlewareRedisFailureFallsBackAndKeepsBrowserRevalidation(t *testing.T) {
 	store := newFakePageCache()
 	store.currentErr = errors.New("redis unavailable")
@@ -168,10 +288,14 @@ func TestPageKeyAndValidatePage(t *testing.T) {
 	if err := ValidatePage(valid); err != nil {
 		t.Fatalf("ValidatePage(valid) error = %v", err)
 	}
+	validJSON := Page{Body: []byte(`{"ok":true}`), ETag: `"json-etag"`, ContentType: "application/json; charset=utf-8"}
+	if err := ValidatePage(validJSON); err != nil {
+		t.Fatalf("ValidatePage(valid JSON) error = %v", err)
+	}
 	for _, invalid := range []Page{
 		{ETag: valid.ETag, ContentType: valid.ContentType},
 		{Body: valid.Body, ContentType: valid.ContentType},
-		{Body: valid.Body, ETag: valid.ETag, ContentType: "application/json"},
+		{Body: valid.Body, ETag: valid.ETag, ContentType: "text/plain"},
 	} {
 		if err := ValidatePage(invalid); err == nil {
 			t.Fatalf("ValidatePage(%+v) unexpectedly succeeded", invalid)

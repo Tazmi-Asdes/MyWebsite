@@ -1,0 +1,13 @@
+---
+import type { HomeProject } from "../lib/home-data";
+import GlassSurface from "./react/GlassSurface";
+
+interface Props {
+  project: HomeProject;
+  headingLevel?: 2 | 3;
+}
+
+const { project, headingLevel = 3 } = Astro.props;
+---
+
+<GlassSurface kind="project" project={project} headingLevel={headingLevel} client:visible />

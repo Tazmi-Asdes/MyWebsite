@@ -45,17 +45,18 @@ type MediaServices interface {
 
 // HandlerOptions controls the dependencies used by the HTTP handler.
 type HandlerOptions struct {
-	Logger         *slog.Logger
-	Clock          platform.Clock
-	Readiness      Readiness
-	Auth           adminapi.AuthService
-	Articles       ArticleServices
-	Projects       ProjectServices
-	Media          MediaServices
-	MaxUploadBytes int64
-	PublicBaseURL  string
-	CookieSecure   bool
-	PageCache      cache.PageCache
+	Logger            *slog.Logger
+	Clock             platform.Clock
+	Readiness         Readiness
+	Auth              adminapi.AuthService
+	Articles          ArticleServices
+	Projects          ProjectServices
+	Media             MediaServices
+	MaxUploadBytes    int64
+	PublicBaseURL     string
+	CookieSecure      bool
+	TrustedProxyCIDRs []string
+	PageCache         cache.PageCache
 }
 
 // NewHandler creates the Stage 0 HTTP handler and all of its routes.
@@ -96,14 +97,15 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 	publicHandler.RegisterRoutes(mux)
 	if options.Auth != nil {
 		adminHandler, adminErr := adminapi.NewHandler(adminapi.HandlerOptions{
-			Auth:           options.Auth,
-			Articles:       options.Articles,
-			Projects:       options.Projects,
-			Media:          options.Media,
-			MaxUploadBytes: options.MaxUploadBytes,
-			PublicBaseURL:  options.PublicBaseURL,
-			CookieSecure:   options.CookieSecure,
-			Now:            clock.Now,
+			Auth:              options.Auth,
+			Articles:          options.Articles,
+			Projects:          options.Projects,
+			Media:             options.Media,
+			MaxUploadBytes:    options.MaxUploadBytes,
+			PublicBaseURL:     options.PublicBaseURL,
+			CookieSecure:      options.CookieSecure,
+			TrustedProxyCIDRs: options.TrustedProxyCIDRs,
+			Now:               clock.Now,
 			InvalidatePublic: func(ctx context.Context) {
 				if options.PageCache != nil {
 					if invalidateErr := options.PageCache.Invalidate(ctx); invalidateErr != nil {
@@ -127,7 +129,8 @@ func NewHandler(options HandlerOptions) (http.Handler, error) {
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(publicassets.Assets))))
 
 	var handler http.Handler = cache.Middleware(mux, options.PageCache, logger)
-	return requestLoggingMiddleware(handler, logger), nil
+	handler = requestLoggingMiddleware(handler, logger)
+	return securityHeadersMiddleware(handler), nil
 }
 
 func liveHandler(w http.ResponseWriter, _ *http.Request) {

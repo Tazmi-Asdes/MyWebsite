@@ -1,0 +1,60 @@
+---
+import BaseLayout from "../../components/BaseLayout.astro";
+import PageError from "../../components/PageError.astro";
+import TableOfContents from "../../components/TableOfContents.astro";
+import { fetchPublicData, parseArticleDetailPage, PublicApiError } from "../../lib/public-data";
+
+export const prerender = false;
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const ulid = Astro.params.ulid ?? "";
+const validUlid = /^[0-9A-HJKMNP-TV-Z]{26}$/i.test(ulid);
+let data = null;
+let error: PublicApiError | null = null;
+
+if (!validUlid) {
+  error = new PublicApiError(404, "article_not_found", "找不到这篇文章。");
+} else {
+  try {
+    data = await fetchPublicData(`/api/public/v1/articles/${encodeURIComponent(ulid)}`, parseArticleDetailPage);
+  } catch (caught) {
+    error = caught instanceof PublicApiError
+      ? caught
+      : new PublicApiError(503, "public_api_unavailable", "公开内容服务暂时无法读取，请稍后重试。");
+  }
+}
+
+if (error) Astro.response.status = error.status;
+---
+
+{data ? (
+  <BaseLayout
+    title={data.page.title}
+    description={data.page.description}
+    year={data.year}
+    openGraph={{ type: "article", title: data.article.title, description: data.article.preview }}
+  >
+    <main id="main-content" class="article-page">
+      <header class="article-heading">
+        <div class="container article-heading__inner">
+          <p class="eyebrow">{data.page.eyebrow}</p>
+          <h1>{data.article.title}</h1>
+          <p class="article-heading__date"><time datetime={data.article.date_time}>{data.article.published}</time></p>
+        </div>
+      </header>
+      <div class="container article-reading-layout">
+        <TableOfContents items={data.article.toc} />
+        <article class="article-content" aria-label={data.article.title}>
+          <a class="text-link article-back" href="/articles"><span aria-hidden="true">←</span> 返回文章列表</a>
+          <div class="article-content__body" set:html={data.article.body_html}></div>
+        </article>
+      </div>
+    </main>
+  </BaseLayout>
+) : (
+  <BaseLayout title={error?.status === 404 ? "文章不存在 — Tazmi-Website" : "文章暂时不可用 — Tazmi-Website"} description={error?.message ?? "公开内容服务暂时不可用。"}>
+    <main id="main-content" class="unavailable-page">
+      <div class="container"><PageError status={error?.status ?? 503} title={error?.status === 404 ? "文章不存在" : "文章暂时不可用"} message={error?.message ?? "公开内容服务暂时无法读取，请稍后重试。"} /></div>
+    </main>
+  </BaseLayout>
+)}

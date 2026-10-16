@@ -26,6 +26,13 @@ variables:
   MYSQL_NETWORK_NAME: "1panel-network"
   APP_PORT: "18080"
   ADMIN_WEB_PORT: "18081"
+  SITE_WEB_PORT: "18082"
+  PUBLIC_SITE_MODE:
+    value: "go"
+    options:
+      - "go"
+      - "astro"
+    description: "Select the public smoke-test expectation. Switch the external OpenResty route to Astro manually before selecting astro."
   GOPROXY: "https://goproxy.cn,direct"
   GOSUMDB: "sum.golang.org"
   NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
@@ -185,6 +192,32 @@ verify_admin:
       junit: test-results/admin-junit.xml
     paths:
       - test-results/admin-junit.xml
+
+verify_site:
+  extends: .verify_job
+  image: node:24.16.0-alpine
+  cache:
+    key:
+      files:
+        - web/site/package-lock.json
+    paths:
+      - .cache/npm-site/
+    policy: pull-push
+  script:
+    - |
+      set -eu
+      apk add --no-cache git >/dev/null
+      export NPM_CONFIG_CACHE="$CI_PROJECT_DIR/.cache/npm-site"
+      mkdir -p "$NPM_CONFIG_CACHE"
+      rm -rf /tmp/mywebsite-site
+      cp -R "$CI_PROJECT_DIR/web/site" /tmp/mywebsite-site
+      cd /tmp/mywebsite-site
+      npm ci --prefer-offline --ignore-scripts --no-audit --no-fund
+      npm run check
+      npm test
+      npm run build
+      cd "$CI_PROJECT_DIR"
+    - git diff --check
 
 build_images:
   extends: .shell_docker_job

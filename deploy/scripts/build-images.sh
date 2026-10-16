@@ -46,8 +46,10 @@ done
 
 app_repository="${CI_REGISTRY_IMAGE}/app"
 admin_repository="${CI_REGISTRY_IMAGE}/admin-web"
+site_repository="${CI_REGISTRY_IMAGE}/site-web"
 app_tag="${app_repository}:${CI_COMMIT_SHA}"
 admin_tag="${admin_repository}:${CI_COMMIT_SHA}"
+site_tag="${site_repository}:${CI_COMMIT_SHA}"
 
 printf 'Building app image for commit %s\n' "$CI_COMMIT_SHA"
 docker build "${pull_args[@]}" "${build_args[@]}" \
@@ -59,6 +61,12 @@ printf 'Building admin-web image for commit %s\n' "$CI_COMMIT_SHA"
 docker build "${pull_args[@]}" "${build_args[@]}" \
   --target admin-web \
   --tag "$admin_tag" \
+  .
+
+printf 'Building site-web image for commit %s\n' "$CI_COMMIT_SHA"
+docker build "${pull_args[@]}" "${build_args[@]}" \
+  --target site-runtime \
+  --tag "$site_tag" \
   .
 
 push_with_retry() {
@@ -109,9 +117,11 @@ image_digest_ref() {
 
 push_with_retry "$app_tag"
 push_with_retry "$admin_tag"
+push_with_retry "$site_tag"
 
 app_image_ref=$(image_digest_ref "$app_tag" "$app_repository")
 admin_web_image_ref=$(image_digest_ref "$admin_tag" "$admin_repository")
+site_web_image_ref=$(image_digest_ref "$site_tag" "$site_repository")
 release_env_tmp="${project_dir}/.release.env.tmp.${CI_JOB_ID:-$$}"
 trap 'rm -f -- "$release_env_tmp"' EXIT
 umask 077
@@ -119,6 +129,7 @@ umask 077
   printf 'RELEASE_COMMIT=%s\n' "$CI_COMMIT_SHA"
   printf 'APP_IMAGE_REF=%s\n' "$app_image_ref"
   printf 'ADMIN_WEB_IMAGE_REF=%s\n' "$admin_web_image_ref"
+  printf 'SITE_WEB_IMAGE_REF=%s\n' "$site_web_image_ref"
 } >"$release_env_tmp"
 mv -f -- "$release_env_tmp" "$project_dir/release.env"
 trap - EXIT
@@ -126,3 +137,4 @@ trap - EXIT
 printf 'Built immutable release %s\n' "$CI_COMMIT_SHA"
 printf 'APP_IMAGE_REF=%s\n' "$app_image_ref"
 printf 'ADMIN_WEB_IMAGE_REF=%s\n' "$admin_web_image_ref"
+printf 'SITE_WEB_IMAGE_REF=%s\n' "$site_web_image_ref"

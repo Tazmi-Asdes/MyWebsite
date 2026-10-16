@@ -10,6 +10,10 @@ valid_sha() {
     [[ ${#1} -eq 40 && "$1" =~ ^[[:xdigit:]]{40}$ ]]
 }
 
+valid_port() {
+    [[ "$1" =~ ^[0-9]{1,5}$ ]] && ((10#$1 >= 1 && 10#$1 <= 65535))
+}
+
 valid_ref() {
     local ref=$1
     local repo=$2
@@ -28,7 +32,10 @@ valid_ref() {
 read_release_images() {
     local path=$1 name=$2 registry_root=$3 line key value allowed allowed_key
     local -n record=$name
-    local -a keys=(format release_commit app_digest admin_web_digest app_sha_tag admin_web_sha_tag migration_tree compose_blob mysql_overlay_blob redis_overlay_blob environment_fingerprint runtime_fingerprint config_fingerprint deploy_root compose_project mysql_network app_port admin_web_port production_url)
+    local format required
+    local -a keys_v1=(format release_commit app_digest admin_web_digest app_sha_tag admin_web_sha_tag migration_tree compose_blob mysql_overlay_blob redis_overlay_blob environment_fingerprint runtime_fingerprint config_fingerprint deploy_root compose_project mysql_network app_port admin_web_port production_url)
+    local -a keys_v2=(format release_commit app_digest admin_web_digest site_web_digest app_sha_tag admin_web_sha_tag site_web_sha_tag migration_tree compose_blob mysql_overlay_blob redis_overlay_blob site_overlay_blob environment_fingerprint runtime_fingerprint config_fingerprint deploy_root compose_project mysql_network app_port admin_web_port site_web_port public_site_mode production_url)
+    local -a keys=()
     record=()
     [[ -r "$path" && -f "$path" ]] || return 1
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -36,17 +43,31 @@ read_release_images() {
         key=${line%%=*}
         value=${line#*=}
         allowed=0
-        for allowed_key in "${keys[@]}"; do [[ "$key" == "$allowed_key" ]] && allowed=1; done
+        for allowed_key in "${keys_v1[@]}" "${keys_v2[@]}"; do [[ "$key" == "$allowed_key" ]] && allowed=1; done
         [[ $allowed -eq 1 ]] || return 1
         [[ -z ${record[$key]+set} ]] || return 1
         record["$key"]=$value
     done <"$path"
-    [[ ${#record[@]} -eq ${#keys[@]} && ${record[format]:-} == 1 ]] || return 1
+    format=${record[format]:-}
+    case "$format" in
+        1) keys=("${keys_v1[@]}") ;;
+        2) keys=("${keys_v2[@]}") ;;
+        *) return 1 ;;
+    esac
+    [[ ${#record[@]} -eq ${#keys[@]} ]] || return 1
+    for required in "${keys[@]}"; do [[ -n ${record[$required]+set} ]] || return 1; done
     valid_sha "${record[release_commit]:-}" || return 1
     [[ -n ${record[app_digest]:-} && ${#record[app_digest]} -eq 64 && ${record[app_digest]} =~ ^[[:xdigit:]]{64}$ ]] || return 1
     [[ -n ${record[admin_web_digest]:-} && ${#record[admin_web_digest]} -eq 64 && ${record[admin_web_digest]} =~ ^[[:xdigit:]]{64}$ ]] || return 1
     [[ ${record[app_sha_tag]:-} == "$registry_root/app:${record[release_commit]}" ]] || return 1
-    [[ ${record[admin_web_sha_tag]:-} == "$registry_root/admin-web:${record[release_commit]}" ]]
+    [[ ${record[admin_web_sha_tag]:-} == "$registry_root/admin-web:${record[release_commit]}" ]] || return 1
+    if [[ "$format" == 2 ]]; then
+        [[ -n ${record[site_web_digest]:-} && ${#record[site_web_digest]} -eq 64 && ${record[site_web_digest]} =~ ^[[:xdigit:]]{64}$ ]] || return 1
+        [[ ${record[site_web_sha_tag]:-} == "$registry_root/site-web:${record[release_commit]}" ]] || return 1
+        valid_sha "${record[site_overlay_blob]:-}" || return 1
+        valid_port "${record[site_web_port]:-}" || return 1
+        [[ ${record[public_site_mode]:-} == go || ${record[public_site_mode]:-} == astro ]] || return 1
+    fi
 }
 
 write_history() {
@@ -142,6 +163,21 @@ is_kept_ref() {
     [[ "$ref" == "$current_app" || "$ref" == "$current_admin" ||
        ( -n "$previous_app" && "$ref" == "$previous_app" ) ||
        ( -n "$previous_admin" && "$ref" == "$previous_admin" ) ]]
+}
+
+append_record_images() {
+    local record_name=$1 registry_root=$2 digests_name=$3 refs_name=$4 service digest sha_tag
+    local -n record=$record_name digests=$digests_name refs=$refs_name
+    for service in app admin-web; do
+        digest=${record[${service//-/_}_digest]}
+        sha_tag=${record[${service//-/_}_sha_tag]}
+        digests+=("$registry_root/$service@sha256:$digest")
+        refs+=("$registry_root/$service@sha256:$digest" "$sha_tag")
+    done
+    if [[ ${record[format]} == 2 ]]; then
+        digests+=("$registry_root/site-web@sha256:${record[site_web_digest]}")
+        refs+=("$registry_root/site-web@sha256:${record[site_web_digest]}" "${record[site_web_sha_tag]}")
+    fi
 }
 
 cleanup_images() {
@@ -296,14 +332,9 @@ cleanup_state_images() {
         return 0
     fi
 
-    kept_digests=("$registry_root/app@sha256:${current[app_digest]}" "$registry_root/admin-web@sha256:${current[admin_web_digest]}")
-    kept_refs=("${kept_digests[@]}")
-    [[ -n ${current[app_sha_tag]:-} ]] && kept_refs+=("${current[app_sha_tag]}")
-    [[ -n ${current[admin_web_sha_tag]:-} ]] && kept_refs+=("${current[admin_web_sha_tag]}")
+    append_record_images current "$registry_root" kept_digests kept_refs
     if [[ -n ${previous[release_commit]:-} ]]; then
-        kept_digests+=("$registry_root/app@sha256:${previous[app_digest]}" "$registry_root/admin-web@sha256:${previous[admin_web_digest]}")
-        kept_refs+=("$registry_root/app@sha256:${previous[app_digest]}" "$registry_root/admin-web@sha256:${previous[admin_web_digest]}")
-        kept_refs+=("${previous[app_sha_tag]}" "${previous[admin_web_sha_tag]}")
+        append_record_images previous "$registry_root" kept_digests kept_refs
     fi
     # Pulling a digest on a separate deployment host need not create its SHA tag.
     for ref in "${kept_digests[@]}"; do
@@ -342,7 +373,7 @@ cleanup_state_images() {
 
     while IFS=' ' read -r repository tag extra; do
         [[ -n "$repository" && -n "$tag" && -z "$extra" ]] || continue
-        [[ "$repository" == "$registry_root/app" || "$repository" == "$registry_root/admin-web" ]] || continue
+        [[ "$repository" == "$registry_root/app" || "$repository" == "$registry_root/admin-web" || "$repository" == "$registry_root/site-web" ]] || continue
         valid_sha "$tag" || continue
         ref="$repository:$tag"
         used=0

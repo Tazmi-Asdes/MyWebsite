@@ -1,0 +1,48 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import EmptyState from "../components/EmptyState.astro";
+import PageError from "../components/PageError.astro";
+import PageHeading from "../components/PageHeading.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import { fetchPublicData, parseProjectsPage, PublicApiError } from "../lib/public-data";
+
+export const prerender = false;
+Astro.response.headers.set("Cache-Control", "no-store");
+
+let data = null;
+let error: PublicApiError | null = null;
+try {
+  data = await fetchPublicData("/api/public/v1/projects", parseProjectsPage);
+} catch (caught) {
+  error = caught instanceof PublicApiError
+    ? caught
+    : new PublicApiError(503, "public_api_unavailable", "公开内容服务暂时无法读取，请稍后重试。");
+}
+
+if (error) Astro.response.status = error.status;
+---
+
+{data ? (
+  <BaseLayout title={data.page.title} description={data.page.description} year={data.year}>
+    <main id="main-content">
+      <PageHeading eyebrow={data.page.eyebrow} heading={data.page.heading} description={data.page.description} />
+      <section class="content-section" aria-label="公开项目">
+        <div class="container">
+          {data.projects.length > 0 ? (
+            <div class="grid grid--three project-grid">
+              {data.projects.map((project) => <ProjectCard project={project} headingLevel={2} />)}
+            </div>
+          ) : (
+            <EmptyState heading="暂时没有公开项目" message="公开项目后会出现在这里。" />
+          )}
+        </div>
+      </section>
+    </main>
+  </BaseLayout>
+) : (
+  <BaseLayout title={error?.status === 404 ? "项目页不存在 — Tazmi-Website" : "项目暂时不可用 — Tazmi-Website"} description={error?.message ?? "公开内容服务暂时不可用。"}>
+    <main id="main-content" class="unavailable-page">
+      <div class="container"><PageError status={error?.status ?? 503} title={error?.status === 404 ? "项目页不存在" : "项目暂时不可用"} message={error?.message ?? "公开内容服务暂时无法读取，请稍后重试。"} /></div>
+    </main>
+  </BaseLayout>
+)}

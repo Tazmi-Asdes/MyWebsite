@@ -85,17 +85,18 @@ func main() {
 	}
 
 	handler, err := app.NewHandler(app.HandlerOptions{
-		Logger:         logger,
-		Clock:          clock,
-		Readiness:      databaseConnection,
-		Auth:           authService,
-		Articles:       articleService,
-		Projects:       projectService,
-		Media:          mediaService,
-		MaxUploadBytes: config.MaxUploadBytes,
-		PublicBaseURL:  config.PublicBaseURL,
-		CookieSecure:   config.CookieSecure,
-		PageCache:      publicCache,
+		Logger:            logger,
+		Clock:             clock,
+		Readiness:         databaseConnection,
+		Auth:              authService,
+		Articles:          articleService,
+		Projects:          projectService,
+		Media:             mediaService,
+		MaxUploadBytes:    config.MaxUploadBytes,
+		PublicBaseURL:     config.PublicBaseURL,
+		CookieSecure:      config.CookieSecure,
+		PageCache:         publicCache,
+		TrustedProxyCIDRs: config.TrustedProxyCIDRs,
 	})
 	if err != nil {
 		logger.Error("handler_initialization_failed", "error", err)

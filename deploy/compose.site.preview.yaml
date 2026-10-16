@@ -1,0 +1,32 @@
+name: ${SITE_PREVIEW_PROJECT_NAME:-mywebsite-site-preview}
+
+services:
+  site-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: site-runtime
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.16.0}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}
+    image: ${SITE_PREVIEW_IMAGE:-mywebsite/site-web:preview}
+    restart: unless-stopped
+    environment:
+      GO_PUBLIC_ORIGIN: ${GO_PUBLIC_ORIGIN:-http://app:8080}
+      HOST: 0.0.0.0
+      PORT: "4321"
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:${SITE_PREVIEW_PORT:-28082}:4321"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    networks:
+      - application
+
+networks:
+  application:
+    external: true
+    name: ${APP_NETWORK_NAME:-mywebsite_default}

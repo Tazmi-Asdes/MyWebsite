@@ -15,6 +15,10 @@ upstream mywebsite_admin_upstream {
 server {
     listen 80;
     server_name __SITE_DOMAIN__;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
     return 308 https://$host$request_uri;
 }
 
@@ -26,6 +30,18 @@ server {
     ssl_certificate /path/from/read-only-preflight/fullchain.pem;
     ssl_certificate_key /path/from/read-only-preflight/privkey.pem;
     root /path/from/read-only-preflight/site-root;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
+    # The ingress applies its own headers after hiding the same headers from
+    # the Go app and admin-web upstreams, preventing duplicate fields.
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Content-Security-Policy;
 
     # The marker is entered and left by an atomic rename in release.sh.  It is
     # checked before proxying so the app can be stopped without exposing a
@@ -95,6 +111,10 @@ server {
     location @mywebsite_static_503 {
         root /path/from/read-only-preflight/site-root;
         try_files /static-503.html =503;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
         add_header Cache-Control "no-store" always;
     }
 

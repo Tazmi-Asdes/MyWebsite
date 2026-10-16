@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import PageError from "../components/PageError.astro";
+
+export const prerender = false;
+Astro.response.status = 404;
+Astro.response.headers.set("Cache-Control", "no-store");
+---
+
+<BaseLayout title="页面不存在 — Tazmi-Website" description="找不到你要访问的页面。">
+  <main id="main-content" class="unavailable-page">
+    <div class="container"><PageError status={404} title="页面不存在" message="找不到你要访问的页面，地址可能已经变更。" /></div>
+  </main>
+</BaseLayout>

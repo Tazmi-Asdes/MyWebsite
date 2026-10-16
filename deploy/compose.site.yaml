@@ -1,0 +1,35 @@
+# Production Astro SSR service with an immutable image reference. Public
+# traffic is switched separately at OpenResty.
+services:
+  site-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: site-runtime
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.16.0}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}
+    image: ${SITE_WEB_IMAGE_REF:?SITE_WEB_IMAGE_REF must be a complete digest reference}
+    restart: unless-stopped
+    environment:
+      GO_PUBLIC_ORIGIN: http://app:8080
+      HOST: 0.0.0.0
+      PORT: "4321"
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:${SITE_WEB_PORT:-18082}:4321"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:4321/-/ready',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

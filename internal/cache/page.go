@@ -12,8 +12,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
+
+	"github.com/oklog/ulid/v2"
 )
 
 const (
@@ -22,7 +25,7 @@ const (
 )
 
 // Page is the complete response representation that may be replayed for a
-// public page. Only successful HTML responses are stored.
+// public page. Only successful HTML and whitelisted JSON responses are stored.
 type Page struct {
 	Body        []byte
 	ETag        string
@@ -39,8 +42,9 @@ type PageCache interface {
 	Invalidate(context.Context) error
 }
 
-// Middleware caches the anonymous public HTML routes. A nil cache is valid
-// and turns the middleware into a browser-revalidation wrapper only.
+// Middleware caches anonymous public HTML and explicitly whitelisted JSON
+// routes. A nil cache is valid and turns the middleware into a
+// browser-revalidation wrapper only.
 func Middleware(next http.Handler, store PageCache, logger *slog.Logger) http.Handler {
 	if next == nil {
 		next = http.NotFoundHandler()
@@ -63,7 +67,7 @@ func Middleware(next http.Handler, store PageCache, logger *slog.Logger) http.Ha
 				version = value
 				if page, ok, getErr := store.Get(r.Context(), version, r.URL.RequestURI()); getErr != nil {
 					logger.Warn("public_cache_get_failed", "error", getErr, "path", r.URL.Path)
-				} else if ok {
+				} else if ok && isContentTypeForPath(r.URL.Path, page.ContentType) {
 					writePage(w, r, page)
 					return
 				}
@@ -74,7 +78,7 @@ func Middleware(next http.Handler, store PageCache, logger *slog.Logger) http.Ha
 		next.ServeHTTP(capture, r)
 		status := capture.statusCode()
 		body := capture.body.Bytes()
-		if status != http.StatusOK || !isHTML(capture.Header().Get("Content-Type")) {
+		if status != http.StatusOK || !isContentTypeForPath(r.URL.Path, capture.Header().Get("Content-Type")) || len(capture.Header().Values("Set-Cookie")) != 0 {
 			capture.writeTo(w)
 			return
 		}
@@ -110,7 +114,11 @@ func eligibleRequest(r *http.Request) bool {
 	if r.Header.Get("Cookie") != "" || r.Header.Get("Authorization") != "" {
 		return false
 	}
-	switch r.URL.Path {
+	return isPublicHTMLPath(r.URL.Path) || isPublicJSONPath(r.URL.Path)
+}
+
+func isPublicHTMLPath(path string) bool {
+	switch path {
 	case "/", "/articles", "/projects", "/about":
 		return true
 	default:
@@ -118,9 +126,42 @@ func eligibleRequest(r *http.Request) bool {
 	}
 }
 
+func isPublicJSONPath(path string) bool {
+	switch path {
+	case "/api/public/v1/home", "/api/public/v1/articles", "/api/public/v1/projects", "/api/public/v1/about":
+		return true
+	}
+	const articlePrefix = "/api/public/v1/articles/"
+	if !strings.HasPrefix(path, articlePrefix) {
+		return false
+	}
+	value := strings.TrimPrefix(path, articlePrefix)
+	if value == "" || strings.Contains(value, "/") {
+		return false
+	}
+	_, err := ulid.ParseStrict(value)
+	return err == nil
+}
+
 func isHTML(contentType string) bool {
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	return strings.HasPrefix(contentType, "text/html")
+}
+
+func isPublicContentType(contentType string) bool {
+	if isHTML(contentType) {
+		return true
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && strings.EqualFold(mediaType, "application/json")
+}
+
+func isContentTypeForPath(path, contentType string) bool {
+	if isPublicJSONPath(path) {
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		return err == nil && strings.EqualFold(mediaType, "application/json")
+	}
+	return isPublicHTMLPath(path) && isHTML(contentType)
 }
 
 func writePage(w http.ResponseWriter, r *http.Request, page Page) {
@@ -237,8 +278,8 @@ func ValidatePage(page Page) error {
 	if page.ETag == "" {
 		return errors.New("public cache page etag is empty")
 	}
-	if !isHTML(page.ContentType) {
-		return fmt.Errorf("public cache content type %q is not HTML", page.ContentType)
+	if !isPublicContentType(page.ContentType) {
+		return fmt.Errorf("public cache content type %q is not HTML or JSON", page.ContentType)
 	}
 	return nil
 }

@@ -1,0 +1,21 @@
+---
+import type { HomeArticle } from "../lib/public-data";
+import { articleHref } from "../lib/links";
+
+interface Props {
+  article: HomeArticle;
+}
+
+const { article } = Astro.props;
+---
+
+<article class="article-list__item">
+  <a class="article-list__link" href={articleHref(article)}>
+    <time datetime={article.date_time}>{article.published}</time>
+    <div>
+      <h2>{article.title}</h2>
+      <p>{article.preview}</p>
+    </div>
+    <span class="article-list__arrow" aria-hidden="true">↗</span>
+  </a>
+</article>

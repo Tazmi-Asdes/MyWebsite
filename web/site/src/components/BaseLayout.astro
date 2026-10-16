@@ -1,0 +1,117 @@
+---
+import "../styles/site.css";
+import Header from "./Header.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  year?: number;
+  openGraph?: {
+    type: "article";
+    title: string;
+    description: string;
+  };
+}
+
+const { title, description, year = new Date().getFullYear(), openGraph } = Astro.props;
+const active: "home" | "articles" | "projects" | "about" = Astro.url.pathname === "/" ? "home" : Astro.url.pathname.startsWith("/articles") ? "articles" : Astro.url.pathname === "/projects" ? "projects" : Astro.url.pathname === "/about" ? "about" : "home";
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="public-site-renderer" content="astro" />
+    {openGraph && <meta property="og:type" content={openGraph.type} />}
+    {openGraph && <meta property="og:title" content={openGraph.title} />}
+    {openGraph && <meta property="og:description" content={openGraph.description} />}
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const storageKey = "mywebsite-theme";
+        const isTheme = (value) => value === "light" || value === "dark";
+        let storedTheme = null;
+        try {
+          const candidate = window.localStorage.getItem(storageKey);
+          if (isTheme(candidate)) storedTheme = candidate;
+        } catch (_error) {
+          // A blocked storage area must not prevent the page from loading.
+        }
+        if (storedTheme) document.documentElement.setAttribute("data-theme", storedTheme);
+
+        document.addEventListener("DOMContentLoaded", () => {
+          const menu = document.querySelector(".site-menu");
+          const mobileLayout = window.matchMedia("(max-width: 719px)");
+          if (menu instanceof HTMLDetailsElement) {
+            const syncMenu = () => {
+              menu.open = !mobileLayout.matches;
+            };
+            syncMenu();
+            mobileLayout.addEventListener("change", syncMenu);
+            menu.querySelectorAll(".site-nav a").forEach((link) => {
+              link.addEventListener("click", () => {
+                if (mobileLayout.matches) menu.open = false;
+              });
+            });
+            menu.addEventListener("keydown", (event) => {
+              if (event.key === "Escape" && mobileLayout.matches && menu.open) {
+                menu.open = false;
+                menu.querySelector("summary")?.focus();
+              }
+            });
+          }
+
+          const button = document.querySelector("[data-theme-toggle]");
+          if (!(button instanceof HTMLButtonElement)) return;
+
+          const currentTheme = () => {
+            const explicitTheme = document.documentElement.getAttribute("data-theme");
+            if (isTheme(explicitTheme)) return explicitTheme;
+            return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          };
+          const syncButton = () => {
+            const theme = currentTheme();
+            const nextTheme = theme === "dark" ? "light" : "dark";
+            button.hidden = false;
+            button.dataset.theme = theme;
+            button.setAttribute("aria-pressed", String(theme === "dark"));
+            button.setAttribute(
+              "aria-label",
+              `当前为${theme === "dark" ? "深色" : "浅色"}主题，点击切换到${nextTheme === "dark" ? "深色" : "浅色"}主题`,
+            );
+          };
+
+          syncButton();
+          button.addEventListener("click", () => {
+            const nextTheme = currentTheme() === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", nextTheme);
+            try {
+              window.localStorage.setItem(storageKey, nextTheme);
+            } catch (_error) {
+              // Theme changes remain available when persistent storage is blocked.
+            }
+            syncButton();
+          });
+        }, { once: true });
+      })();
+    </script>
+  </head>
+  <body>
+    <Header active={active} />
+    <slot />
+    <footer class="site-footer">
+      <div class="container site-footer__inner">
+        <span>© {year} MyWebsite</span>
+      </div>
+    </footer>
+    <script>
+      for (const image of document.querySelectorAll<HTMLImageElement>(".project-image")) {
+        image.addEventListener("contextmenu", (event) => event.preventDefault());
+        image.addEventListener("dragstart", (event) => event.preventDefault());
+      }
+    </script>
+  </body>
+</html>

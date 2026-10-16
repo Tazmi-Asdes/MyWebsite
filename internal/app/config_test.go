@@ -33,6 +33,9 @@ func TestParseConfigDefaults(t *testing.T) {
 	if config.AppEnv != defaultAppEnv || config.PublicBaseURL != "https://example.test" || config.SessionIdleDuration != defaultSessionIdleTimeout || config.SessionAbsoluteDuration != defaultSessionAbsoluteTimeout || config.CookieSecure {
 		t.Fatalf("application settings = %+v, want defaults", config)
 	}
+	if config.TrustedProxyCIDRs != nil {
+		t.Fatalf("TrustedProxyCIDRs = %v, want nil by default", config.TrustedProxyCIDRs)
+	}
 	if config.UploadDir != "C:\\uploads" || config.MaxUploadBytes != defaultMaxUploadBytes || config.MaxImagePixels != defaultMaxImagePixels || config.MaxImageEdge != defaultMaxImageEdge || config.GitHubAPIBaseURL != defaultGitHubAPIBaseURL || config.GitHubTimeout != defaultGitHubTimeout {
 		t.Fatalf("stage2 settings = %+v, want defaults", config)
 	}
@@ -71,6 +74,167 @@ func TestParseConfigCustomValues(t *testing.T) {
 	}
 	if config.UploadDir != values["UPLOAD_DIR"] || config.MaxUploadBytes != 123456 || config.MaxImagePixels != 345678 || config.MaxImageEdge != 4096 || config.GitHubAPIBaseURL != "http://github.internal" || config.GitHubTimeout != 7*time.Second {
 		t.Fatalf("custom stage2 settings = %+v", config)
+	}
+}
+
+func TestParseConfigTrustedProxyCIDRs(t *testing.T) {
+	values := requiredDatabaseValues()
+	values["TRUSTED_PROXY_CIDRS"] = " 192.0.2.42/24, 2001:db8::1/128, 192.0.2.0/24 "
+	config, err := ParseConfig(mapLookup(values))
+	if err != nil {
+		t.Fatalf("ParseConfig() error = %v", err)
+	}
+	want := []string{"192.0.2.0/24", "2001:db8::1/128"}
+	if len(config.TrustedProxyCIDRs) != len(want) {
+		t.Fatalf("TrustedProxyCIDRs = %v, want %v", config.TrustedProxyCIDRs, want)
+	}
+	for index := range want {
+		if config.TrustedProxyCIDRs[index] != want[index] {
+			t.Fatalf("TrustedProxyCIDRs = %v, want %v", config.TrustedProxyCIDRs, want)
+		}
+	}
+
+	values["TRUSTED_PROXY_CIDRS"] = ""
+	config, err = ParseConfig(mapLookup(values))
+	if err != nil {
+		t.Fatalf("ParseConfig(empty TRUSTED_PROXY_CIDRS) error = %v", err)
+	}
+	if config.TrustedProxyCIDRs != nil {
+		t.Fatalf("TrustedProxyCIDRs for an empty value = %v, want nil", config.TrustedProxyCIDRs)
+	}
+}
+
+func TestParseConfigRejectsInvalidTrustedProxyCIDRs(t *testing.T) {
+	for _, value := range []string{
+		"invalid",
+		"192.0.2.1",
+		"192.0.2.0/33",
+		"2001:db8::/129",
+		",192.0.2.0/24",
+		"192.0.2.0/24,,2001:db8::/32",
+		"192.0.2.0/24,",
+		" ",
+	} {
+		values := requiredDatabaseValues()
+		values["TRUSTED_PROXY_CIDRS"] = value
+		if _, err := ParseConfig(mapLookup(values)); err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_CIDRS") {
+			t.Fatalf("ParseConfig(TRUSTED_PROXY_CIDRS=%q) error = %v, want a TRUSTED_PROXY_CIDRS error", value, err)
+		}
+	}
+}
+
+func TestParseConfigRedisURLRedactsInvalidValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		field   string
+		value   string
+		path    string
+		secrets []string
+	}{
+		{
+			name:    "credentials",
+			value:   "redis://fake-user:user-secret@redis:6379/0",
+			secrets: []string{"fake-user", "user-secret"},
+		},
+		{
+			name:    "query",
+			value:   "redis://redis:6379/0?token=query-secret",
+			secrets: []string{"query-secret"},
+		},
+		{
+			name:  "empty query",
+			value: "redis://redis:6379/0?",
+		},
+		{
+			name:    "fragment",
+			value:   "redis://redis:6379/0#fragment-secret",
+			secrets: []string{"fragment-secret"},
+		},
+		{
+			name:  "empty fragment",
+			value: "redis://redis:6379/0#",
+		},
+		{
+			name:    "malformed",
+			value:   "redis://fake-user:bad-url-secret@redis%zz:6379/0?token=bad-url-query-secret",
+			secrets: []string{"fake-user", "bad-url-secret", "bad-url-query-secret"},
+		},
+		{
+			name:    "invalid database path",
+			value:   "redis://redis:6379/api-key-secret",
+			path:    "api-key-secret",
+			secrets: []string{"api-key-secret"},
+		},
+		{
+			name:    "oversized database path",
+			value:   "redis://redis:6379/" + strings.Repeat("9", 100),
+			path:    strings.Repeat("9", 100),
+			field:   "REDIS_DB",
+			secrets: []string{strings.Repeat("9", 100)},
+		},
+		{
+			name:    "invalid REDIS_DB value",
+			key:     "REDIS_DB",
+			field:   "REDIS_DB",
+			value:   "db-secret-value",
+			path:    "db-secret-value",
+			secrets: []string{"db-secret-value"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			values := requiredDatabaseValues()
+			key := test.key
+			if key == "" {
+				key = "REDIS_URL"
+			}
+			field := test.field
+			if field == "" {
+				field = "REDIS_URL"
+			}
+			values[key] = test.value
+			_, err := ParseConfig(mapLookup(values))
+			if err == nil || !strings.Contains(err.Error(), field) {
+				t.Fatalf("ParseConfig() error = %v, want a %s error", err, field)
+			}
+			if strings.Contains(err.Error(), test.value) {
+				t.Fatalf("ParseConfig() error exposed %s: %v", key, err)
+			}
+			if test.path != "" && strings.Contains(err.Error(), test.path) {
+				t.Fatalf("ParseConfig() error exposed database path %q: %v", test.path, err)
+			}
+			for _, secret := range test.secrets {
+				if strings.Contains(err.Error(), secret) {
+					t.Fatalf("ParseConfig() error exposed %q: %v", secret, err)
+				}
+			}
+		})
+	}
+}
+
+func TestParseConfigPreservesRedisAddressAndPasswordFile(t *testing.T) {
+	values := requiredDatabaseValues()
+	values["REDIS_ADDR"] = "Redis:6379"
+	values["REDIS_DB"] = "2"
+	values["REDIS_PASSWORD_FILE"] = "C:\\secrets\\redis-password"
+	config, err := ParseConfig(mapLookup(values))
+	if err != nil {
+		t.Fatalf("ParseConfig() error = %v", err)
+	}
+	if !config.RedisEnabled || config.Redis.Addr != "Redis:6379" || config.Redis.DB != 2 || config.RedisPasswordFile != values["REDIS_PASSWORD_FILE"] {
+		t.Fatalf("Redis config = %+v, password file = %q, want address, database, and password file preserved", config.Redis, config.RedisPasswordFile)
+	}
+
+	values = requiredDatabaseValues()
+	values["REDIS_URL"] = "redis://Redis:6379/3"
+	values["REDIS_PASSWORD_FILE"] = "C:\\secrets\\redis-password"
+	config, err = ParseConfig(mapLookup(values))
+	if err != nil {
+		t.Fatalf("ParseConfig(valid REDIS_URL) error = %v", err)
+	}
+	if !config.RedisEnabled || config.Redis.Addr != "Redis:6379" || config.Redis.DB != 3 || config.RedisPasswordFile != values["REDIS_PASSWORD_FILE"] {
+		t.Fatalf("Redis URL config = %+v, password file = %q, want URL host, database, and password file preserved", config.Redis, config.RedisPasswordFile)
 	}
 }
 

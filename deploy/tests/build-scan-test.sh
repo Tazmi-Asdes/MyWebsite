@@ -7,6 +7,8 @@ trap 'rm -rf -- "$temp_root"' EXIT
 mock_bin="$temp_root/bin"
 mock_project="$temp_root/project"
 mkdir -p -- "$mock_bin" "$mock_project"
+mock_bin_path=$(cd -- "$mock_bin" && pwd)
+mock_project=$(cd -- "$mock_project" && pwd)
 
 cat >"$mock_bin/docker" <<'MOCK_DOCKER'
 #!/usr/bin/env bash
@@ -28,6 +30,9 @@ case "$1" in
           exit 7
         fi
         ;;
+      */site-web:*)
+        if [ "${MOCK_FAIL_SITE_PUSH_ALL:-false}" = true ]; then exit 8; fi
+        ;;
     esac
     ;;
   image)
@@ -45,6 +50,15 @@ case "$1" in
           'registry.example/group/project/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
           'registry.example/group/project/admin-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
         ;;
+      */site-web:*)
+        if [ "${MOCK_SITE_WRONG_REPO_DIGEST:-false}" = true ]; then
+          printf '%s\n' \
+            'registry.example/other/site-web@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+        else
+          printf '%s\n' \
+            'registry.example/group/project/site-web@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        fi
+        ;;
       *)
         exit 41
         ;;
@@ -55,6 +69,12 @@ case "$1" in
     ;;
 esac
 MOCK_DOCKER
+
+cat >"$mock_bin/sleep" <<'MOCK_SLEEP'
+#!/usr/bin/env bash
+set -eu
+printf 'sleep %s\n' "$*" >>"$MOCK_DOCKER_LOG"
+MOCK_SLEEP
 
 cat >"$mock_bin/trivy" <<'MOCK_TRIVY'
 #!/usr/bin/env bash
@@ -111,8 +131,8 @@ elif [ "${TRIVY_FAIL_GATE_FOR:-}" = "$image_ref" ]; then
 fi
 MOCK_TRIVY
 
-chmod +x "$mock_bin/docker" "$mock_bin/trivy"
-export PATH="$mock_bin:$PATH"
+chmod +x "$mock_bin/docker" "$mock_bin/sleep" "$mock_bin/trivy"
+export PATH="$mock_bin_path:$PATH"
 export CI_PROJECT_DIR="$mock_project"
 export CI_COMMIT_SHA=0123456789abcdef0123456789abcdef01234567
 export CI_JOB_ID=mock-job-123
@@ -120,32 +140,70 @@ export CI_REGISTRY=registry.example
 export CI_REGISTRY_IMAGE=registry.example/group/project
 export CI_REGISTRY_USER=mock-user
 export CI_REGISTRY_PASSWORD=mock-password
-export DOCKER_CONFIG="$temp_root/docker-config"
+export DOCKER_CONFIG="docker-config"
 export PULL_BASE_IMAGES=false
-export MOCK_DOCKER_LOG="$temp_root/docker.log"
-export MOCK_APP_PUSH_MARKER="$temp_root/app-push-failed-once"
+export MOCK_DOCKER_LOG="../docker.log"
+export MOCK_APP_PUSH_MARKER="../app-push-failed-once"
 export MOCK_FAIL_APP_PUSH_ONCE=true
 export MOCK_TRIVY_LOG="$temp_root/trivy.log"
 
 bash "$project_root/deploy/scripts/build-images.sh"
 
+export MOCK_DOCKER_LOG="$temp_root/docker.log"
 [[ $(grep -c '^docker login ' "$MOCK_DOCKER_LOG") -eq 1 ]]
-[[ $(grep -c '^docker build ' "$MOCK_DOCKER_LOG") -eq 2 ]]
+[[ $(grep -c '^docker build ' "$MOCK_DOCKER_LOG") -eq 3 ]]
 grep -Fq -- '--target app-runtime' "$MOCK_DOCKER_LOG"
 grep -Fq -- '--target admin-web' "$MOCK_DOCKER_LOG"
+grep -Fq -- '--target site-runtime' "$MOCK_DOCKER_LOG"
 [[ $(grep -c '^docker push registry.example/group/project/app:' "$MOCK_DOCKER_LOG") -eq 2 ]]
 [[ $(grep -c '^docker push registry.example/group/project/admin-web:' "$MOCK_DOCKER_LOG") -eq 1 ]]
+[[ $(grep -c '^docker push registry.example/group/project/site-web:' "$MOCK_DOCKER_LOG") -eq 1 ]]
 grep -Fq 'APP_IMAGE_REF=registry.example/group/project/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' "$CI_PROJECT_DIR/release.env"
 grep -Fq 'ADMIN_WEB_IMAGE_REF=registry.example/group/project/admin-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' "$CI_PROJECT_DIR/release.env"
+grep -Fq 'SITE_WEB_IMAGE_REF=registry.example/group/project/site-web@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' "$CI_PROJECT_DIR/release.env"
 grep -Fq "RELEASE_COMMIT=$CI_COMMIT_SHA" "$CI_PROJECT_DIR/release.env"
 if grep -Fq ':latest' "$MOCK_DOCKER_LOG"; then
   printf '%s\n' 'build script must not use latest tags' >&2
   exit 1
 fi
 
+failed_project="$temp_root/project-site-push-failure"
+mkdir -p -- "$failed_project"
+failed_project=$(cd -- "$failed_project" && pwd)
+export CI_PROJECT_DIR="$failed_project"
+export MOCK_DOCKER_LOG="../docker-site-push-failure.log"
+export MOCK_FAIL_SITE_PUSH_ALL=true
+if bash "$project_root/deploy/scripts/build-images.sh"; then
+  printf '%s\n' 'build script must fail when all site-web push attempts fail' >&2
+  exit 1
+fi
+unset MOCK_FAIL_SITE_PUSH_ALL
+export MOCK_DOCKER_LOG="$temp_root/docker-site-push-failure.log"
+[[ $(grep -c '^docker push registry.example/group/project/site-web:' "$MOCK_DOCKER_LOG") -eq 3 ]]
+[[ ! -e "$CI_PROJECT_DIR/release.env" ]]
+
+failed_project="$temp_root/project-site-digest-failure"
+mkdir -p -- "$failed_project"
+failed_project=$(cd -- "$failed_project" && pwd)
+export CI_PROJECT_DIR="$failed_project"
+export MOCK_DOCKER_LOG="../docker-site-digest-failure.log"
+export MOCK_SITE_WRONG_REPO_DIGEST=true
+if bash "$project_root/deploy/scripts/build-images.sh"; then
+  printf '%s\n' 'build script must reject a site-web RepoDigest from another repository' >&2
+  exit 1
+fi
+unset MOCK_SITE_WRONG_REPO_DIGEST
+export MOCK_DOCKER_LOG="$temp_root/docker-site-digest-failure.log"
+[[ ! -e "$CI_PROJECT_DIR/release.env" ]]
+grep -Fq -- 'docker image inspect --format ' "$MOCK_DOCKER_LOG"
+grep -Fq 'registry.example/group/project/site-web:' "$MOCK_DOCKER_LOG"
+
+export CI_PROJECT_DIR="$mock_project"
+export MOCK_DOCKER_LOG="$temp_root/docker.log"
+
 export APP_IMAGE_REF=registry.example/group/project/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export ADMIN_WEB_IMAGE_REF=registry.example/group/project/admin-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-export TRIVY_CACHE_DIR="$CI_PROJECT_DIR/.cache/trivy"
+export TRIVY_CACHE_DIR="$temp_root/.cache/trivy"
 export MYWEBSITE_TRIVY_DB_REPOSITORIES='mock.registry/first:2 mock.registry/second:2'
 export MYWEBSITE_TRIVY_DB_DOWNLOAD_TIMEOUT=17s
 export DEPLOY_DIAGNOSTICS_DIR="$temp_root/reports-success"

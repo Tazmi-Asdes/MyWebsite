@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ type fakeAuthService struct {
 	loginCalls     int
 	authCalls      int
 	refreshCalls   int
+	reauthCalls    int
 }
 
 func (service *fakeAuthService) Login(context.Context, string, string) (auth.LoginResult, error) {
@@ -53,6 +55,7 @@ func (service *fakeAuthService) ValidateCSRF(_ any, token string) error {
 func (service *fakeAuthService) Logout(context.Context, uint64) error { return service.logoutErr }
 
 func (service *fakeAuthService) Reauthenticate(context.Context, auth.Session, string) (auth.LoginResult, error) {
+	service.reauthCalls++
 	return service.reauthResult, service.reauthErr
 }
 
@@ -254,6 +257,243 @@ func TestLoginLimiterBlocksSixthCredentialFailure(t *testing.T) {
 	if authService.loginCalls != 5 {
 		t.Fatalf("login calls = %d, want 5 after rate limit", authService.loginCalls)
 	}
+}
+
+func TestLoginLimiterSharesAccountAndIPBudgets(t *testing.T) {
+	t.Run("account across IPs", func(t *testing.T) {
+		authService := &fakeAuthService{loginErr: auth.ErrInvalidCredentials}
+		handler := testHandler(t, authService, &fakeArticleService{})
+		for attempt := 1; attempt <= loginFailureLimit; attempt++ {
+			response := failedLoginResponse(t, handler, "admin", "192.0.2."+strconv.Itoa(attempt)+":1234")
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf("failure %d status = %d", attempt, response.Code)
+			}
+		}
+		response := failedLoginResponse(t, handler, "admin", "192.0.2.99:1234")
+		if response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") == "" || authService.loginCalls != loginFailureLimit {
+			t.Fatalf("cross-IP attempt = %d, Retry-After=%q, login calls=%d", response.Code, response.Header().Get("Retry-After"), authService.loginCalls)
+		}
+	})
+
+	t.Run("IP across usernames", func(t *testing.T) {
+		authService := &fakeAuthService{loginErr: auth.ErrInvalidCredentials}
+		handler := testHandler(t, authService, &fakeArticleService{})
+		for attempt := 1; attempt <= loginIPFailureLimit; attempt++ {
+			response := failedLoginResponse(t, handler, "admin"+strconv.Itoa(attempt), "198.51.100.7:1234")
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf("failure %d status = %d", attempt, response.Code)
+			}
+		}
+		response := failedLoginResponse(t, handler, "another-account", "198.51.100.7:5678")
+		if response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") == "" || authService.loginCalls != loginIPFailureLimit {
+			t.Fatalf("cross-account attempt = %d, Retry-After=%q, login calls=%d", response.Code, response.Header().Get("Retry-After"), authService.loginCalls)
+		}
+	})
+}
+
+func TestLoginLimiterReauthSharesFailureWindow(t *testing.T) {
+	authService := &fakeAuthService{loginErr: auth.ErrInvalidCredentials, refreshSession: authenticatedSession()}
+	handler := testHandler(t, authService, &fakeArticleService{})
+	for attempt := 1; attempt < loginFailureLimit; attempt++ {
+		if response := failedLoginResponse(t, handler, "admin", "203.0.113.7:1234"); response.Code != http.StatusUnauthorized {
+			t.Fatalf("login failure %d status = %d", attempt, response.Code)
+		}
+	}
+	authService.reauthErr = auth.ErrInvalidCredentials
+	reauth := httptest.NewRequest(http.MethodPost, "/api/v1/session/reauth", strings.NewReader(`{"password":"wrong"}`))
+	reauth.RemoteAddr = "203.0.113.7:4321"
+	reauth.Header.Set("Content-Type", "application/json")
+	reauth.Header.Set("Origin", "https://example.test")
+	reauth.Header.Set("X-CSRF-Token", "csrf-token")
+	reauth.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+	reauthResponse := httptest.NewRecorder()
+	handler.ServeHTTP(reauthResponse, reauth)
+	if reauthResponse.Code != http.StatusUnauthorized || authService.reauthCalls != 1 {
+		t.Fatalf("reauth status = %d, reauth calls = %d", reauthResponse.Code, authService.reauthCalls)
+	}
+	blocked := failedLoginResponse(t, handler, "admin", "203.0.113.8:1234")
+	if blocked.Code != http.StatusTooManyRequests || authService.loginCalls != loginFailureLimit-1 {
+		t.Fatalf("login after shared reauth failures = %d, login calls = %d", blocked.Code, authService.loginCalls)
+	}
+}
+
+func TestReauthBlocksSixthCredentialFailureBeforePasswordService(t *testing.T) {
+	authService := &fakeAuthService{refreshSession: authenticatedSession(), reauthErr: auth.ErrInvalidCredentials}
+	handler := testHandler(t, authService, &fakeArticleService{})
+	for attempt := 1; attempt <= loginFailureLimit; attempt++ {
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/session/reauth", strings.NewReader(`{"password":"wrong"}`))
+		request.RemoteAddr = "192.0.2.200:1234"
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Origin", "https://example.test")
+		request.Header.Set("X-CSRF-Token", "csrf-token")
+		request.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("reauth attempt %d status = %d, want %d", attempt, response.Code, http.StatusUnauthorized)
+		}
+	}
+	csrfFailure := httptest.NewRequest(http.MethodPost, "/api/v1/session/reauth", strings.NewReader(`{"password":"wrong"}`))
+	csrfFailure.RemoteAddr = "192.0.2.200:1234"
+	csrfFailure.Header.Set("Content-Type", "application/json")
+	csrfFailure.Header.Set("Origin", "https://example.test")
+	csrfFailure.Header.Set("X-CSRF-Token", "incorrect")
+	csrfFailure.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+	csrfFailureResponse := httptest.NewRecorder()
+	handler.ServeHTTP(csrfFailureResponse, csrfFailure)
+	if csrfFailureResponse.Code != http.StatusForbidden {
+		t.Fatalf("reauth CSRF failure status = %d, want %d", csrfFailureResponse.Code, http.StatusForbidden)
+	}
+
+	blocked := httptest.NewRequest(http.MethodPost, "/api/v1/session/reauth", strings.NewReader(`{"password":"wrong"}`))
+	blocked.RemoteAddr = "192.0.2.200:1234"
+	blocked.Header.Set("Content-Type", "application/json")
+	blocked.Header.Set("Origin", "https://example.test")
+	blocked.Header.Set("X-CSRF-Token", "csrf-token")
+	blocked.AddCookie(&http.Cookie{Name: "session", Value: "token.csrf-token"})
+	blockedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(blockedResponse, blocked)
+	if blockedResponse.Code != http.StatusTooManyRequests || blockedResponse.Header().Get("Retry-After") == "" {
+		t.Fatalf("sixth valid reauth status = %d, Retry-After=%q", blockedResponse.Code, blockedResponse.Header().Get("Retry-After"))
+	}
+	if authService.refreshCalls != loginFailureLimit+2 || authService.reauthCalls != loginFailureLimit {
+		t.Fatalf("AuthenticateForReauth calls=%d, password-service calls=%d", authService.refreshCalls, authService.reauthCalls)
+	}
+}
+
+func TestLoginLimiterSuccessClearsAccountAndServiceErrorsDoNotCount(t *testing.T) {
+	authService := &fakeAuthService{loginErr: auth.ErrInvalidCredentials}
+	handler := testHandler(t, authService, &fakeArticleService{})
+	if response := failedLoginResponse(t, handler, "admin", "192.0.2.8:1234"); response.Code != http.StatusUnauthorized {
+		t.Fatalf("initial failure status = %d", response.Code)
+	}
+	accountKey, ipKey := loginLimiterKeys("192.0.2.8", "admin")
+	authService.loginErr = nil
+	request := newLoginHTTPRequest("admin", "correct password", "192.0.2.8:5678")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("successful login status = %d", response.Code)
+	}
+	if _, ok := handler.limiter.entries[accountKey]; ok {
+		t.Fatal("successful login retained account failure bucket")
+	}
+	if entry, ok := handler.limiter.entries[ipKey]; !ok || entry.count != 1 {
+		t.Fatalf("successful login IP bucket = %+v, exists=%v", entry, ok)
+	}
+
+	serviceErrorIP := "198.51.100.24"
+	serviceErrorAccount, serviceErrorBucket := loginLimiterKeys(serviceErrorIP, "other")
+	authService.loginErr = errors.New("database unavailable")
+	serviceError := httptest.NewRecorder()
+	handler.ServeHTTP(serviceError, newLoginHTTPRequest("other", "password", serviceErrorIP+":1234"))
+	if serviceError.Code != http.StatusServiceUnavailable {
+		t.Fatalf("service error status = %d", serviceError.Code)
+	}
+	if _, ok := handler.limiter.entries[serviceErrorAccount]; ok {
+		t.Fatal("service error created an account failure bucket")
+	}
+	if _, ok := handler.limiter.entries[serviceErrorBucket]; ok {
+		t.Fatal("service error created an IP failure bucket")
+	}
+}
+
+func TestLoginLimiterExpiresEntriesAndFailsClosedAtCapacity(t *testing.T) {
+	now := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+	limiter := newLoginLimiter(func() time.Time { return now })
+	for index := 0; index < loginLimiterMaxEntries; index++ {
+		key := loginLimitKey{kind: loginAccountBucket, value: "entry-" + strconv.Itoa(index)}
+		limiter.entries[key] = failureEntry{started: now, count: 1}
+	}
+	accountKey, ipKey := loginLimiterKeys("192.0.2.44", "new-account")
+	if retryAfter, blocked := limiter.allow(accountKey, ipKey); !blocked || retryAfter < 1 {
+		t.Fatalf("full limiter allow = retry %d, blocked %v", retryAfter, blocked)
+	}
+	if len(limiter.entries) != loginLimiterMaxEntries {
+		t.Fatalf("capacity denial changed entries to %d", len(limiter.entries))
+	}
+	authService := &fakeAuthService{loginErr: auth.ErrInvalidCredentials}
+	handler := testHandler(t, authService, &fakeArticleService{})
+	handler.limiter = limiter
+	capacityResponse := failedLoginResponse(t, handler, "new-account", "192.0.2.44:1234")
+	if capacityResponse.Code != http.StatusTooManyRequests || capacityResponse.Header().Get("Retry-After") == "" || authService.loginCalls != 0 {
+		t.Fatalf("capacity request = %d, Retry-After=%q, login calls=%d", capacityResponse.Code, capacityResponse.Header().Get("Retry-After"), authService.loginCalls)
+	}
+	now = now.Add(loginFailureWindow)
+	if retryAfter, blocked := limiter.allow(accountKey, ipKey); blocked {
+		t.Fatalf("expired entries still blocked after %d seconds", retryAfter)
+	}
+	if len(limiter.entries) != 2 {
+		t.Fatalf("lazy expiry retained %d entries, want only the two new buckets", len(limiter.entries))
+	}
+}
+
+func TestClientIPHonorsOnlyTrustedSingleXRealIP(t *testing.T) {
+	handler, err := NewHandler(HandlerOptions{
+		Auth: &fakeAuthService{}, Articles: &fakeArticleService{},
+		TrustedProxyCIDRs: []string{"198.51.100.0/24"},
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	tests := []struct {
+		name       string
+		remoteAddr string
+		realIPs    []string
+		xff        string
+		want       string
+	}{
+		{name: "trusted proxy", remoteAddr: "198.51.100.8:1234", realIPs: []string{"203.0.113.12"}, want: "203.0.113.12"},
+		{name: "untrusted source", remoteAddr: "203.0.113.9:1234", realIPs: []string{"192.0.2.10"}, want: "203.0.113.9"},
+		{name: "duplicate real IP", remoteAddr: "198.51.100.8:1234", realIPs: []string{"203.0.113.12", "203.0.113.13"}, want: "198.51.100.8"},
+		{name: "invalid real IP", remoteAddr: "198.51.100.8:1234", realIPs: []string{"203.0.113.12, 192.0.2.9"}, want: "198.51.100.8"},
+		{name: "forwarded for ignored", remoteAddr: "198.51.100.8:1234", xff: "192.0.2.9", want: "198.51.100.8"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.RemoteAddr = test.remoteAddr
+			for _, value := range test.realIPs {
+				request.Header.Add("X-Real-IP", value)
+			}
+			if test.xff != "" {
+				request.Header.Set("X-Forwarded-For", test.xff)
+			}
+			if got := handler.clientIP(request); got != test.want {
+				t.Fatalf("clientIP() = %q, want %q", got, test.want)
+			}
+		})
+	}
+	defaultTrustHandler, err := NewHandler(HandlerOptions{Auth: &fakeAuthService{}, Articles: &fakeArticleService{}})
+	if err != nil {
+		t.Fatalf("NewHandler() without trusted proxies error = %v", err)
+	}
+	defaultRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	defaultRequest.RemoteAddr = "198.51.100.8:1234"
+	defaultRequest.Header.Set("X-Real-IP", "203.0.113.12")
+	if got := defaultTrustHandler.clientIP(defaultRequest); got != "198.51.100.8" {
+		t.Fatalf("default trusted proxy behavior = %q, want remote address", got)
+	}
+
+	if _, err := NewHandler(HandlerOptions{Auth: &fakeAuthService{}, Articles: &fakeArticleService{}, TrustedProxyCIDRs: []string{"invalid"}}); err == nil {
+		t.Fatal("NewHandler() accepted an invalid trusted proxy CIDR")
+	}
+}
+
+func failedLoginResponse(t *testing.T, handler http.Handler, username, remoteAddr string) *httptest.ResponseRecorder {
+	t.Helper()
+	response := httptest.NewRecorder()
+	request := newLoginHTTPRequest(username, "wrong password", remoteAddr)
+	handler.ServeHTTP(response, request)
+	return response
+}
+
+func newLoginHTTPRequest(username, password, remoteAddr string) *http.Request {
+	body := `{"username":"` + username + `","password":"` + password + `"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(body))
+	request.RemoteAddr = remoteAddr
+	request.Header.Set("Content-Type", "application/json")
+	return request
 }
 
 func TestUnknownArticleStoreErrorMapsToDependencyUnavailable(t *testing.T) {

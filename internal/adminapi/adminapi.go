@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,12 +31,14 @@ import (
 )
 
 const (
-	defaultPageSize    int32 = 20
-	maxPageSize        int32 = 20
-	loginBodyLimit           = 4 * 1024
-	articleBodyLimit         = 2*1024*1024 + 8*1024
-	loginFailureWindow       = 15 * time.Minute
-	loginFailureLimit        = 5
+	defaultPageSize        int32 = 20
+	maxPageSize            int32 = 20
+	loginBodyLimit               = 4 * 1024
+	articleBodyLimit             = 2*1024*1024 + 8*1024
+	loginFailureWindow           = 15 * time.Minute
+	loginFailureLimit            = 5
+	loginIPFailureLimit          = 30
+	loginLimiterMaxEntries       = 4096
 )
 
 var (
@@ -99,6 +102,8 @@ type HandlerOptions struct {
 	PublicBaseURL  string
 	CookieSecure   bool
 	Now            func() time.Time
+	// TrustedProxyCIDRs allows one X-Real-IP value from a matching RemoteAddr.
+	TrustedProxyCIDRs []string
 	// InvalidatePublic is called only after a successful mutation that changes
 	// anonymous public HTML. Cache failures are handled by the callback and
 	// must not change the API response.
@@ -118,6 +123,7 @@ type Handler struct {
 	now               func() time.Time
 	limiter           *loginLimiter
 	publicInvalidator func(context.Context)
+	trustedProxyCIDRs []*net.IPNet
 	routes            http.Handler
 }
 
@@ -136,6 +142,14 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	trustedProxyCIDRs := make([]*net.IPNet, 0, len(options.TrustedProxyCIDRs))
+	for _, value := range options.TrustedProxyCIDRs {
+		_, network, err := net.ParseCIDR(value)
+		if err != nil {
+			return nil, fmt.Errorf("adminapi: invalid trusted proxy CIDR %q: %w", value, err)
+		}
+		trustedProxyCIDRs = append(trustedProxyCIDRs, network)
+	}
 	now := options.Now
 	if now == nil {
 		now = time.Now
@@ -150,6 +164,7 @@ func NewHandler(options HandlerOptions) (*Handler, error) {
 		cookieSecure:      options.CookieSecure,
 		now:               func() time.Time { return now().UTC() },
 		publicInvalidator: options.InvalidatePublic,
+		trustedProxyCIDRs: trustedProxyCIDRs,
 	}
 	if handler.maxUploadBytes <= 0 {
 		handler.maxUploadBytes = defaultMediaUploadBytes
@@ -167,39 +182,69 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	if h == nil || mux == nil {
 		return
 	}
-	mux.Handle("GET /api/v1/session", http.HandlerFunc(h.getSession))
-	mux.Handle("POST /api/v1/session", http.HandlerFunc(h.createSession))
-	mux.Handle("DELETE /api/v1/session", http.HandlerFunc(h.deleteSession))
-	mux.Handle("POST /api/v1/session/reauth", http.HandlerFunc(h.reauthenticateSession))
-	mux.Handle("GET /api/v1/articles", http.HandlerFunc(h.listArticles))
-	mux.Handle("POST /api/v1/articles", http.HandlerFunc(h.createArticle))
-	mux.Handle("GET /api/v1/articles/{id}", http.HandlerFunc(h.getArticle))
-	mux.Handle("PUT /api/v1/articles/{id}", http.HandlerFunc(h.updateArticle))
-	mux.Handle("POST /api/v1/articles/{id}/publish", http.HandlerFunc(h.publishArticle))
-	mux.Handle("POST /api/v1/articles/{id}/withdraw", http.HandlerFunc(h.withdrawArticle))
+	routes := http.NewServeMux()
+	routes.Handle("GET /api/v1/session", http.HandlerFunc(h.getSession))
+	routes.Handle("POST /api/v1/session", http.HandlerFunc(h.createSession))
+	routes.Handle("DELETE /api/v1/session", http.HandlerFunc(h.deleteSession))
+	routes.Handle("POST /api/v1/session/reauth", http.HandlerFunc(h.reauthenticateSession))
+	routes.Handle("GET /api/v1/articles", http.HandlerFunc(h.listArticles))
+	routes.Handle("POST /api/v1/articles", http.HandlerFunc(h.createArticle))
+	routes.Handle("GET /api/v1/articles/{id}", http.HandlerFunc(h.getArticle))
+	routes.Handle("PUT /api/v1/articles/{id}", http.HandlerFunc(h.updateArticle))
+	routes.Handle("POST /api/v1/articles/{id}/publish", http.HandlerFunc(h.publishArticle))
+	routes.Handle("POST /api/v1/articles/{id}/withdraw", http.HandlerFunc(h.withdrawArticle))
 	if h.projects != nil {
-		mux.Handle("GET /api/v1/projects", http.HandlerFunc(h.listProjects))
-		mux.Handle("POST /api/v1/projects", http.HandlerFunc(h.createProject))
-		mux.Handle("GET /api/v1/projects/{id}", http.HandlerFunc(h.getProject))
-		mux.Handle("PUT /api/v1/projects/{id}", http.HandlerFunc(h.updateProject))
-		mux.Handle("POST /api/v1/projects/{id}/publish", http.HandlerFunc(h.publishProject))
-		mux.Handle("POST /api/v1/projects/{id}/hide", http.HandlerFunc(h.hideProject))
-		mux.Handle("PUT /api/v1/projects/order", http.HandlerFunc(h.reorderProjects))
+		routes.Handle("GET /api/v1/projects", http.HandlerFunc(h.listProjects))
+		routes.Handle("POST /api/v1/projects", http.HandlerFunc(h.createProject))
+		routes.Handle("GET /api/v1/projects/{id}", http.HandlerFunc(h.getProject))
+		routes.Handle("PUT /api/v1/projects/{id}", http.HandlerFunc(h.updateProject))
+		routes.Handle("POST /api/v1/projects/{id}/publish", http.HandlerFunc(h.publishProject))
+		routes.Handle("POST /api/v1/projects/{id}/hide", http.HandlerFunc(h.hideProject))
+		routes.Handle("PUT /api/v1/projects/order", http.HandlerFunc(h.reorderProjects))
 	}
 	if h.media != nil {
-		mux.Handle("POST /api/v1/media", http.HandlerFunc(h.uploadMedia))
-		mux.Handle("GET /api/v1/media/{id}", http.HandlerFunc(h.getMedia))
+		routes.Handle("POST /api/v1/media", http.HandlerFunc(h.uploadMedia))
+		routes.Handle("GET /api/v1/media/{id}", http.HandlerFunc(h.getMedia))
 	}
+	mux.Handle("/api/v1", noStoreHandler(http.NotFoundHandler()))
+	mux.Handle("/api/v1/", noStoreHandler(routes))
 }
 
 // ServeHTTP makes Handler directly usable as an http.Handler in tests and
 // small integrations. Applications should normally call RegisterRoutes.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w = noStoreResponseWriter{ResponseWriter: w}
 	if h == nil || h.routes == nil {
 		h.problem(w, http.StatusServiceUnavailable, "dependency_unavailable", nil)
 		return
 	}
 	h.routes.ServeHTTP(w, r)
+}
+
+func noStoreHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(noStoreResponseWriter{ResponseWriter: w}, r)
+	})
+}
+
+type noStoreResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (writer noStoreResponseWriter) WriteHeader(status int) {
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.ResponseWriter.WriteHeader(status)
+}
+
+func (writer noStoreResponseWriter) Write(body []byte) (int, error) {
+	writer.Header().Set("Cache-Control", "no-store")
+	return writer.ResponseWriter.Write(body)
+}
+
+func (writer noStoreResponseWriter) Unwrap() http.ResponseWriter {
+	return writer.ResponseWriter
 }
 
 type loginRequest struct {
@@ -290,8 +335,8 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := limiterKey(r.RemoteAddr, strings.TrimSpace(*request.Username))
-	if retryAfter, blocked := h.limiter.blocked(key); blocked {
+	accountKey, ipKey := loginLimiterKeys(h.clientIP(r), *request.Username)
+	if retryAfter, blocked := h.limiter.allow(accountKey, ipKey); blocked {
 		w.Header().Set("Retry-After", strconv.FormatInt(retryAfter, 10))
 		h.problem(w, http.StatusTooManyRequests, "rate_limited", map[string][]string{"login": {"too many failed login attempts"}})
 		return
@@ -299,7 +344,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 	result, err := h.auth.Login(r.Context(), *request.Username, *request.Password)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			if retryAfter, blocked := h.limiter.failure(key); blocked {
+			if retryAfter, blocked := h.limiter.failure(accountKey, ipKey); blocked {
 				w.Header().Set("Retry-After", strconv.FormatInt(retryAfter, 10))
 				h.problem(w, http.StatusTooManyRequests, "rate_limited", map[string][]string{"login": {"too many failed login attempts"}})
 				return
@@ -307,6 +352,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 			h.problem(w, http.StatusUnauthorized, "authentication_required", nil)
 			return
 		}
+		h.limiter.cancel(accountKey, ipKey)
 		if errors.Is(err, auth.ErrStore) {
 			h.problem(w, http.StatusServiceUnavailable, "dependency_unavailable", nil)
 			return
@@ -314,7 +360,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 		h.problem(w, http.StatusServiceUnavailable, "dependency_unavailable", nil)
 		return
 	}
-	h.limiter.success(key)
+	h.limiter.success(accountKey, ipKey)
 	h.setSessionCookie(w, result)
 	h.writeJSON(w, http.StatusOK, loginSessionResponse(result))
 }
@@ -366,18 +412,32 @@ func (h *Handler) reauthenticateSession(w http.ResponseWriter, r *http.Request) 
 		h.problem(w, http.StatusBadRequest, "invalid_request", map[string][]string{"password": {"password is required"}})
 		return
 	}
+	accountKey, ipKey := loginLimiterKeys(h.clientIP(r), session.Username)
+	if retryAfter, blocked := h.limiter.allow(accountKey, ipKey); blocked {
+		w.Header().Set("Retry-After", strconv.FormatInt(retryAfter, 10))
+		h.problem(w, http.StatusTooManyRequests, "rate_limited", map[string][]string{"login": {"too many failed login attempts"}})
+		return
+	}
 	result, err := h.auth.Reauthenticate(r.Context(), session, *request.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInvalidCredentials):
+			if retryAfter, blocked := h.limiter.failure(accountKey, ipKey); blocked {
+				w.Header().Set("Retry-After", strconv.FormatInt(retryAfter, 10))
+				h.problem(w, http.StatusTooManyRequests, "rate_limited", map[string][]string{"login": {"too many failed login attempts"}})
+				return
+			}
 			h.problem(w, http.StatusUnauthorized, "authentication_required", nil)
 		case errors.Is(err, auth.ErrInvalidSession), errors.Is(err, auth.ErrSessionRevoked):
+			h.limiter.cancel(accountKey, ipKey)
 			h.problem(w, http.StatusUnauthorized, "authentication_required", nil)
 		default:
+			h.limiter.cancel(accountKey, ipKey)
 			h.problem(w, http.StatusServiceUnavailable, "dependency_unavailable", nil)
 		}
 		return
 	}
+	h.limiter.success(accountKey, ipKey)
 	h.setSessionCookie(w, result)
 	h.writeJSON(w, http.StatusOK, loginSessionResponse(result))
 }
@@ -938,12 +998,23 @@ func isMaxBytesError(err error) bool {
 	return errors.As(err, &maxBytesError)
 }
 
-// loginLimiter counts only failed credential checks. Its key deliberately
-// uses RemoteAddr's host and never trusts forwarding headers.
+// loginLimiter counts failed credential checks by account and client IP.
 type loginLimiter struct {
 	mu      sync.Mutex
-	entries map[string]failureEntry
+	entries map[loginLimitKey]failureEntry
 	now     func() time.Time
+}
+
+type loginBucketKind uint8
+
+const (
+	loginAccountBucket loginBucketKind = iota + 1
+	loginIPBucket
+)
+
+type loginLimitKey struct {
+	kind  loginBucketKind
+	value string
 }
 
 type failureEntry struct {
@@ -952,47 +1023,149 @@ type failureEntry struct {
 }
 
 func newLoginLimiter(now func() time.Time) *loginLimiter {
-	return &loginLimiter{entries: make(map[string]failureEntry), now: now}
+	return &loginLimiter{entries: make(map[loginLimitKey]failureEntry), now: now}
 }
 
-func (limiter *loginLimiter) blocked(key string) (int64, bool) {
-	limiter.mu.Lock()
-	defer limiter.mu.Unlock()
-	entry, ok := limiter.entries[key]
-	if !ok {
-		return 0, false
-	}
-	now := limiter.now().UTC()
-	if !now.Before(entry.started.Add(loginFailureWindow)) {
-		delete(limiter.entries, key)
-		return 0, false
-	}
-	if entry.count < loginFailureLimit {
-		return 0, false
-	}
-	return retryAfterSeconds(entry.started.Add(loginFailureWindow), now), true
-}
-
-func (limiter *loginLimiter) failure(key string) (int64, bool) {
+func (limiter *loginLimiter) allow(accountKey, ipKey loginLimitKey) (int64, bool) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
 	now := limiter.now().UTC()
-	entry, ok := limiter.entries[key]
-	if !ok || !now.Before(entry.started.Add(loginFailureWindow)) {
-		entry = failureEntry{started: now}
+	limiter.pruneExpiredLocked(now)
+	keys := [...]loginLimitKey{accountKey, ipKey}
+	missing := 0
+	var retryAfter int64
+	for _, key := range keys {
+		entry, ok := limiter.entries[key]
+		if !ok {
+			missing++
+			continue
+		}
+		if entry.count >= key.limit() {
+			retryAfter = max(retryAfter, retryAfterSeconds(entry.started.Add(loginFailureWindow), now))
+		}
 	}
-	entry.count++
-	limiter.entries[key] = entry
-	if entry.count < loginFailureLimit+1 {
-		return 0, false
+	if retryAfter > 0 {
+		return retryAfter, true
 	}
-	return retryAfterSeconds(entry.started.Add(loginFailureWindow), now), true
+	if len(limiter.entries)+missing > loginLimiterMaxEntries {
+		return limiter.capacityRetryAfterLocked(now, len(limiter.entries)+missing-loginLimiterMaxEntries), true
+	}
+	for _, key := range keys {
+		if _, ok := limiter.entries[key]; !ok {
+			limiter.entries[key] = failureEntry{started: now}
+		}
+	}
+	return 0, false
 }
 
-func (limiter *loginLimiter) success(key string) {
+func (limiter *loginLimiter) failure(accountKey, ipKey loginLimitKey) (int64, bool) {
 	limiter.mu.Lock()
-	delete(limiter.entries, key)
+	defer limiter.mu.Unlock()
+	now := limiter.now().UTC()
+	limiter.pruneExpiredLocked(now)
+	keys := [...]loginLimitKey{accountKey, ipKey}
+	missing := 0
+	for _, key := range keys {
+		if _, ok := limiter.entries[key]; !ok {
+			missing++
+		}
+	}
+	if len(limiter.entries)+missing > loginLimiterMaxEntries {
+		return limiter.capacityRetryAfterLocked(now, len(limiter.entries)+missing-loginLimiterMaxEntries), true
+	}
+	var retryAfter int64
+	for _, key := range keys {
+		entry, ok := limiter.entries[key]
+		if !ok || entry.count == 0 || !now.Before(entry.started.Add(loginFailureWindow)) {
+			entry = failureEntry{started: now}
+		}
+		entry.count++
+		limiter.entries[key] = entry
+		if entry.count > key.limit() {
+			retryAfter = max(retryAfter, retryAfterSeconds(entry.started.Add(loginFailureWindow), now))
+		}
+	}
+	return retryAfter, retryAfter > 0
+}
+
+func (limiter *loginLimiter) success(accountKey, ipKey loginLimitKey) {
+	limiter.mu.Lock()
+	delete(limiter.entries, accountKey)
+	if entry, ok := limiter.entries[ipKey]; ok && entry.count == 0 {
+		delete(limiter.entries, ipKey)
+	}
 	limiter.mu.Unlock()
+}
+
+func (limiter *loginLimiter) cancel(accountKey, ipKey loginLimitKey) {
+	limiter.mu.Lock()
+	for _, key := range [...]loginLimitKey{accountKey, ipKey} {
+		if entry, ok := limiter.entries[key]; ok && entry.count == 0 {
+			delete(limiter.entries, key)
+		}
+	}
+	limiter.mu.Unlock()
+}
+
+func (limiter *loginLimiter) pruneExpiredLocked(now time.Time) {
+	for key, entry := range limiter.entries {
+		if !now.Before(entry.started.Add(loginFailureWindow)) {
+			delete(limiter.entries, key)
+		}
+	}
+}
+
+func (limiter *loginLimiter) capacityRetryAfterLocked(now time.Time, slots int) int64 {
+	deadlines := make([]time.Time, 0, len(limiter.entries))
+	for _, entry := range limiter.entries {
+		deadlines = append(deadlines, entry.started.Add(loginFailureWindow))
+	}
+	sort.Slice(deadlines, func(i, j int) bool { return deadlines[i].Before(deadlines[j]) })
+	if slots < 1 {
+		slots = 1
+	}
+	if slots > len(deadlines) {
+		return 1
+	}
+	return retryAfterSeconds(deadlines[slots-1], now)
+}
+
+func (key loginLimitKey) limit() int {
+	if key.kind == loginIPBucket {
+		return loginIPFailureLimit
+	}
+	return loginFailureLimit
+}
+
+func loginLimiterKeys(clientIP, username string) (loginLimitKey, loginLimitKey) {
+	return loginLimitKey{kind: loginAccountBucket, value: strings.ToLower(strings.TrimSpace(username))},
+		loginLimitKey{kind: loginIPBucket, value: clientIP}
+}
+
+func (h *Handler) clientIP(r *http.Request) string {
+	remoteIP := parseRemoteIP(r.RemoteAddr)
+	if remoteIP != nil {
+		for _, network := range h.trustedProxyCIDRs {
+			if network.Contains(remoteIP) {
+				values := r.Header.Values("X-Real-IP")
+				if len(values) == 1 && values[0] == strings.TrimSpace(values[0]) {
+					if forwardedIP := net.ParseIP(values[0]); forwardedIP != nil {
+						return forwardedIP.String()
+					}
+				}
+				break
+			}
+		}
+		return remoteIP.String()
+	}
+	return "unknown"
+}
+
+func parseRemoteIP(remoteAddr string) net.IP {
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return net.ParseIP(host)
+	}
+	return net.ParseIP(remoteAddr)
 }
 
 func retryAfterSeconds(deadline, now time.Time) int64 {
@@ -1001,14 +1174,4 @@ func retryAfterSeconds(deadline, now time.Time) int64 {
 		return 1
 	}
 	return int64(math.Ceil(seconds))
-}
-
-func limiterKey(remoteAddr, username string) string {
-	host := remoteAddr
-	if parsedHost, _, err := net.SplitHostPort(remoteAddr); err == nil {
-		host = parsedHost
-	} else if parsedIP := net.ParseIP(remoteAddr); parsedIP != nil {
-		host = parsedIP.String()
-	}
-	return host + "\x00" + strings.ToLower(strings.TrimSpace(username))
 }

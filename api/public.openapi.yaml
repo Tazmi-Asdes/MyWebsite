@@ -1,0 +1,436 @@
+openapi: 3.1.0
+info:
+  title: Tazmi public API
+  version: 1.0.0
+  description: Read-only public page projections for the Astro local pilot.
+servers:
+  - url: /
+paths:
+  /api/public/v1/home:
+    get:
+      operationId: getPublicHome
+      summary: Read the public homepage projection
+      responses:
+        '200':
+          description: Current homepage data. The handler emits no-store; the application middleware may replace it for a successful anonymous GET with public, max-age=0, must-revalidate and add an ETag.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Handler no-store value or middleware revalidation value for successful GET requests.
+            ETag:
+              schema:
+                type: string
+              description: Added by the application cache middleware.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeResponse'
+        '405':
+          description: Method is not supported.
+          headers:
+            Allow:
+              schema:
+                type: string
+                const: GET, HEAD
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: A public content dependency is unavailable.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    head:
+      operationId: headPublicHome
+      summary: Read homepage response metadata
+      responses:
+        '200':
+          description: Same status as GET with no response body. HEAD bypasses the application cache middleware and retains the handler no-store header.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '503':
+          description: A public content dependency is unavailable.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+  /api/public/v1/articles:
+    get:
+      operationId: getPublicArticles
+      summary: List published articles
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Strict positive decimal page number. Invalid values and pages beyond the published range return 404.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: One page of published article projections.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Handler no-store value or middleware revalidation value for successful GET requests.
+            ETag:
+              schema:
+                type: string
+              description: Added by the application cache middleware.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleListResponse'
+        '404':
+          $ref: '#/components/responses/PublicNotFound'
+        '503':
+          $ref: '#/components/responses/PublicUnavailable'
+  /api/public/v1/articles/{ulid}:
+    get:
+      operationId: getPublicArticle
+      summary: Read a published article
+      parameters:
+        - name: ulid
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-7][0-9A-HJKMNP-TV-Z]{25}$'
+      responses:
+        '200':
+          description: Published article metadata, existing rendered HTML, and table of contents.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Handler no-store value or middleware revalidation value for successful GET requests.
+            ETag:
+              schema:
+                type: string
+              description: Added by the application cache middleware.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleDetailResponse'
+        '404':
+          $ref: '#/components/responses/PublicNotFound'
+        '503':
+          $ref: '#/components/responses/PublicUnavailable'
+  /api/public/v1/projects:
+    get:
+      operationId: getPublicProjects
+      summary: List public projects in display order
+      responses:
+        '200':
+          description: All public projects in the existing public ordering.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Handler no-store value or middleware revalidation value for successful GET requests.
+            ETag:
+              schema:
+                type: string
+              description: Added by the application cache middleware.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+        '503':
+          $ref: '#/components/responses/PublicUnavailable'
+  /api/public/v1/about:
+    get:
+      operationId: getPublicAbout
+      summary: Read public profile and contact details
+      responses:
+        '200':
+          description: Public profile, published content counts, interests, and existing public contact links.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Handler no-store value or middleware revalidation value for successful GET requests.
+            ETag:
+              schema:
+                type: string
+              description: Added by the application cache middleware.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AboutResponse'
+        '503':
+          $ref: '#/components/responses/PublicUnavailable'
+components:
+  responses:
+    PublicNotFound:
+      description: The requested public resource or page was not found.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PublicUnavailable:
+      description: A public content dependency is unavailable.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HomeResponse:
+      type: object
+      additionalProperties: false
+      required: [site, profile, year, articles, projects]
+      properties:
+        site:
+          $ref: '#/components/schemas/Site'
+        profile:
+          $ref: '#/components/schemas/Profile'
+        year:
+          type: integer
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+    Site:
+      type: object
+      additionalProperties: false
+      required: [name, description, eyebrow]
+      properties:
+        name:
+          type: string
+          const: Tazmi-Website
+        description:
+          type: string
+          const: Welcome here
+        eyebrow:
+          type: string
+          const: PERSONAL SITE
+    Profile:
+      type: object
+      additionalProperties: false
+      required: [name, avatar_url, tagline]
+      properties:
+        name:
+          type: string
+          const: Tazmi
+        avatar_url:
+          type: string
+          const: /assets/tazmi-avatar.jpg
+        tagline:
+          type: string
+          const: Kubernetes/CICD/Observability
+    Article:
+      type: object
+      additionalProperties: false
+      required: [title, preview, published, date_time, url]
+      properties:
+        title:
+          type: string
+        preview:
+          type: string
+        published:
+          type: string
+        date_time:
+          type: string
+        url:
+          type: string
+    Project:
+      type: object
+      additionalProperties: false
+      required: [name, image_url, image_alt, github_url, url, external]
+      properties:
+        name:
+          type: string
+        image_url:
+          type: string
+        image_alt:
+          type: string
+        github_url:
+          type: string
+        url:
+          type: string
+        external:
+          type: boolean
+    Page:
+      type: object
+      additionalProperties: false
+      required: [title, description, heading, eyebrow]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        heading:
+          type: string
+        eyebrow:
+          type: string
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [page, total_pages, previous_page, next_page, has_previous, has_next]
+      properties:
+        page:
+          type: integer
+        total_pages:
+          type: integer
+        previous_page:
+          type: integer
+        next_page:
+          type: integer
+        has_previous:
+          type: boolean
+        has_next:
+          type: boolean
+    ArticleListResponse:
+      type: object
+      additionalProperties: false
+      required: [site, year, page, articles, pagination]
+      properties:
+        site:
+          $ref: '#/components/schemas/Site'
+        year:
+          type: integer
+        page:
+          $ref: '#/components/schemas/Page'
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    TOCItem:
+      type: object
+      additionalProperties: false
+      required: [id, text, level]
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        level:
+          type: integer
+    ArticleDetail:
+      type: object
+      additionalProperties: false
+      required: [title, url, preview, published, date_time, body_html, toc]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        preview:
+          type: string
+        published:
+          type: string
+        date_time:
+          type: string
+        body_html:
+          type: string
+        toc:
+          type: array
+          items:
+            $ref: '#/components/schemas/TOCItem'
+    ArticleDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [site, year, page, article]
+      properties:
+        site:
+          $ref: '#/components/schemas/Site'
+        year:
+          type: integer
+        page:
+          $ref: '#/components/schemas/Page'
+        article:
+          $ref: '#/components/schemas/ArticleDetail'
+    ProjectListResponse:
+      type: object
+      additionalProperties: false
+      required: [site, year, page, projects]
+      properties:
+        site:
+          $ref: '#/components/schemas/Site'
+        year:
+          type: integer
+        page:
+          $ref: '#/components/schemas/Page'
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+    Contact:
+      type: object
+      additionalProperties: false
+      required: [label, href, external]
+      properties:
+        label:
+          type: string
+        href:
+          type: string
+        external:
+          type: boolean
+    AboutResponse:
+      type: object
+      additionalProperties: false
+      required: [site, year, page, profile, article_count, project_count, interests, contacts]
+      properties:
+        site:
+          $ref: '#/components/schemas/Site'
+        year:
+          type: integer
+        page:
+          $ref: '#/components/schemas/Page'
+        profile:
+          $ref: '#/components/schemas/Profile'
+        article_count:
+          type: integer
+        project_count:
+          type: integer
+        interests:
+          type: array
+          items:
+            type: string
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [not_found, service_unavailable, method_not_allowed]
+        message:
+          type: string

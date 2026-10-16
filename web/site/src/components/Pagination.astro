@@ -1,0 +1,17 @@
+---
+import type { ArticlePagination } from "../lib/public-data";
+
+interface Props {
+  pagination: ArticlePagination;
+}
+
+const { pagination } = Astro.props;
+---
+
+{pagination.total_pages > 1 && (
+  <nav class="pagination" aria-label="文章分页">
+    {pagination.has_previous && <a href={`/articles?page=${pagination.previous_page}`} aria-label="上一页">上一页</a>}
+    <span aria-current="page">第 {pagination.page} / {pagination.total_pages} 页</span>
+    {pagination.has_next && <a href={`/articles?page=${pagination.next_page}`} aria-label="下一页">下一页</a>}
+  </nav>
+)}

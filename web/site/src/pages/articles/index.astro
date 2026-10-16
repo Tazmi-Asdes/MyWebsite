@@ -1,0 +1,64 @@
+---
+import ArticleListItem from "../../components/ArticleListItem.astro";
+import BaseLayout from "../../components/BaseLayout.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import PageError from "../../components/PageError.astro";
+import PageHeading from "../../components/PageHeading.astro";
+import Pagination from "../../components/Pagination.astro";
+import { fetchPublicData, parseArticleListPage, PublicApiError } from "../../lib/public-data";
+
+export const prerender = false;
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const search = Astro.url.search.startsWith("?") ? Astro.url.search.slice(1) : Astro.url.search;
+const queryEntries = [...Astro.url.searchParams.entries()];
+const queryKeys = new Set(queryEntries.map(([key]) => key));
+const queryShapeValid = !/%(?![\da-f]{2})/i.test(search) && (
+  queryEntries.length === 0 ||
+  (queryEntries.length === 1 && queryKeys.size === 1 && queryKeys.has("page"))
+);
+const rawPage = queryEntries.length === 0 ? "1" : Astro.url.searchParams.get("page") ?? "";
+const pageNumber = queryShapeValid && /^[1-9]\d*$/.test(rawPage) ? Number(rawPage) : NaN;
+let data = null;
+let error: PublicApiError | null = null;
+
+if (!Number.isSafeInteger(pageNumber) || pageNumber > 2_147_483_647) {
+  error = new PublicApiError(404, "page_not_found", "请求的文章页不存在。");
+} else {
+  try {
+    data = await fetchPublicData(`/api/public/v1/articles?page=${pageNumber}`, parseArticleListPage);
+  } catch (caught) {
+    error = caught instanceof PublicApiError
+      ? caught
+      : new PublicApiError(503, "public_api_unavailable", "公开内容服务暂时无法读取，请稍后重试。");
+  }
+}
+
+if (error) Astro.response.status = error.status;
+---
+
+{data ? (
+  <BaseLayout title={data.page.title} description={data.page.description} year={data.year}>
+    <main id="main-content">
+      <PageHeading eyebrow={data.page.eyebrow} heading={data.page.heading} description={data.page.description} />
+      <section class="content-section" aria-label="文章列表">
+        <div class="container">
+          {data.articles.length > 0 ? (
+            <div class="article-list">
+              {data.articles.map((article) => <ArticleListItem article={article} />)}
+            </div>
+          ) : (
+            <EmptyState heading="暂时没有公开文章" message="文章发布后会出现在这里。" />
+          )}
+          <Pagination pagination={data.pagination} />
+        </div>
+      </section>
+    </main>
+  </BaseLayout>
+) : (
+  <BaseLayout title={error?.status === 404 ? "文章页不存在 — Tazmi-Website" : "文章暂时不可用 — Tazmi-Website"} description={error?.message ?? "公开内容服务暂时不可用。"}>
+    <main id="main-content" class="unavailable-page">
+      <div class="container"><PageError status={error?.status ?? 503} title={error?.status === 404 ? "文章页不存在" : "文章暂时不可用"} message={error?.message ?? "公开内容服务暂时无法读取，请稍后重试。"} /></div>
+    </main>
+  </BaseLayout>
+)}

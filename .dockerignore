@@ -19,6 +19,9 @@ release.env
 *.tmp
 web/admin/node_modules/
 web/admin/dist/
+web/site/node_modules/
+web/site/dist/
+web/site/.astro/
 *.sqlite
 *.sqlite3
 mywebsite-handoff*.md

@@ -59,6 +59,36 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget --spider --quiet http://127.0.0.1:8080/-/live || exit 1
 ENTRYPOINT ["/usr/local/bin/server"]
 
+FROM node:${NODE_VERSION}-alpine AS site-build
+
+WORKDIR /src/web/site
+ARG NPM_CONFIG_REGISTRY
+ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
+
+COPY web/site/package.json web/site/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+
+COPY web/site/ ./
+RUN npm run check && npm run build
+
+FROM node:${NODE_VERSION}-alpine AS site-runtime
+
+WORKDIR /app
+ARG NPM_CONFIG_REGISTRY
+ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY} \
+    NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=4321
+
+COPY web/site/package.json web/site/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+COPY --from=site-build /src/web/site/dist ./dist
+
+EXPOSE 4321
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:4321/-/ready',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+CMD ["npm", "start"]
+
 FROM nginx:1.29-alpine AS admin-web
 
 COPY deploy/admin-web/nginx.conf /etc/nginx/conf.d/default.conf

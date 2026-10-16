@@ -1,0 +1,26 @@
+---
+import type { ArticleTocItem } from "../lib/public-data";
+
+interface Props {
+  items: ArticleTocItem[];
+}
+
+const { items } = Astro.props;
+---
+
+{items.length > 0 && (
+  <>
+    <details class="toc-mobile">
+      <summary>目录</summary>
+      <ol>
+        {items.map((item) => <li class={`toc-level-${item.level}`}><a href={`#${item.id}`}>{item.text}</a></li>)}
+      </ol>
+    </details>
+    <nav class="toc" aria-label="文章目录">
+      <h2>目录</h2>
+      <ol>
+        {items.map((item) => <li class={`toc-level-${item.level}`}><a href={`#${item.id}`}>{item.text}</a></li>)}
+      </ol>
+    </nav>
+  </>
+)}

@@ -133,6 +133,14 @@ func NewHandlerWithArticles(files fs.FS, clock platform.Clock, reader ArticleRea
 // RegisterRoutes registers the public GET routes on a Go 1.22+ ServeMux.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /media/{id}", http.HandlerFunc(h.media))
+	mux.Handle("GET /api/public/v1/home", http.HandlerFunc(h.homeAPI))
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		mux.Handle(method+" /api/public/v1/home", http.HandlerFunc(h.homeAPIMethodNotAllowed))
+	}
+	mux.Handle("GET /api/public/v1/articles", http.HandlerFunc(h.publicArticlesAPI))
+	mux.Handle("GET /api/public/v1/articles/{ulid}", http.HandlerFunc(h.publicArticleDetailAPI))
+	mux.Handle("GET /api/public/v1/projects", http.HandlerFunc(h.publicProjectsAPI))
+	mux.Handle("GET /api/public/v1/about", http.HandlerFunc(h.publicAboutAPI))
 	mux.Handle("GET /", http.HandlerFunc(h.homeOrNotFound))
 	mux.Handle("GET /articles", http.HandlerFunc(h.articles))
 	mux.Handle("GET /articles/{ulid}", http.HandlerFunc(h.articleDetail))

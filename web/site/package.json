@@ -1,0 +1,32 @@
+{
+  "name": "mywebsite-public-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.16.0",
+    "npm": ">=11.13.0"
+  },
+  "packageManager": "npm@11.13.0",
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "check": "astro check",
+    "build": "astro build",
+    "test": "node --experimental-strip-types --test src/lib/html-cache.test.ts",
+    "start": "node ./dist/server/entry.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "11.1.8",
+    "@astrojs/react": "7.1.0",
+    "astro": "7.4.0",
+    "motion": "14.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "6.0.3"
+  }
+}

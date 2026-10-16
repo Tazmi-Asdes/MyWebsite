@@ -1,0 +1,21 @@
+---
+interface Props {
+  status: 404 | 503;
+  title: string;
+  message: string;
+}
+
+const { status, title, message } = Astro.props;
+---
+
+<section class="status-page" aria-labelledby="status-heading">
+  <div class="status-card">
+    <p class="eyebrow">{status === 404 ? "404" : "PUBLIC CONTENT"}</p>
+    <h1 id="status-heading">{title}</h1>
+    <p>{message}</p>
+    <div class="button-row">
+      <a class="button button--primary" href="/">返回首页</a>
+      <a class="button button--secondary" href="/articles">浏览文章</a>
+    </div>
+  </div>
+</section>

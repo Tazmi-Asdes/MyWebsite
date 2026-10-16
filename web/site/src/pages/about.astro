@@ -1,0 +1,67 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import PageError from "../components/PageError.astro";
+import PageHeading from "../components/PageHeading.astro";
+import { contactDestination } from "../lib/links";
+import { fetchPublicData, parseAboutPage, PublicApiError } from "../lib/public-data";
+
+export const prerender = false;
+Astro.response.headers.set("Cache-Control", "no-store");
+
+let data = null;
+let error: PublicApiError | null = null;
+try {
+  data = await fetchPublicData("/api/public/v1/about", parseAboutPage);
+} catch (caught) {
+  error = caught instanceof PublicApiError
+    ? caught
+    : new PublicApiError(503, "public_api_unavailable", "公开内容服务暂时无法读取，请稍后重试。");
+}
+
+if (error) Astro.response.status = error.status;
+---
+
+{data ? (
+  <BaseLayout title={data.page.title} description={data.page.description} year={data.year}>
+    <main id="main-content">
+      <PageHeading eyebrow={data.page.eyebrow} heading={data.page.heading} description={data.page.description} />
+      <section class="content-section about-page">
+        <div class="container about-page__grid">
+          <section class="glass-panel about-profile" aria-labelledby="about-profile-heading">
+            <img class="avatar" src={data.profile.avatar_url} alt={`${data.profile.name}的头像`} width="112" height="112" />
+            <div>
+              <p class="eyebrow">ABOUT ME</p>
+              <h2 id="about-profile-heading">{data.profile.name}</h2>
+              <p>{data.profile.tagline}</p>
+            </div>
+          </section>
+          <section class="glass-panel about-counts" aria-label="公开内容统计">
+            <div><span>文章</span><strong>{data.article_count}</strong></div>
+            <div><span>项目</span><strong>{data.project_count}</strong></div>
+          </section>
+          <section class="glass-panel about-interests" aria-labelledby="about-interests-heading">
+            <h2 id="about-interests-heading">兴趣与近况</h2>
+            <ul>{data.interests.map((interest) => <li>{interest}</li>)}</ul>
+          </section>
+          {data.contacts.length > 0 && (
+            <nav class="glass-panel about-contacts" aria-label="联系方式">
+              <h2>联系方式</h2>
+              <ul>
+                {data.contacts.map((contact) => {
+                  const destination = contactDestination(contact);
+                  return <li><a class="text-link" href={destination.href} target={destination.external ? "_blank" : undefined} rel={destination.external ? "noopener noreferrer" : undefined}>{contact.label}{destination.external && <span aria-hidden="true"> ↗</span>}</a></li>;
+                })}
+              </ul>
+            </nav>
+          )}
+        </div>
+      </section>
+    </main>
+  </BaseLayout>
+) : (
+  <BaseLayout title={error?.status === 404 ? "关于页不存在 — Tazmi-Website" : "关于页暂时不可用 — Tazmi-Website"} description={error?.message ?? "公开内容服务暂时不可用。"}>
+    <main id="main-content" class="unavailable-page">
+      <div class="container"><PageError status={error?.status ?? 503} title={error?.status === 404 ? "关于页不存在" : "关于页暂时不可用"} message={error?.message ?? "公开内容服务暂时无法读取，请稍后重试。"} /></div>
+    </main>
+  </BaseLayout>
+)}

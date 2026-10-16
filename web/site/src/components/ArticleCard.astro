@@ -1,0 +1,12 @@
+---
+import type { HomeArticle } from "../lib/home-data";
+import GlassSurface from "./react/GlassSurface";
+
+interface Props {
+  article: HomeArticle;
+}
+
+const { article } = Astro.props;
+---
+
+<GlassSurface kind="article" article={article} client:visible />
