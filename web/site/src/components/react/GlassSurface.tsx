@@ -25,6 +25,7 @@ export default function GlassSurface(props: GlassSurfaceProps) {
       <MotionStyle>
         <m.article
           className="glass-surface card-surface article-card"
+          tabIndex={-1}
           whileHover={{ y: -3, scale: 1.006 }}
           whileTap={{ scale: 0.99 }}
           transition={{ type: "spring", stiffness: 360, damping: 30, mass: 0.72 }}
@@ -50,6 +51,7 @@ export default function GlassSurface(props: GlassSurfaceProps) {
     <MotionStyle>
       <m.article
         className="glass-surface card-surface project-card"
+        tabIndex={-1}
         whileHover={{ y: -3, scale: 1.006 }}
         whileTap={{ scale: 0.99 }}
         transition={{ type: "spring", stiffness: 360, damping: 30, mass: 0.72 }}

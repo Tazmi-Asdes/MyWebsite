@@ -31,69 +31,188 @@ const active: "home" | "articles" | "projects" | "about" = Astro.url.pathname ==
     <title>{title}</title>
     <script is:inline>
       (() => {
+        const setInputModality = (event) => {
+          if (event.type === "pointerdown") {
+            document.documentElement.dataset.inputModality = "pointer";
+            return;
+          }
+
+          if (
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            ["Shift", "Control", "Alt", "Meta", "AltGraph"].includes(event.key)
+          ) return;
+          document.documentElement.dataset.inputModality = "keyboard";
+        };
+        document.addEventListener("pointerdown", setInputModality, { capture: true, passive: true });
+        document.addEventListener("keydown", setInputModality, { capture: true });
+
         const storageKey = "mywebsite-theme";
         const isTheme = (value) => value === "light" || value === "dark";
-        let storedTheme = null;
+        let themeMode = "system";
+        const systemColorScheme = window.matchMedia("(prefers-color-scheme: dark)");
         try {
           const candidate = window.localStorage.getItem(storageKey);
-          if (isTheme(candidate)) storedTheme = candidate;
+          if (isTheme(candidate)) themeMode = candidate;
+          else window.localStorage.removeItem(storageKey);
         } catch (_error) {
           // A blocked storage area must not prevent the page from loading.
         }
-        if (storedTheme) document.documentElement.setAttribute("data-theme", storedTheme);
+        if (themeMode === "system") document.documentElement.removeAttribute("data-theme");
+        else document.documentElement.setAttribute("data-theme", themeMode);
 
         document.addEventListener("DOMContentLoaded", () => {
           const menu = document.querySelector(".site-menu");
           const mobileLayout = window.matchMedia("(max-width: 719px)");
           if (menu instanceof HTMLDetailsElement) {
-            const syncMenu = () => {
-              menu.open = !mobileLayout.matches;
-            };
-            syncMenu();
-            mobileLayout.addEventListener("change", syncMenu);
-            menu.querySelectorAll(".site-nav a").forEach((link) => {
-              link.addEventListener("click", () => {
-                if (mobileLayout.matches) menu.open = false;
+            const summary = menu.querySelector("summary");
+            const nav = menu.querySelector(".site-nav");
+            if (summary instanceof HTMLElement && nav instanceof HTMLElement) {
+              let activeAnimation = null;
+              let targetExpanded = menu.open;
+              let transitionVersion = 0;
+
+              const syncExpandedState = (expanded) => {
+                menu.dataset.menuExpanded = String(expanded);
+                summary.setAttribute("aria-expanded", String(expanded));
+                summary.setAttribute("aria-label", `${expanded ? "收起" : "展开"}主要导航`);
+              };
+              const finishTransition = (expanded, version) => {
+                if (version !== transitionVersion || targetExpanded !== expanded) return;
+                activeAnimation = null;
+                menu.open = expanded;
+                nav.inert = !expanded;
+              };
+              const setMenuExpanded = (expanded) => {
+                if (!mobileLayout.matches) return;
+                if (expanded === targetExpanded) return;
+
+                const wasOpen = menu.open;
+                const currentStyle = wasOpen ? window.getComputedStyle(nav) : null;
+                const fromOpacity = currentStyle?.opacity ?? "0";
+                const fromTransform = currentStyle
+                  ? currentStyle.transform === "none" ? "none" : currentStyle.transform
+                  : "translateY(-6px) scale(0.98)";
+
+                if (activeAnimation) activeAnimation.cancel();
+                activeAnimation = null;
+                const version = ++transitionVersion;
+                targetExpanded = expanded;
+                syncExpandedState(expanded);
+
+                if (expanded) menu.open = true;
+                nav.inert = !expanded;
+
+                if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !nav.animate) {
+                  finishTransition(expanded, version);
+                  return;
+                }
+
+                const animation = nav.animate(
+                  [
+                    { opacity: fromOpacity, transform: fromTransform },
+                    {
+                      opacity: expanded ? "1" : "0",
+                      transform: expanded ? "none" : "translateY(-6px) scale(0.98)",
+                    },
+                  ],
+                  { duration: 280, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+                );
+                activeAnimation = animation;
+                animation.onfinish = () => {
+                  if (version !== transitionVersion || activeAnimation !== animation) return;
+                  finishTransition(expanded, version);
+                };
+              };
+              const syncMenuForLayout = () => {
+                transitionVersion += 1;
+                if (activeAnimation) activeAnimation.cancel();
+                activeAnimation = null;
+                targetExpanded = !mobileLayout.matches;
+                menu.open = targetExpanded;
+                nav.inert = !targetExpanded;
+                syncExpandedState(targetExpanded);
+              };
+
+              syncMenuForLayout();
+              mobileLayout.addEventListener("change", syncMenuForLayout);
+              summary.addEventListener("click", (event) => {
+                if (!mobileLayout.matches) return;
+                event.preventDefault();
+                setMenuExpanded(!targetExpanded);
               });
-            });
-            menu.addEventListener("keydown", (event) => {
-              if (event.key === "Escape" && mobileLayout.matches && menu.open) {
-                menu.open = false;
-                menu.querySelector("summary")?.focus();
-              }
-            });
+              menu.querySelectorAll(".site-nav a").forEach((link) => {
+                link.addEventListener("click", () => {
+                  if (mobileLayout.matches) setMenuExpanded(false);
+                });
+              });
+              document.addEventListener("click", (event) => {
+                if (
+                  mobileLayout.matches &&
+                  targetExpanded &&
+                  event.target instanceof Node &&
+                  !menu.contains(event.target)
+                ) setMenuExpanded(false);
+              });
+              menu.addEventListener("keydown", (event) => {
+                if (event.key === "Escape" && mobileLayout.matches && targetExpanded) {
+                  event.preventDefault();
+                  setMenuExpanded(false);
+                  summary.focus();
+                }
+              });
+            }
           }
 
           const button = document.querySelector("[data-theme-toggle]");
           if (!(button instanceof HTMLButtonElement)) return;
 
-          const currentTheme = () => {
-            const explicitTheme = document.documentElement.getAttribute("data-theme");
-            if (isTheme(explicitTheme)) return explicitTheme;
-            return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          };
+          const currentTheme = () => themeMode === "system"
+            ? systemColorScheme.matches ? "dark" : "light"
+            : themeMode;
           const syncButton = () => {
             const theme = currentTheme();
-            const nextTheme = theme === "dark" ? "light" : "dark";
+            const modeNames = { system: "跟随系统", light: "浅色模式", dark: "深色模式" };
+            const currentMode = themeMode === "system"
+              ? "跟随系统（当前" + (theme === "dark" ? "深色" : "浅色") + "）"
+              : modeNames[themeMode];
+            const nextMode = themeMode === "system"
+              ? "light"
+              : themeMode === "light" ? "dark" : "system";
+            const label = "当前为" + currentMode + "，点击切换到" + modeNames[nextMode];
             button.hidden = false;
             button.dataset.theme = theme;
-            button.setAttribute("aria-pressed", String(theme === "dark"));
-            button.setAttribute(
-              "aria-label",
-              `当前为${theme === "dark" ? "深色" : "浅色"}主题，点击切换到${nextTheme === "dark" ? "深色" : "浅色"}主题`,
-            );
+            button.dataset.themeMode = themeMode;
+            button.setAttribute("aria-label", label);
+            button.title = label;
+          };
+          const setThemeMode = (mode) => {
+            themeMode = mode;
+            if (themeMode === "system") {
+              document.documentElement.removeAttribute("data-theme");
+              try {
+                window.localStorage.removeItem(storageKey);
+              } catch (_error) {
+                // Theme changes remain available when persistent storage is blocked.
+              }
+            } else {
+              document.documentElement.setAttribute("data-theme", themeMode);
+              try {
+                window.localStorage.setItem(storageKey, themeMode);
+              } catch (_error) {
+                // Theme changes remain available when persistent storage is blocked.
+              }
+            }
+            syncButton();
           };
 
           syncButton();
+          systemColorScheme.addEventListener("change", () => {
+            if (themeMode === "system") syncButton();
+          });
           button.addEventListener("click", () => {
-            const nextTheme = currentTheme() === "dark" ? "light" : "dark";
-            document.documentElement.setAttribute("data-theme", nextTheme);
-            try {
-              window.localStorage.setItem(storageKey, nextTheme);
-            } catch (_error) {
-              // Theme changes remain available when persistent storage is blocked.
-            }
-            syncButton();
+            setThemeMode(themeMode === "system" ? "light" : themeMode === "light" ? "dark" : "system");
           });
         }, { once: true });
       })();
