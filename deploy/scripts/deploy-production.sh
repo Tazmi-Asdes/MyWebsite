@@ -12,7 +12,7 @@ MYSQL_NETWORK_NAME=${MYSQL_NETWORK_NAME:-1panel-network}
 APP_PORT=${APP_PORT:-18080}
 ADMIN_WEB_PORT=${ADMIN_WEB_PORT:-18081}
 SITE_WEB_PORT=${SITE_WEB_PORT:-18082}
-PUBLIC_SITE_MODE=${PUBLIC_SITE_MODE:-go}
+PUBLIC_SITE_MODE=${PUBLIC_SITE_MODE:-astro}
 PRODUCTION_URL=${PRODUCTION_URL:-https://tazmi.online}
 ENV_SOURCE="$DEPLOY_ROOT/deploy/env.production"
 ENV_TARGET="${PROJECT_DIR:+$PROJECT_DIR/deploy/env.production}"
@@ -908,7 +908,7 @@ deploy_main() {
     if [[ $CURRENT_EXISTS -eq 1 ]]; then
         compare_candidate_with_current || changed=1
         if [[ $changed -eq 1 ]]; then
-            config_change_is_allowed || die 'db/migrations, production Compose/network/Redis topology, env.production, or deployment settings changed; automatic release is blocked. After a verified backup and compatibility review, start a protected default-branch web pipeline with ALLOW_DEPLOY_CONFIG_CHANGE=true and CONFIG_CHANGE_CONFIRMATION=I_HAVE_BACKUP_AND_CONFIRMED_COMPATIBILITY.' config_change_blocked
+            config_change_is_allowed || die 'db/migrations, production Compose/network/Redis topology, env.production, or deployment settings changed; automatic release is blocked. After a verified backup and compatibility review, start a protected default-branch web pipeline with allow_deploy_config_change=true and config_change_confirmation=I_HAVE_BACKUP_AND_CONFIRMED_COMPATIBILITY inputs.' config_change_blocked
             AUTO_ROLLBACK_ALLOWED=0
             printf 'Configuration-change exception is active. Backup and backward compatibility were confirmed manually; no database migration or backup will run, and automatic image rollback is disabled.\n' >&2
             diagnostic 'config_change=manual_confirmation'

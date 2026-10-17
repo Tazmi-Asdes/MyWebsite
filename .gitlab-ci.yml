@@ -1,3 +1,35 @@
+spec:
+  inputs:
+    pipeline_action:
+      type: string
+      options:
+        - deploy
+        - rollback
+      default: deploy
+      description: "本次流水线执行日常部署或手动回退。"
+    public_site_mode:
+      type: string
+      options:
+        - astro
+        - go
+      default: astro
+      description: "本次公网冒烟检查模式；旧 Go 入口环境请显式选择 go。"
+    pull_base_images:
+      type: boolean
+      default: false
+      description: "仅本次流水线刷新 Docker 基础镜像。"
+    allow_deploy_config_change:
+      type: boolean
+      default: false
+      description: "仅本次允许配置变更；先完成人工备份和兼容性核对。"
+    config_change_confirmation:
+      type: string
+      options:
+        - ""
+        - I_HAVE_BACKUP_AND_CONFIRMED_COMPATIBILITY
+      default: ""
+      description: "配置变更前完成人工备份和兼容性确认后，填写确认短语；仅本次有效。"
+---
 # Only verification jobs use the Docker Runner with the security tag.
 # Image build/push and production actions use the Shell Runner with the server tag.
 
@@ -27,12 +59,6 @@ variables:
   APP_PORT: "18080"
   ADMIN_WEB_PORT: "18081"
   SITE_WEB_PORT: "18082"
-  PUBLIC_SITE_MODE:
-    value: "go"
-    options:
-      - "go"
-      - "astro"
-    description: "Select the public smoke-test expectation. Switch the external OpenResty route to Astro manually before selecting astro."
   GOPROXY: "https://goproxy.cn,direct"
   GOSUMDB: "sum.golang.org"
   NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
@@ -42,27 +68,6 @@ variables:
   PRODUCTION_URL: "https://tazmi.online"
   DOCKER_BUILDKIT: "1"
   BUILDKIT_PROGRESS: "plain"
-  PULL_BASE_IMAGES:
-    value: "false"
-    options:
-      - "false"
-      - "true"
-    description: "Set true in a manual default-branch pipeline to refresh Docker base images."
-  PIPELINE_ACTION:
-    value: "deploy"
-    options:
-      - "deploy"
-      - "rollback"
-    description: "Choose deploy or rollback for a protected default-branch web pipeline."
-  ALLOW_DEPLOY_CONFIG_CHANGE:
-    value: "false"
-    options:
-      - "false"
-      - "true"
-    description: "Set true only after backup and compatibility review for a config change."
-  CONFIG_CHANGE_CONFIRMATION:
-    value: ""
-    description: "For an authorized config change, enter I_HAVE_BACKUP_AND_CONFIRMED_COMPATIBILITY."
 
 .verify_job:
   stage: verify
@@ -76,7 +81,7 @@ variables:
       - runner_system_failure
       - scheduler_failure
   rules:
-    - if: '$PIPELINE_ACTION == "rollback"'
+    - if: '"$[[ inputs.pipeline_action ]]" == "rollback"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
@@ -111,6 +116,9 @@ variables:
     GIT_DEPTH: "0"
   before_script:
     - |
+      export PUBLIC_SITE_MODE='$[[ inputs.public_site_mode ]]'
+      export ALLOW_DEPLOY_CONFIG_CHANGE='$[[ inputs.allow_deploy_config_change ]]'
+      export CONFIG_CHANGE_CONFIRMATION='$[[ inputs.config_change_confirmation ]]'
       set -eu
       test -n "$CI_REGISTRY"
       test -n "$CI_REGISTRY_USER"
@@ -230,11 +238,13 @@ build_images:
       - scheduler_failure
   resource_group: image-build
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && "$[[ inputs.pipeline_action ]]" == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && "$[[ inputs.pipeline_action ]]" == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
     - when: never
   script:
-    - bash deploy/scripts/build-images.sh
+    - |
+      export PULL_BASE_IMAGES='$[[ inputs.pull_base_images ]]'
+      bash deploy/scripts/build-images.sh
   artifacts:
     expire_in: 14 days
     reports:
@@ -253,8 +263,8 @@ deploy_prod:
     - job: build_images
       artifacts: true
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && "$[[ inputs.pipeline_action ]]" == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && "$[[ inputs.pipeline_action ]]" == "deploy" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
     - when: never
   script:
     - bash deploy/scripts/deploy-production.sh deploy
@@ -273,7 +283,7 @@ rollback_prod:
     url: "$PRODUCTION_URL"
   needs: []
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "web" && $PIPELINE_ACTION == "rollback" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && "$[[ inputs.pipeline_action ]]" == "rollback" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
     - when: never
   script:
     - bash deploy/scripts/deploy-production.sh rollback

@@ -343,6 +343,14 @@ assert_state_unchanged() { cmp "$MOCK_FIXTURE/current.before" "$DEPLOY_STATE_DIR
 
 new_fixture
 set_target "$a"
+unset PUBLIC_SITE_MODE
+export MOCK_PUBLIC_SITE_MODE=astro
+run_release success
+grep -Fxq 'public_site_mode=astro' "$DEPLOY_STATE_DIR/current" || fail 'standalone default did not select Astro mode'
+pass 'standalone deployment defaults to Astro when no mode is supplied'
+
+new_fixture
+set_target "$a"
 run_release success
 assert_record current "$a"
 [[ ! -e $DEPLOY_STATE_DIR/previous ]] || fail 'first deployment invented a previous release'
